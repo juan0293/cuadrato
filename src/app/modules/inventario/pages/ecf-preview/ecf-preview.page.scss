@@ -1,0 +1,62 @@
+.ecf-preview-page {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+.shell { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.header p { margin: 4px 0 0; color: #aeb6c8; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; }
+.actions-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-primary { --background: linear-gradient(120deg, #3b82f6, #1d4ed8); --border-radius: 12px; text-transform: none; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px; border-bottom: 1px solid rgba(255,255,255,.08); white-space: nowrap; }
+th { color: #aeb6c8; font-weight: 600; }
+.table-pagination {
+  margin-top: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.page-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9d7ee;
+}
+.page-size ion-select { min-width: 88px; }
+.page-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c9d7ee;
+}
+ul { margin: 0; padding-left: 18px; color: #dbe3f3; }
+
+.mobile-lines { display: none; }
+.line-card {
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,.04);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+.line-card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.line-card p { margin: 0; color: #dbe3f3; }
+.line-grid { display: grid; gap: 4px; color: #cfd8ea; }
+
+@media (max-width: 960px) {
+  .shell { gap: 12px; }
+  .actions-row ion-button { flex: 1 1 180px; }
+}
+
+@media (max-width: 768px) {
+  .desktop-table { display: none; }
+  .mobile-lines { display: grid; gap: 10px; }
+  .actions-row ion-button { flex: 1 1 100%; }
+}

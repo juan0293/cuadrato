@@ -1,0 +1,76 @@
+<ion-split-pane contentId="admin-main" when="false">
+  <ion-menu menuId="admin-menu" contentId="admin-main" type="overlay" swipeGesture="true">
+    <ion-content class="admin-menu-content">
+      <section class="menu-shell">
+        <section class="menu-user" *ngIf="profile$ | async as profile">
+          <div class="menu-user-avatar-wrap">
+            <img *ngIf="profile.photoURL; else initialsAvatar" [src]="profile.photoURL" [alt]="profile.nombre" class="menu-user-avatar" />
+            <ng-template #initialsAvatar>
+              <div class="menu-user-avatar menu-user-avatar-fallback">{{ getInitials(profile) }}</div>
+            </ng-template>
+          </div>
+          <div class="menu-user-copy">
+            <strong>{{ profile.displayName || profile.nombre }}</strong>
+            <span>{{ profile.email }}</span>
+          </div>
+        </section>
+
+        <header class="menu-brand">
+          <p class="menu-kicker">Vargas TattooApp</p>
+          <h2>Centro de gestión</h2>
+          <span>Operación interna del estudio</span>
+        </header>
+
+        <ng-container *ngIf="menuState$ | async as menuState">
+          <div class="menu-loading-card" *ngIf="menuState.isLoading">
+            <ion-spinner name="crescent"></ion-spinner>
+            <div>
+              <strong>Cargando módulos…</strong>
+              <span>Estamos sincronizando tu perfil y permisos.</span>
+            </div>
+          </div>
+
+          <ion-list class="menu-list" lines="none" *ngIf="!menuState.isLoading && menuState.hasProfile; else noModules">
+            <ng-container *ngFor="let item of menuItems">
+              <ion-menu-toggle autoHide="true" *ngIf="canAccess(item, menuState.currentRole); else lockedItem">
+                <ion-item [routerLink]="item.route" routerLinkActive="menu-item-active">
+                  <ion-icon slot="start" [name]="item.icon"></ion-icon>
+                  <ion-label>{{ item.label }}</ion-label>
+                </ion-item>
+              </ion-menu-toggle>
+              <ng-template #lockedItem>
+                <ion-item class="menu-item-locked" button="false" detail="false">
+                  <ion-icon slot="start" [name]="item.icon"></ion-icon>
+                  <ion-label>{{ item.label }}</ion-label>
+                  <ion-icon slot="end" name="lock-closed-outline"></ion-icon>
+                </ion-item>
+              </ng-template>
+            </ng-container>
+          </ion-list>
+
+          <ng-template #noModules>
+            <div class="menu-loading-card menu-loading-card--empty" *ngIf="!menuState.isLoading">
+              <ion-icon name="grid-outline"></ion-icon>
+              <div>
+                <strong>No tienes módulos asignados.</strong>
+                <span>Verifica tu perfil o permisos de acceso.</span>
+              </div>
+            </div>
+          </ng-template>
+        </ng-container>
+
+        <div class="menu-footer">
+          <span>Control de acceso y operación</span>
+        </div>
+      </section>
+    </ion-content>
+  </ion-menu>
+
+  <div class="ion-page admin-main-surface" id="admin-main">
+    <ion-button class="menu-fab-btn" fill="solid" (click)="toggleMenu()" aria-label="Abrir menú">
+      <ion-icon name="menu-outline"></ion-icon>
+      <span>Menú</span>
+    </ion-button>
+    <ion-router-outlet [swipeGesture]="false"></ion-router-outlet>
+  </div>
+</ion-split-pane>

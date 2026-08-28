@@ -1,0 +1,48 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>{{ insumoId ? 'Editar insumo' : 'Nuevo insumo' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form [formGroup]="form" (ngSubmit)="save()">
+    <ion-item>
+      <ion-label position="stacked">Nombre</ion-label>
+      <ion-input formControlName="nombre"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Categoría</ion-label>
+      <ion-select formControlName="categoria">
+        <ion-select-option *ngFor="let categoria of categorias" [value]="categoria">{{ categoria }}</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Unidad de medida</ion-label>
+      <ion-input formControlName="unidadMedida"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Stock actual</ion-label>
+      <ion-input formControlName="stockActual" type="number"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Stock mínimo</ion-label>
+      <ion-input formControlName="stockMinimo" type="number"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Costo unitario</ion-label>
+      <ion-input formControlName="costoUnitario" type="number"></ion-input>
+    </ion-item>
+
+    <ion-item lines="none">
+      <ion-label>Activo</ion-label>
+      <ion-toggle formControlName="activo"></ion-toggle>
+    </ion-item>
+
+    <ion-button type="submit" expand="block" class="ion-margin-top">Guardar</ion-button>
+  </form>
+</ion-content>

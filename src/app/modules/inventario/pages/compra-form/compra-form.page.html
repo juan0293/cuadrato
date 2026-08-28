@@ -1,0 +1,256 @@
+<ion-content class="compra-form-page">
+  <div class="shell ion-padding" [formGroup]="form">
+    <section class="header">
+      <h1>Nueva compra</h1>
+      <p>Registra productos, costos y condiciones para actualizar inventario y cuentas por pagar.</p>
+    </section>
+
+    <section class="card">
+      <h2>Proveedor</h2>
+      <div class="grid selects">
+        <app-searchable-select
+          label="Proveedor"
+          placeholder="Selecciona un proveedor"
+          [items]="(proveedoresActivos$ | async) ?? []"
+          displayKey="nombre"
+          valueKey="id"
+          [searchKeys]="['nombre','rnc','telefono','email']"
+          [selectedId]="form.controls.proveedorId.value"
+          manageLabel="Gestionar proveedores"
+          (selected)="onProveedorSelected($event)"
+          (manage)="goProveedores()">
+        </app-searchable-select>
+
+        <ion-item>
+          <ion-label position="stacked">RNC</ion-label>
+          <ion-input formControlName="proveedorRnc" readonly></ion-input>
+        </ion-item>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Datos de factura</h2>
+      <div class="grid">
+        <ion-item><ion-label position="stacked">Número de factura</ion-label><ion-input formControlName="numeroFactura"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">NCF</ion-label><ion-input formControlName="ncf"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Fecha emisión</ion-label><ion-input type="datetime-local" formControlName="fechaEmision"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Fecha vencimiento</ion-label><ion-input type="datetime-local" formControlName="fechaVencimiento"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Condición pago</ion-label><ion-select formControlName="condicionPago"><ion-select-option value="contado">Contado</ion-select-option><ion-select-option value="credito">Crédito</ion-select-option></ion-select></ion-item>
+        <ion-item><ion-label position="stacked">Moneda</ion-label><ion-select formControlName="moneda"><ion-select-option value="DOP">DOP</ion-select-option><ion-select-option value="USD">USD</ion-select-option><ion-select-option value="EUR">EUR</ion-select-option><ion-select-option value="CAD">CAD</ion-select-option><ion-select-option value="GBP">GBP</ion-select-option></ion-select></ion-item>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Productos y servicios</h2>
+      <p class="section-intro">Elige una referencia con contexto comercial claro para comprar mejor y evitar errores de proveedor, precio o inventario.</p>
+      <div class="grid selects">
+        <app-searchable-select
+          label="Producto/Servicio"
+          placeholder="Selecciona producto o servicio"
+          helperText="Busca por codigo, nombre, categoria o proveedor"
+          modalDescription="Explora el catalogo con precio, proveedor, stock e impuesto visibles antes de agregar la linea."
+          searchPlaceholder="Buscar por codigo, nombre, categoria o proveedor..."
+          [initialVisibleLimit]="24"
+          [filteredVisibleLimit]="60"
+          [items]="(productosSeleccionablesUi$ | async) ?? []"
+          displayKey="nombre"
+          valueKey="id"
+          [searchKeys]="['codigoInterno','nombre','categoriaNombre','proveedorNombre']"
+          eyebrowKey="selectorEyebrow"
+          descriptionKey="selectorDescription"
+          [metaKeys]="['selectorMeta1','selectorMeta2','selectorMeta3','selectorMeta4','selectorMeta5','selectorMeta6']"
+          [selectedId]="form.controls.productoId.value"
+          manageLabel="Gestionar productos"
+          (selected)="onProductoSelected($event)"
+          (manage)="goProductos()">
+        </app-searchable-select>
+
+        <app-searchable-select
+          label="Utilidad"
+          placeholder="Selecciona utilidad"
+          [items]="(utilidadesActivas$ | async) ?? []"
+          displayKey="nombre"
+          valueKey="id"
+          [searchKeys]="['nombre','porcentaje']"
+          [selectedId]="form.controls.utilidadId.value"
+          (selected)="onUtilidadSelected($event)">
+        </app-searchable-select>
+      </div>
+
+      <section class="selected-product-panel" *ngIf="selectedProducto">
+        <div class="selected-product-head">
+          <div>
+            <span class="panel-overline">{{ selectedProducto.codigoInterno || 'Sin codigo' }}</span>
+            <h3>{{ selectedProducto.nombre }}</h3>
+            <p>{{ selectedProducto.categoriaNombre || 'Sin categoria' }} · {{ selectedProducto.proveedorNombre || 'Sin proveedor asignado' }}</p>
+          </div>
+          <ion-chip class="panel-chip" [color]="selectedProducto.manejaInventario ? 'primary' : 'tertiary'">
+            <ion-label>{{ selectedProductoTipoLabel }}</ion-label>
+          </ion-chip>
+        </div>
+
+        <div class="selected-product-metrics">
+          <article class="metric-card metric-card-accent">
+            <span>Costo base</span>
+            <strong>{{ formatMoney(selectedProductoCostoBase) }}</strong>
+          </article>
+          <article class="metric-card">
+            <span>Precio venta actual</span>
+            <strong>{{ formatMoney(selectedProductoVentaActual) }}</strong>
+          </article>
+          <article class="metric-card">
+            <span>Utilidad actual</span>
+            <strong>{{ selectedProductoUtilidadActual | number:'1.0-2' }}%</strong>
+          </article>
+        </div>
+
+        <div class="selected-product-meta">
+          <div class="meta-pill">
+            <span>Inventario</span>
+            <strong>{{ selectedProductoStockStatus }}</strong>
+          </div>
+          <div class="meta-pill">
+            <span>Impuesto</span>
+            <strong>{{ selectedProductoImpuestoLabel }}</strong>
+          </div>
+          <div class="meta-pill" *ngIf="selectedProducto.unidadMedidaNombre || selectedProducto.unidadMedidaCodigo">
+            <span>Unidad</span>
+            <strong>{{ selectedProducto.unidadMedidaNombre || selectedProducto.unidadMedidaCodigo }}</strong>
+          </div>
+        </div>
+
+        <ion-note color="light">Ya precargamos costo y utilidad de esta referencia para que completes la linea con menos friccion.</ion-note>
+      </section>
+
+      <div class="grid">
+        <ion-item><ion-label position="stacked">Cantidad</ion-label><ion-input type="number" formControlName="cantidad"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Precio compra</ion-label><ion-input type="number" formControlName="precioCompra"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Utilidad %</ion-label><ion-input type="number" formControlName="utilidadPorcentaje" readonly></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Precio venta sugerido</ion-label><ion-input [value]="formatMoney(precioVentaSugeridoLinea)" readonly></ion-input></ion-item>
+      </div>
+
+      <ion-item><ion-label position="stacked">Descuento</ion-label><ion-input type="number" formControlName="descuento"></ion-input></ion-item>
+      <ion-note color="light">La utilidad en % se toma del catálogo y está bloqueada para consistencia comercial.</ion-note>
+
+      <ion-button class="btn-outline" (click)="addItem()">Agregar producto</ion-button>
+      <ion-note color="warning" *ngIf="warningProveedorMix">Producto asociado a otro proveedor. Recomendamos una compra por proveedor.</ion-note>
+
+      <div class="table-wrap" *ngIf="items.length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Cant.</th>
+              <th>Compra</th>
+              <th>Desc.</th>
+              <th>ITBIS %</th>
+              <th>Utilidad</th>
+              <th>PV sugerido</th>
+              <th>Subtotal</th>
+              <th>ITBIS</th>
+              <th>Total</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of items; index as i">
+              <td>{{ item.nombre }}<br><small>{{ item.codigoInterno }}</small></td>
+              <td>
+                <ion-input type="number" [value]="item.cantidad" (ionInput)="onItemCantidadChange(i, $any($event.detail).value)"></ion-input>
+              </td>
+              <td>
+                <ion-input type="number" [value]="item.costoUnitario" (ionInput)="onItemPrecioCompraChange(i, $any($event.detail).value)"></ion-input>
+              </td>
+              <td>
+                <ion-input type="number" [value]="item.descuento || 0" (ionInput)="onItemDescuentoChange(i, $any($event.detail).value)"></ion-input>
+              </td>
+              <td>
+                <ion-select [value]="item.tasaItbis" (ionChange)="onItemTasaItbisChange(i, $any($event.detail).value)">
+                  <ion-select-option [value]="18">18%</ion-select-option>
+                  <ion-select-option [value]="16">16%</ion-select-option>
+                  <ion-select-option [value]="0">0%</ion-select-option>
+                </ion-select>
+              </td>
+              <td>
+                <div class="util-cell">{{ item.utilidadPorcentaje || 0 }}%</div>
+              </td>
+              <td class="num">{{ formatMoney(item.precioVentaSugerido || 0) }}</td>
+              <td class="num">{{ formatMoney(item.subtotal || 0) }}</td>
+              <td class="num">{{ formatMoney(item.montoItbis || 0) }}</td>
+              <td class="num">{{ formatMoney(item.total || 0) }}</td>
+              <td class="row-actions">
+                <ion-button fill="clear" (click)="editCompraItem(i)">Editar</ion-button>
+                <ion-button fill="clear" color="danger" (click)="removeCompraItem(i)">Eliminar</ion-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <section class="edit-panel" *ngIf="editingItem">
+        <h3>Editar producto</h3>
+        <div class="grid">
+          <ion-item><ion-label position="stacked">Cantidad</ion-label><ion-input type="number" [value]="editingItem.cantidad" (ionInput)="editingItem.cantidad = +($any($event.detail).value || 0); recalculateEditingItem()"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Precio compra</ion-label><ion-input type="number" [value]="editingItem.costoUnitario" (ionInput)="editingItem.costoUnitario = +($any($event.detail).value || 0); editingItem.precioCompra = editingItem.costoUnitario; recalculateEditingItem()"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Descuento</ion-label><ion-input type="number" [value]="editingItem.descuento || 0" (ionInput)="editingItem.descuento = +($any($event.detail).value || 0); recalculateEditingItem()"></ion-input></ion-item>
+          <ion-item>
+            <ion-label position="stacked">ITBIS %</ion-label>
+            <ion-select [value]="editingItem.tasaItbis" (ionChange)="setEditingTasaItbis($any($event.detail).value)">
+              <ion-select-option [value]="18">18%</ion-select-option>
+              <ion-select-option [value]="16">16%</ion-select-option>
+              <ion-select-option [value]="0">0%</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item><ion-label position="stacked">Utilidad %</ion-label><ion-input type="number" [value]="editingItem.utilidadPorcentaje || 0" readonly></ion-input></ion-item>
+        </div>
+
+        <app-searchable-select
+          label="Utilidad"
+          placeholder="Selecciona utilidad"
+          [items]="(utilidadesActivas$ | async) ?? []"
+          displayKey="nombre"
+          valueKey="id"
+          [searchKeys]="['nombre','porcentaje']"
+          [selectedId]="editingItem.utilidadId"
+          (selected)="onEditUtilidadSelected($event)">
+        </app-searchable-select>
+
+        <div class="line-flags">
+          <ion-item><ion-label>Actualizar utilidad del producto</ion-label><ion-checkbox [checked]="!!editingItem.actualizarUtilidadProducto" (ionChange)="setEditingActualizarUtilidad($event.detail.checked)"></ion-checkbox></ion-item>
+          <ion-item><ion-label>Actualizar precio de venta del producto</ion-label><ion-checkbox [checked]="!!editingItem.actualizarPrecioVentaProducto" (ionChange)="setEditingActualizarPrecio($event.detail.checked)"></ion-checkbox></ion-item>
+        </div>
+
+        <div class="preview">
+          <span>PV sugerido: {{ formatMoney(editingItem.precioVentaSugerido || 0) }}</span>
+          <span>Subtotal: {{ formatMoney(editingItem.subtotal || 0) }}</span>
+          <span>ITBIS: {{ formatMoney(editingItem.montoItbis || 0) }}</span>
+          <strong>Total: {{ formatMoney(editingItem.total || 0) }}</strong>
+        </div>
+
+        <div class="actions">
+          <ion-button fill="clear" (click)="cancelEditCompraItem()">Cancelar</ion-button>
+          <ion-button class="btn-primary" (click)="saveEditedCompraItem()">Guardar cambios</ion-button>
+        </div>
+      </section>
+    </section>
+
+    <section class="card">
+      <h2>Totales de compra</h2>
+      <div class="totals">
+        <span>Subtotal: {{ formatMoney(totals.subtotal) }}</span>
+        <span>Total descuento: {{ formatMoney(totals.totalDescuento) }}</span>
+        <span>Total ITBIS: {{ formatMoney(totals.totalItbis) }}</span>
+        <span>Total impuestos adicionales: {{ formatMoney(totals.totalImpuestosAdicionales) }}</span>
+        <strong>Total: {{ formatMoney(totals.total) }}</strong>
+      </div>
+      <ion-item><ion-label>Afecta inventario</ion-label><ion-toggle formControlName="afectaInventario"></ion-toggle></ion-item>
+      <ion-note color="warning" *ngIf="form.controls.condicionPago.value === 'credito'">Esta compra generará una cuenta por pagar.</ion-note>
+    </section>
+
+    <div class="actions">
+      <ion-button fill="outline" color="danger" routerLink="/admin/inventario/compras">Cancelar</ion-button>
+      <!-- <ion-button class="btn-outline" (click)="saveCompra()">Guardar borrador</ion-button> -->
+      <ion-button class="btn-primary" (click)="confirmarCompra()">Confirmar compra</ion-button>
+    </div>
+  </div>
+</ion-content>

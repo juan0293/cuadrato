@@ -1,0 +1,17 @@
+<div class="item-row">
+  <div class="item-main">
+    <strong>{{ item.nombre }}</strong>
+    <small>{{ item.codigoInterno }} · {{ item.tipoItem | titlecase }}</small>
+  </div>
+
+  <div class="item-metrics">
+    <span>Cant: {{ item.cantidad }}</span>
+    <span>Costo: {{ item.costoUnitario | currency:'USD':'symbol':'1.2-2' }}</span>
+    <span>ITBIS: {{ item.montoItbis | currency:'USD':'symbol':'1.2-2' }}</span>
+    <strong>Total: {{ item.total | currency:'USD':'symbol':'1.2-2' }}</strong>
+  </div>
+
+  <ion-button *ngIf="removable" fill="clear" color="danger" size="small" (click)="onRemove()">
+    Quitar
+  </ion-button>
+</div>

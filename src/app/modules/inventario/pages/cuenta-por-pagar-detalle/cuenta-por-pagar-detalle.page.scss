@@ -1,0 +1,13 @@
+.cxp-detalle-page { --background: linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%); }
+.shell { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+.header-copy { display:grid; gap:6px; }
+.header-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.header p { margin: 4px 0 0; color: #aeb6c8; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; display: grid; gap: 12px; }
+.grid { display: grid; gap: 6px; color: #dbe3f3; }
+ion-item { --background: rgba(255,255,255,.06); --color: #fff; --border-color: rgba(255,255,255,.08); border-radius: 12px; }
+ion-label { color: #aeb6c8 !important; }
+.btn-secondary { --border-color: rgba(148,163,184,.34); --color:#e8efff; --border-radius: 14px; text-transform: none; --background: rgba(255,255,255,.04); }
+.btn-primary { --background: linear-gradient(120deg, #3b82f6, #1d4ed8); --border-radius: 14px; text-transform: none; }
+@media (max-width: 768px){ .header { align-items: stretch; } .header-actions { width: 100%; } .header-actions ion-button { width: 100%; min-height: 44px; } }

@@ -1,0 +1,332 @@
+<ion-content class="mov-fin-form-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Movimiento financiero</h1>
+        <p>Registra ingresos, gastos y ajustes con trazabilidad operativa.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas">
+          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+          Volver a finanzas
+        </ion-button>
+        <ion-button class="btn-outline" fill="outline" (click)="limpiarFormulario()">Limpiar formulario</ion-button>
+        <ion-button class="btn-primary" [disabled]="saving" (click)="onSubmit()">{{ saving ? 'Guardando...' : 'Guardar movimiento' }}</ion-button>
+      </div>
+    </section>
+
+    <section class="kpis-grid" *ngIf="!loading">
+      <article class="kpi-card"><span>Ingresos hoy</span><strong>{{ formatCurrency(ingresosHoy) }}</strong><small>Total recibido durante la jornada.</small></article>
+      <article class="kpi-card"><span>Gastos hoy</span><strong>{{ formatCurrency(gastosHoy) }}</strong><small>Total de egresos de la jornada.</small></article>
+      <article class="kpi-card"><span>Balance hoy</span><strong>{{ formatCurrency(balanceHoy) }}</strong><small>Resultado neto del día.</small></article>
+      <article class="kpi-card"><span>Movimientos</span><strong>{{ movimientosRegistrados }}</strong><small>Registros cargados recientemente.</small></article>
+      <article class="kpi-card"><span>Método principal</span><strong>{{ totalMetodoPrincipal }}</strong><small>Método con mayor volumen.</small></article>
+      <article class="kpi-card"><span>Categoría principal</span><strong>{{ categoriaPrincipal }}</strong><small>Categoría más recurrente.</small></article>
+      <article class="kpi-card"><span>Último movimiento</span><strong>{{ ultimoMovimiento }}</strong><small>Último registro sincronizado.</small></article>
+      <article class="kpi-card"><span>Promedio</span><strong>{{ formatCurrency(promedioMovimiento) }}</strong><small>Promedio por movimiento.</small></article>
+    </section>
+
+    <section class="main-grid">
+      <form class="card" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <h2>Formulario principal</h2>
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">Tipo de movimiento</ion-label>
+            <ion-select formControlName="tipoVisual" (ionChange)="onTipoVisualChange($any($event.detail).value)" interface="popover">
+              <ion-select-option *ngFor="let t of tiposVisuales" [value]="t.value">{{ t.label }}</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Naturaleza</ion-label>
+            <ion-select formControlName="naturaleza" (ionChange)="onTipoVisualChange(form.controls.tipoVisual.value)" interface="popover">
+              <ion-select-option value="ingreso">Ingreso</ion-select-option>
+              <ion-select-option value="gasto">Gasto</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <div class="searchable-select">
+            <div class="top-row">
+              <ion-label>Categoría</ion-label>
+              <ion-button fill="clear" size="small" (click)="abrirNuevaCategoria()">Nueva categoría</ion-button>
+            </div>
+            <button type="button" class="select-trigger" (click)="abrirSelectorCategoria()">
+              <span [class.placeholder]="!form.controls.categoria.value">{{ selectedCategoriaLabel }}</span>
+              <ion-icon name="chevron-down-outline"></ion-icon>
+            </button>
+          </div>
+
+          <ion-item>
+            <ion-label position="stacked">Método de pago</ion-label>
+            <ion-select formControlName="metodoPago" interface="popover">
+              <ion-select-option *ngFor="let metodo of metodosPago" [value]="metodo">{{ metodo }}</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Monto</ion-label>
+            <ion-input formControlName="monto" type="number" placeholder="Ingresa un monto válido."></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Fecha</ion-label>
+            <ion-input type="datetime-local" formControlName="fecha"></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Referencia / comprobante</ion-label>
+            <ion-input formControlName="referencia"></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Estado</ion-label>
+            <ion-select formControlName="estado">
+              <ion-select-option *ngFor="let estado of estados" [value]="estado">{{ estado }}</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Descripción</ion-label>
+            <ion-input formControlName="descripcion" placeholder="Agrega una descripción clara para mantener la trazabilidad."></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Observación</ion-label>
+            <ion-input formControlName="observacion"></ion-input>
+          </ion-item>
+
+          <!-- <ion-item>
+            <ion-label position="stacked">Artista ID (opcional)</ion-label>
+            <ion-input formControlName="artistaId"></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Cita ID (opcional)</ion-label>
+            <ion-input formControlName="citaId"></ion-input>
+          </ion-item> -->
+        </div>
+      </form>
+
+      <aside class="card summary-card">
+        <h2>Resumen antes de guardar</h2>
+        <div class="summary-row"><span>Movimiento</span><strong>{{ form.controls.tipoVisual.value }}</strong></div>
+        <div class="summary-row"><span>Categoría</span><strong>{{ form.controls.categoria.value }}</strong></div>
+        <div class="summary-row"><span>Método</span><strong>{{ form.controls.metodoPago.value }}</strong></div>
+        <div class="summary-row"><span>Monto</span><strong>{{ formatCurrency(+form.controls.monto.value || 0) }}</strong></div>
+        <div class="summary-row"><span>Impacto</span><strong [class.neg]="calcularImpactoMovimiento() < 0" [class.pos]="calcularImpactoMovimiento() >= 0">{{ formatCurrency(calcularImpactoMovimiento()) }}</strong></div>
+        <ion-note color="danger" *ngIf="sinConexion">Necesitas conexión para sincronizar las categorías.</ion-note>
+      </aside>
+    </section>
+
+    <section class="card evidencia-card">
+      <div class="evidencia-head">
+        <div>
+          <h2>Evidencia del movimiento</h2>
+          <p>Adjunta comprobantes, facturas o documentos relacionados al movimiento financiero.</p>
+        </div>
+        <ion-button class="btn-primary" (click)="fileInputGeneral.click()">Agregar evidencia</ion-button>
+      </div>
+
+      <div class="evidencia-resumen">
+        <span>{{ cantidadEvidencias }} archivos adjuntos</span>
+        <span>{{ formatFileSize(totalSizeEvidencias) }} utilizados</span>
+        <span>Último: {{ ultimoArchivoAdjunto }}</span>
+      </div>
+
+      <div
+        class="dropzone"
+        [class.is-dragover]="dragOver"
+        (drop)="onDropArchivos($event)"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave()">
+        <ion-icon name="cloud-upload-outline"></ion-icon>
+        <p>Arrastra archivos aquí o usa los accesos rápidos.</p>
+        <div class="dropzone-actions">
+          <ion-button fill="outline" (click)="fileInputGeneral.click()">Galería / Archivos</ion-button>
+          <ion-button fill="outline" (click)="fileInputCamara.click()">Cámara</ion-button>
+          <ion-button fill="outline" (click)="fileInputPdf.click()">PDF</ion-button>
+        </div>
+        <small>Formatos permitidos: PDF, JPG, JPEG, PNG · Máximo 10MB por archivo.</small>
+      </div>
+
+      <input #fileInputGeneral hidden type="file" multiple accept="application/pdf,image/jpeg,image/jpg,image/png" (change)="seleccionarArchivo($event)">
+      <input #fileInputCamara hidden type="file" accept="image/jpeg,image/jpg,image/png" capture="environment" (change)="seleccionarArchivo($event)">
+      <input #fileInputPdf hidden type="file" accept="application/pdf" (change)="seleccionarArchivo($event)">
+
+      <div class="evidencias-grid" *ngIf="evidencias.length; else emptyEvidencias">
+        <article class="evidencia-item" *ngFor="let ev of evidencias">
+          <div class="thumb" *ngIf="ev.previewUrl; else pdfPreview">
+            <img [src]="ev.previewUrl" [alt]="ev.nombre">
+          </div>
+          <ng-template #pdfPreview>
+            <div class="thumb thumb--pdf">
+              <ion-icon [name]="obtenerIconoArchivo(ev.tipo)"></ion-icon>
+            </div>
+          </ng-template>
+
+          <div class="meta">
+            <strong>{{ ev.nombre }}</strong>
+            <p>{{ formatFileSize(ev.size) }}</p>
+            <div class="progress" *ngIf="ev.subiendo">
+              <ion-progress-bar [value]="(ev.progreso || 0) / 100"></ion-progress-bar>
+              <small>Subiendo archivo... {{ ev.progreso || 0 }}%</small>
+            </div>
+          </div>
+
+          <div class="item-actions">
+            <ion-button fill="clear" size="small" (click)="abrirArchivo(ev)">Ver</ion-button>
+            <ion-button fill="clear" size="small" (click)="descargarArchivo(ev)">Descargar</ion-button>
+            <ion-button fill="clear" size="small" color="danger" (click)="eliminarArchivo(ev)">Eliminar</ion-button>
+          </div>
+        </article>
+      </div>
+
+      <ng-template #emptyEvidencias>
+        <div class="empty-evidencias">No hay archivos adjuntos.</div>
+      </ng-template>
+    </section>
+<!-- 
+    <section class="card">
+      <h2>Movimientos recientes</h2>
+
+      <div class="table-wrap" *ngIf="movimientosRecientes.length > 0; else emptyState">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Categoría</th>
+              <th>Método</th>
+              <th>Descripción</th>
+              <th>Monto</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of movimientosRecientes">
+              <td>{{ formatDate(item.fecha) }}</td>
+              <td><span class="badge" [ngClass]="getMovimientoBadge(item.tipo)">{{ item.tipo }}</span></td>
+              <td>{{ item.categoria }}</td>
+              <td>{{ getMetodoPago(item) }}</td>
+              <td>{{ item.descripcion }}</td>
+              <td class="num">{{ formatCurrency(item.monto) }}</td>
+              <td><span class="badge" [ngClass]="getEstadoBadge(getEstado(item))">{{ getEstado(item) }}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mobile-cards" *ngIf="movimientosRecientes.length > 0">
+        <article class="mobile-item" *ngFor="let item of movimientosRecientes">
+          <div class="mobile-top">
+            <span class="badge" [ngClass]="getMovimientoBadge(item.tipo)">{{ item.tipo }}</span>
+            <strong>{{ formatCurrency(item.monto) }}</strong>
+          </div>
+          <p>{{ item.categoria }} · {{ getMetodoPago(item) }}</p>
+          <small>{{ formatDate(item.fecha) }}</small>
+        </article>
+      </div>
+
+      <ng-template #emptyState>
+        <app-empty-state title="Sin movimientos recientes" message="Registra el primer movimiento financiero para iniciar la trazabilidad."></app-empty-state>
+      </ng-template>
+    </section> -->
+  </div>
+
+  <ion-modal [isOpen]="categoriaSelectorOpen" (didDismiss)="cerrarSelectorCategoria()" cssClass="premium-select-modal fin-categoria-modal">
+    <ng-template>
+      <ion-content class="premium-modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card modal-card-categoria">
+            <header class="card-header">
+              <div>
+                <h2>Seleccionar categoría</h2>
+                <p>Cargando categorías...</p>
+              </div>
+              <div class="header-actions">
+                <ion-button fill="outline" size="small" (click)="abrirNuevaCategoria()">Nueva categoría</ion-button>
+                <ion-button fill="clear" (click)="cerrarSelectorCategoria()">Cerrar</ion-button>
+              </div>
+            </header>
+
+            <ion-searchbar
+              class="premium-search"
+              placeholder="Buscar categoría..."
+              [value]="categoriaSearchTerm"
+              (ionInput)="filtrarCategorias($any($event.detail).value)">
+            </ion-searchbar>
+
+            <div class="recent-chips" *ngIf="categoriasRecientes.length > 0">
+              <ion-chip *ngFor="let c of categoriasRecientes" (click)="seleccionarCategoria(c)">
+                <ion-label>{{ c.nombre }}</ion-label>
+              </ion-chip>
+            </div>
+
+            <div class="results-wrap">
+              <div class="loading-wrap" *ngIf="categoriasLoading">Cargando categorías…</div>
+              <ion-list *ngIf="!categoriasLoading && categoriasFiltradas.length > 0; else emptyCategorias" lines="none" class="premium-list">
+                <ion-item detail="false" *ngFor="let item of categoriasFiltradas">
+                  <ion-label (click)="seleccionarCategoria(item)">
+                    <h3>{{ item.nombre }}</h3>
+                    <p>{{ item.descripcion || 'Sin descripción' }} · {{ getCategoriaConteo(item.nombre) }} movimientos</p>
+                  </ion-label>
+                  <ion-button fill="clear" size="small" (click)="editarCategoria(item)">Editar</ion-button>
+                  <!-- <ion-button fill="clear" size="small" color="danger" [disabled]="categoriasEliminando" (click)="eliminarCategoria(item)">Eliminar</ion-button> -->
+                </ion-item>
+              </ion-list>
+
+              <ng-template #emptyCategorias>
+                <app-empty-state
+                  title="No hay categorías"
+                  message="Crea una categoría para comenzar a registrar movimientos financieros.">
+                </app-empty-state>
+              </ng-template>
+            </div>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <ion-modal [isOpen]="categoriaCrudModalOpen" (didDismiss)="cerrarCrudCategoria()" cssClass="premium-select-modal small-modal fin-categoria-modal">
+    <ng-template>
+      <ion-content class="premium-modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="card-header">
+              <div>
+                <h2>{{ categoriaEditandoId ? 'Editar categoría' : 'Nueva categoría' }}</h2>
+                <p>Crea categorías para organizar mejor tus movimientos financieros.</p>
+              </div>
+              <ion-button fill="clear" (click)="cerrarCrudCategoria()">Cerrar</ion-button>
+            </header>
+
+            <form [formGroup]="categoriaForm" (ngSubmit)="guardarCategoria()" class="grid">
+              <ion-item>
+                <ion-label position="stacked">Nombre categoría</ion-label>
+                <ion-input formControlName="nombre"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-label position="stacked">Descripción</ion-label>
+                <ion-input formControlName="descripcion"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-label position="stacked">Icono</ion-label>
+                <ion-input formControlName="icono"></ion-input>
+              </ion-item>
+              <ion-item>
+                <ion-label position="stacked">Color</ion-label>
+                <ion-input type="text" formControlName="color"></ion-input>
+              </ion-item>
+            </form>
+
+            <div class="actions">
+              <ion-button fill="clear" (click)="cerrarCrudCategoria()">Cancelar</ion-button>
+              <ion-button class="btn-primary" [disabled]="categoriasSaving" (click)="guardarCategoria()">{{ categoriasSaving ? 'Guardando categoría...' : 'Guardar categoría' }}</ion-button>
+            </div>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

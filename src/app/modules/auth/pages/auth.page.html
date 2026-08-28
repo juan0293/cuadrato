@@ -1,0 +1,68 @@
+<ion-content [fullscreen]="true" class="auth-shell">
+  <div class="bg-glow bg-glow-top"></div>
+  <div class="bg-glow bg-glow-bottom"></div>
+
+  <section class="auth-wrapper">
+    <section class="command-center card">
+      <div class="command-hero">
+        <div class="command-logo" *ngIf="logoPath; else logoFallback">
+          <img [src]="logoPath" alt="Logo" />
+        </div>
+        <ng-template #logoFallback>
+          <div class="command-logo command-logo--fallback">
+            <span>VT</span>
+            <small>Vargas TattooApp</small>
+          </div>
+        </ng-template>
+
+        <!-- <h1 class="command-title">Centro de mando</h1>
+        <p class="command-subtitle">Gestiona tus operaciones desde un solo lugar.</p> -->
+      </div>
+    </section>
+
+    <div class="brand-block">
+      <!-- <p class="brand-kicker">VARGAS TATTOOAPP</p> -->
+      <!-- <h1>Acceso al sistema</h1> -->
+       <h1>CuadraTó</h1>
+      <p class="brand-subtitle">Gestiona tus operaciones desde un solo lugar</p>
+    </div>
+
+    <ion-card class="login-card">
+      <ion-card-header>
+        <ion-card-title>Iniciar sesión</ion-card-title>
+        <ion-card-subtitle>Ingresa con tu cuenta interna</ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+          <div class="field-group">
+            <label for="email">Correo electrónico</label>
+            <ion-item lines="none" class="field-item" [class.field-error]="emailInvalid">
+              <ion-input id="email" formControlName="email" type="email" autocomplete="email" inputmode="email" placeholder="tu-correo@empresa.com"></ion-input>
+            </ion-item>
+            <p class="field-feedback" *ngIf="emailInvalid">Ingresa un correo válido.</p>
+          </div>
+
+          <div class="field-group">
+            <label for="password">Contraseña</label>
+            <ion-item lines="none" class="field-item" [class.field-error]="passwordInvalid">
+              <ion-input id="password" formControlName="password" [type]="showPassword ? 'text' : 'password'" autocomplete="current-password" placeholder="********"></ion-input>
+              <ion-button fill="clear" type="button" class="toggle-button" (click)="togglePasswordVisibility()">{{ showPassword ? 'Ocultar' : 'Mostrar' }}</ion-button>
+            </ion-item>
+            <p class="field-feedback" *ngIf="passwordInvalid">Verifica tu contraseña.</p>
+          </div>
+
+          <div class="auth-links-row">
+            <ion-button fill="clear" size="small" class="forgot-link" type="button">¿Olvidaste tu contraseña?</ion-button>
+          </div>
+
+          <ion-button expand="block" type="submit" class="submit-button">Ingresar</ion-button>
+        </form>
+      </ion-card-content>
+    </ion-card>
+
+    <footer class="auth-footer">
+      Desarrollado por EscolasticX SRL · Todos los derechos reservados
+    </footer>
+  </section>
+</ion-content>

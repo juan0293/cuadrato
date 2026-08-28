@@ -1,0 +1,21 @@
+<ion-tabs>
+  <ion-router-outlet></ion-router-outlet>
+  <ion-tab-bar slot="bottom">
+    <ion-tab-button tab="home" [routerLink]="['/mobile/home']">
+      <ion-icon name="home-outline"></ion-icon>
+      <ion-label>Inicio</ion-label>
+    </ion-tab-button>
+    <ion-tab-button tab="citas" [routerLink]="['/mobile/citas']">
+      <ion-icon name="calendar-outline"></ion-icon>
+      <ion-label>Citas</ion-label>
+    </ion-tab-button>
+    <ion-tab-button tab="consumo" [routerLink]="['/mobile/consumo']">
+      <ion-icon name="flask-outline"></ion-icon>
+      <ion-label>Consumo</ion-label>
+    </ion-tab-button>
+    <ion-tab-button tab="historial" [routerLink]="['/mobile/historial']">
+      <ion-icon name="time-outline"></ion-icon>
+      <ion-label>Historial</ion-label>
+    </ion-tab-button>
+  </ion-tab-bar>
+</ion-tabs>

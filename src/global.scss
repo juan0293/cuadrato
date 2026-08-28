@@ -1,0 +1,1867 @@
+@use "./app/modules/facturacion/pages/facturacion.page";
+
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+/* Core CSS required for Ionic components to work properly */
+@import "@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+@import "@ionic/angular/css/normalize.css";
+@import "@ionic/angular/css/structure.css";
+@import "@ionic/angular/css/typography.css";
+@import "@ionic/angular/css/display.css";
+
+/* Optional CSS utils that can be commented out */
+@import "@ionic/angular/css/padding.css";
+@import "@ionic/angular/css/float-elements.css";
+@import "@ionic/angular/css/text-alignment.css";
+@import "@ionic/angular/css/text-transformation.css";
+@import "@ionic/angular/css/flex-utils.css";
+
+/**
+ * Ionic Dark Mode
+ * -----------------------------------------------------
+ * For more info, please see:
+ * https://ionicframework.com/docs/theming/dark-mode
+ */
+
+/* @import "@ionic/angular/css/palettes/dark.always.css"; */
+/* @import "@ionic/angular/css/palettes/dark.class.css"; */
+@import "@ionic/angular/css/palettes/dark.system.css";
+
+/* Global overlay styles for user row-action popover */
+ion-popover.user-actions-popover {
+  --background: rgba(10, 14, 24, 0.96);
+  --box-shadow: 0 18px 34px rgba(0, 0, 0, 0.4);
+  --width: 220px;
+}
+
+ion-popover.user-actions-popover::part(content) {
+  background: rgba(10, 14, 24, 0.98) !important;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+ion-popover.user-actions-popover ion-content,
+ion-popover.user-actions-popover .action-popover-content {
+  --background: transparent !important;
+  background: transparent !important;
+}
+
+ion-popover.user-actions-popover ion-item {
+  --background: transparent;
+  --color: #ffffff;
+  --min-height: 42px;
+  font-size: 13px;
+}
+
+ion-popover.user-actions-popover ion-item ion-label {
+  color: #ffffff !important;
+  opacity: 1 !important;
+  font-weight: 500;
+}
+
+ion-popover.user-actions-popover ion-item ion-icon {
+  color: #bfdbfe;
+  font-size: 18px;
+  margin-right: 8px;
+}
+
+ion-popover.user-actions-popover ion-item::part(native),
+ion-popover.user-actions-popover .item-native,
+ion-popover.user-actions-popover .item-inner,
+ion-popover.user-actions-popover .label-text-wrapper {
+  color: #ffffff !important;
+  background: transparent !important;
+}
+
+ion-popover.user-actions-popover ion-item:hover {
+  --background: rgba(59, 130, 246, 0.16);
+}
+
+ion-popover.user-actions-popover .user-popover-menu {
+  background: rgba(10, 14, 24, 0.98);
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+}
+
+ion-popover.user-actions-popover .user-popover-action {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border-radius: 10px;
+  padding: 10px 9px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+ion-popover.user-actions-popover .user-popover-action span {
+  color: #ffffff;
+}
+
+ion-popover.user-actions-popover .user-popover-action ion-icon {
+  color: #bfdbfe;
+  font-size: 18px;
+}
+
+ion-popover.user-actions-popover .user-popover-action:hover {
+  background: rgba(59, 130, 246, 0.18);
+}
+
+/* Catalog admin modals opened from producto-servicio-form */
+ion-modal.catalog-admin-modal::part(content) {
+  width: 75vw;
+  height: 75vh;
+  min-width: 70vw;
+  min-height: 70vh;
+  max-width: 1400px;
+  max-height: 1100px;
+  border-radius: 18px;
+  border: 1px solid rgba(125, 211, 252, 0.35);
+  box-shadow:
+    0 28px 70px rgba(3, 8, 20, 0.65),
+    0 0 0 1px rgba(59, 130, 246, 0.22) inset;
+  background:
+    radial-gradient(1000px 420px at 5% -10%, rgba(56, 189, 248, 0.12), transparent 60%),
+    linear-gradient(160deg, #07101f 0%, #0b1323 55%, #060b16 100%);
+}
+
+ion-modal.catalog-admin-modal::part(backdrop) {
+  background: rgba(2, 6, 16, 0.72);
+  backdrop-filter: blur(4px);
+}
+
+ion-modal.catalog-admin-modal .crud-page {
+  --background: transparent;
+}
+
+ion-modal.catalog-admin-modal .shell {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  gap: 14px;
+}
+
+ion-modal.catalog-admin-modal .card {
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: rgba(8, 15, 28, 0.72);
+  box-shadow: 0 14px 30px rgba(2, 8, 23, 0.35);
+}
+
+ion-modal.catalog-admin-modal .card h1,
+ion-modal.catalog-admin-modal .card h2 {
+  color: #e7f0ff;
+}
+
+ion-modal.catalog-admin-modal .card p {
+  color: #a8b6cc;
+}
+
+ion-modal.catalog-admin-modal .actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+@media (max-width: 920px) {
+  ion-modal.catalog-admin-modal::part(content) {
+    width: 96vw;
+    height: 92vh;
+    min-width: auto;
+    min-height: auto;
+    border-radius: 14px;
+  }
+}
+
+/* Facturacion modal emphasis (moved global to avoid component style budget) */
+ion-modal.quick-client-modal::part(content) {
+  --background: transparent;
+  border: 2px solid rgba(147, 197, 253, 0.56);
+  box-shadow:
+    0 36px 92px rgba(1, 6, 18, 0.78),
+    0 0 0 1px rgba(191, 219, 254, 0.28) inset,
+    0 0 44px rgba(56, 189, 248, 0.32);
+}
+
+ion-modal.quick-client-modal::part(backdrop) {
+  background: rgba(2, 8, 22, 0.82);
+  backdrop-filter: blur(6px);
+}
+
+ion-modal.quick-client-modal .modal-card-client,
+ion-modal.quick-client-modal .modal-card-cita,
+ion-modal.quick-client-modal .modal-card-cobro {
+  background:
+    linear-gradient(150deg, rgba(15, 23, 42, 0.94), rgba(9, 15, 30, 0.98)),
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.22), transparent 44%);
+  border: 1.5px solid rgba(191, 219, 254, 0.42);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+}
+
+ion-modal.quick-client-modal .modal-card-client ion-item {
+  --background: rgba(255, 255, 255, 0.1);
+  --color: #f8fbff;
+  --border-color: rgba(191, 219, 254, 0.22);
+  border: 1px solid rgba(191, 219, 254, 0.2);
+  border-radius: 12px;
+}
+
+ion-modal.quick-client-modal .modal-card-client ion-item.item-has-focus {
+  border-color: rgba(96, 165, 250, 0.6);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.24);
+}
+
+ion-modal.quick-client-modal .modal-card-client ion-input {
+  --color: #f8fbff;
+  --placeholder-color: #b8c7df;
+}
+
+ion-modal.quick-client-modal .quick-create-hero {
+  text-align: center;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  margin-bottom: 8px;
+}
+
+ion-modal.quick-client-modal .quick-create-chip {
+  --background: rgba(37, 99, 235, 0.2);
+  --color: #dbeafe;
+  border: 1px solid rgba(147, 197, 253, 0.35);
+}
+
+ion-modal.quick-client-modal .quick-create-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  background: linear-gradient(140deg, rgba(37, 99, 235, 0.24), rgba(14, 165, 233, 0.2));
+}
+
+ion-modal.quick-client-modal .quick-create-icon ion-icon {
+  font-size: 1.3rem;
+  color: #eaf2ff;
+}
+
+ion-modal.quick-client-modal .quick-create-hero h2 {
+  margin: 0;
+  color: #f8fbff;
+}
+
+ion-modal.quick-client-modal .quick-create-hero p {
+  margin: 0;
+  color: #bfd0ea;
+  font-size: 0.9rem;
+}
+
+ion-modal.quick-client-modal .quick-create-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 8px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.92) 55%);
+}
+
+ion-modal.quick-client-modal .cierre-observacion-item {
+  --background: rgba(255, 255, 255, 0.08);
+  --color: #f8fbff;
+  border: 1px solid rgba(191, 219, 254, 0.22);
+  border-radius: 14px;
+}
+
+ion-modal.quick-client-modal .cierre-observacion-item ion-textarea {
+  --color: #f8fbff;
+  --placeholder-color: #9fb2d4;
+}
+
+ion-modal.quick-cliente-compact::part(content) {
+  width: min(92vw, 720px);
+  min-width: auto;
+  max-width: 720px;
+  height: auto;
+  max-height: 82vh;
+  border-radius: 28px;
+  border: 2px solid rgba(147, 197, 253, 0.58);
+  box-shadow:
+    0 36px 92px rgba(0, 0, 0, 0.74),
+    0 0 0 1px rgba(191, 219, 254, 0.28) inset,
+    0 0 44px rgba(56, 189, 248, 0.32);
+}
+
+ion-modal.quick-cliente-compact .quick-client-shell {
+  width: 100%;
+  max-width: 700px;
+}
+
+ion-modal.quick-cliente-compact .modal-card-client {
+  border-radius: 22px;
+  border: 1.5px solid rgba(191, 219, 254, 0.42);
+  background:
+    linear-gradient(150deg, rgba(15, 23, 42, 0.94), rgba(9, 15, 30, 0.98)),
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.22), transparent 44%);
+}
+
+ion-modal.quick-cliente-compact .quick-create-client {
+  padding: 14px;
+  display: grid;
+  gap: 12px;
+}
+
+ion-modal.quick-cliente-compact .quick-create-hero {
+  text-align: center;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+}
+
+ion-modal.quick-cliente-compact .quick-create-chip {
+  --background: rgba(37, 99, 235, 0.2);
+  --color: #dbeafe;
+  border: 1px solid rgba(147, 197, 253, 0.35);
+}
+
+ion-modal.quick-cliente-compact .quick-create-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(147, 197, 253, 0.45);
+  background: linear-gradient(140deg, rgba(37, 99, 235, 0.24), rgba(14, 165, 233, 0.2));
+}
+
+ion-modal.quick-cliente-compact .quick-create-icon ion-icon {
+  font-size: 1.3rem;
+  color: #eaf2ff;
+}
+
+ion-modal.quick-cliente-compact .quick-create-hero h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #f8fbff;
+}
+
+ion-modal.quick-cliente-compact .quick-create-hero p {
+  margin: 0;
+  color: #bfd0ea;
+  font-size: 0.9rem;
+}
+
+ion-modal.quick-cliente-compact .quick-create-resumen,
+ion-modal.quick-cliente-compact .quick-create-fields,
+ion-modal.quick-cliente-compact .quick-create-exists {
+  border: 1px solid rgba(191, 219, 254, 0.22);
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.42);
+  padding: 12px;
+}
+
+ion-modal.quick-cliente-compact .quick-create-resumen h4,
+ion-modal.quick-cliente-compact .quick-create-fields h4 {
+  margin: 0 0 8px;
+  color: #eaf2ff;
+  font-size: 0.86rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+ion-modal.quick-cliente-compact .quick-create-resumen p {
+  margin: 4px 0;
+  color: #d3e2fb;
+  font-size: 0.87rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+ion-modal.quick-cliente-compact .quick-create-resumen span {
+  color: #9fb2d4;
+}
+
+ion-modal.quick-cliente-compact .quick-form-grid--single {
+  grid-template-columns: 1fr;
+}
+
+ion-modal.quick-cliente-compact .quick-create-fields ion-item {
+  --background: rgba(255, 255, 255, 0.08);
+  --color: #f8fbff;
+  border: 1px solid rgba(191, 219, 254, 0.2);
+  border-radius: 14px;
+}
+
+ion-modal.quick-cliente-compact .quick-create-fields ion-item.item-has-focus {
+  border-color: rgba(96, 165, 250, 0.58);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.24);
+}
+
+ion-modal.quick-cliente-compact .quick-create-fields ion-icon[slot='start'] {
+  color: #bfdbfe;
+  font-size: 1rem;
+}
+
+ion-modal.quick-cliente-compact .required-soft {
+  color: #fca5a5;
+}
+
+ion-modal.quick-cliente-compact .field-wrap {
+  display: grid;
+  gap: 4px;
+}
+
+ion-modal.quick-cliente-compact .field-error {
+  color: #fecaca;
+  font-size: 0.78rem;
+  padding-left: 4px;
+}
+
+ion-modal.quick-cliente-compact .quick-create-exists {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+ion-modal.quick-cliente-compact .quick-create-exists ion-icon {
+  color: #fbbf24;
+  font-size: 1.1rem;
+}
+
+ion-modal.quick-cliente-compact .quick-create-exists p {
+  margin: 2px 0 0;
+  color: #bfd0ea;
+  font-size: 0.82rem;
+}
+
+ion-modal.quick-cliente-compact .quick-create-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding-top: 6px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.92) 55%);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+@media (max-width: 767px) {
+  ion-modal.quick-cliente-compact::part(content) {
+    width: 100vw;
+    max-width: 100vw;
+    height: 85vh;
+    max-height: 85vh;
+    border-radius: 22px 22px 0 0;
+    margin-top: auto;
+  }
+
+  ion-modal.quick-cliente-compact .quick-create-exists {
+    grid-template-columns: 1fr;
+  }
+
+  ion-modal.quick-cliente-compact .quick-create-footer {
+    position: sticky;
+    bottom: 0;
+  }
+}
+
+ion-modal.quick-client-modal .quick-client-content,
+ion-modal.cobro-modal .quick-client-content {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+
+ion-modal.quick-client-modal .quick-client-header .header-actions,
+ion-modal.quick-client-modal .quick-client-header ion-button {
+  align-self: center;
+}
+
+ion-modal.quick-client-modal .quick-client-header ion-button[fill="clear"] {
+  --color: #dbeafe;
+}
+
+/* Quick cliente modal responsive */
+ion-modal.quick-client-modal .modal-card-client {
+  min-width: 0;
+}
+
+ion-modal.quick-client-modal .modal-card-client form,
+ion-modal.quick-client-modal .modal-card-client .quick-form-grid {
+  min-width: 0;
+}
+
+ion-modal.quick-client-modal .modal-card-client .quick-form-grid ion-item,
+ion-modal.quick-client-modal .modal-card-client .quick-form-grid ion-input {
+  min-width: 0;
+}
+
+ion-modal.quick-client-modal .modal-card-client .actions {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 980px) {
+  ion-modal.quick-client-modal .modal-card-client {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header > div {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header h2 {
+    line-height: 1.2;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-form-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .actions {
+    width: 100%;
+    justify-content: stretch;
+    gap: 8px;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .actions ion-button {
+    flex: 1 1 220px;
+    min-width: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  ion-modal.quick-client-modal .modal-card-client {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header h2 {
+    font-size: 1.02rem;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header p {
+    font-size: 0.88rem;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .actions ion-button {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  ion-modal.quick-client-modal .modal-card-client {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header h2 {
+    font-size: 0.96rem;
+  }
+
+  ion-modal.quick-client-modal .modal-card-client .quick-client-header p {
+    font-size: 0.84rem;
+  }
+}
+
+/* Facturas modal responsive fixes (overlay-level styles) */
+ion-modal.quick-client-modal .facturas-manager-card {
+  min-width: 0;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .header-actions {
+  min-width: 0;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .desktop-table {
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card table {
+  min-width: 1020px;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .table-pagination {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  padding: 10px;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .mobile-cards {
+  gap: 10px;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .mobile-card {
+  min-width: 0;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .mobile-card strong,
+ion-modal.quick-client-modal .facturas-manager-card .mobile-card p {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .mobile-card .actions {
+  margin-top: 2px;
+}
+
+ion-modal.quick-client-modal .facturas-manager-card .mobile-card .actions ion-button {
+  flex: 1 1 120px;
+  min-width: 0;
+}
+
+@media (max-width: 1366px) {
+  ion-modal.quick-client-modal .facturas-manager-card .desktop-table {
+    border-radius: 12px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card table {
+    min-width: 920px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card th,
+  ion-modal.quick-client-modal .facturas-manager-card td {
+    padding: 8px 9px;
+    font-size: 0.83rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card th {
+    font-size: 0.78rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .row-actions ion-button {
+    --padding-start: 8px;
+    --padding-end: 8px;
+    font-size: 0.78rem;
+  }
+}
+
+@media (max-width: 1180px) {
+  ion-modal.quick-client-modal .facturas-manager-card table {
+    min-width: 860px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card th,
+  ion-modal.quick-client-modal .facturas-manager-card td {
+    padding: 7px 8px;
+    font-size: 0.8rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card th {
+    font-size: 0.75rem;
+  }
+}
+
+/* iPad portrait / small desktop tall screens (e.g. 1024 x 1366) */
+@media (min-width: 1000px) and (max-width: 1120px) and (min-height: 1200px) {
+  ion-modal.quick-client-modal::part(content) {
+    width: 98vw;
+    min-width: auto;
+    max-width: 98vw;
+    height: 94vh;
+    max-height: 94vh;
+  }
+
+  ion-modal.quick-client-modal .quick-client-shell {
+    width: 100%;
+    max-width: none;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card {
+    padding: 12px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .desktop-table {
+    display: block;
+    max-height: calc(92vh - 210px);
+    overflow-x: hidden;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-cards {
+    display: none !important;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card table {
+    width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card th,
+  ion-modal.quick-client-modal .facturas-manager-card td {
+    padding: 7px 6px;
+    font-size: 0.76rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(1),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(1) { width: 12%; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(2),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(2) { width: 16%; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(3),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(3) { width: 22%; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(4),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(4) { display: none; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(5),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(5),
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(6),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(6),
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(7),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(7) { width: 11%; text-align: right; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(8),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(8) { width: 11%; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(9),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(9) { display: none; }
+  ion-modal.quick-client-modal .facturas-manager-card th:nth-child(10),
+  ion-modal.quick-client-modal .facturas-manager-card td:nth-child(10) { width: 17%; }
+
+  ion-modal.quick-client-modal .facturas-manager-card .row-actions ion-button {
+    --padding-start: 6px;
+    --padding-end: 6px;
+    font-size: 0.72rem;
+  }
+}
+
+ion-modal.cobro-modal::part(content) {
+  --background: transparent;
+  width: min(92vw, 980px);
+  min-width: 760px;
+  max-width: 980px;
+  border-radius: 22px;
+  border: 2px solid rgba(147, 197, 253, 0.56);
+  box-shadow:
+    0 36px 92px rgba(1, 6, 18, 0.78),
+    0 0 0 1px rgba(191, 219, 254, 0.28) inset,
+    0 0 44px rgba(56, 189, 248, 0.32);
+}
+
+ion-modal.cobro-modal::part(backdrop) {
+  background: rgba(2, 8, 22, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+@media (max-width: 820px) {
+  ion-modal.cobro-modal::part(content) {
+    min-width: auto;
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .quick-client-header {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .header-actions {
+    width: 100%;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .header-actions ion-button {
+    flex: 1 1 160px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .table-pagination {
+    padding: 0;
+  }
+}
+
+/* Tema seleccionable y exclusivo de la ventana de facturación. */
+.facturacion-page.theme-light .cart-empty-state {
+  border-color: #d0d5dd;
+  background: #f9fafb;
+}
+
+.facturacion-page.theme-light .turno-callout {
+  border-color: #fedf89;
+  background: #fffaeb;
+  box-shadow: none;
+  animation: none;
+}
+
+.facturacion-page.theme-light .turno-callout p { color: #93370d; }
+.facturacion-page.theme-light .turno-callout ion-icon { color: #dc6803; }
+
+.facturacion-page.theme-light .cita-linked-summary {
+  border-color: #e4e7ec;
+  background: #f9fafb;
+}
+
+.facturacion-page.theme-light .cita-linked-summary span { color: #667085; }
+.facturacion-page.theme-light .cita-linked-summary strong { color: #14213d; }
+.facturacion-page.theme-light .cita-linked-summary .is-paid { color: #067647; }
+.facturacion-page.theme-light .cita-linked-summary .is-pending { color: #b54708; }
+
+.facturacion-page.theme-dark {
+  --pos-bg: #0b1220;
+  --pos-surface: #121b2d;
+  --pos-text: #f8fafc;
+  --pos-muted: #a7b3c7;
+  --pos-border: #334155;
+  --background: var(--pos-bg);
+  color-scheme: dark;
+}
+
+.facturacion-page.theme-dark .card,
+.facturacion-page.theme-dark .turno-bar,
+.facturacion-page.theme-dark .availability-filter,
+.facturacion-page.theme-dark .product-card,
+.facturacion-page.theme-dark .cliente-picker,
+.facturacion-page.theme-dark .cart-item,
+.facturacion-page.theme-dark .cart-footer,
+.facturacion-page.theme-dark .totals,
+.facturacion-page.theme-dark .qty-stepper__input {
+  background: var(--pos-surface);
+  color: var(--pos-text);
+}
+
+.facturacion-page.theme-dark ion-item {
+  --background: #172236;
+  --color: var(--pos-text);
+  --border-color: transparent;
+  border-color: var(--pos-border);
+}
+
+.facturacion-page.theme-dark ion-input,
+.facturacion-page.theme-dark ion-select,
+.facturacion-page.theme-dark ion-textarea {
+  --color: var(--pos-text);
+  --placeholder-color: #7f8da4;
+}
+
+.facturacion-page.theme-dark .turno-data dd,
+.facturacion-page.theme-dark .table-pagination,
+.facturacion-page.theme-dark .product-title strong,
+.facturacion-page.theme-dark .product-price-hero,
+.facturacion-page.theme-dark .cliente-picker,
+.facturacion-page.theme-dark .cart-item-head strong,
+.facturacion-page.theme-dark .item-totals strong,
+.facturacion-page.theme-dark .totals strong,
+.facturacion-page.theme-dark .cart-empty-state h3 {
+  color: var(--pos-text);
+}
+
+.facturacion-page.theme-dark .product-card--disabled { background: #101827; }
+.facturacion-page.theme-dark .product-visual { background: #3a2d16; color: #fdb022; }
+.facturacion-page.theme-dark .product-visual--service { background: #172e5f; color: #84adff; }
+.facturacion-page.theme-dark .product-add { --background: #172236; --color: #84adff; --border-color: #528bff; }
+.facturacion-page.theme-dark .product-add[disabled] { --background: #202a3a; --color: #8290a4; --border-color: #475467; }
+.facturacion-page.theme-dark .qty-stepper button { background: #202a3a; color: var(--pos-text); }
+.facturacion-page.theme-dark .cart-empty-state { border-color: #475467; background: #101827; }
+.facturacion-page.theme-dark .cart-empty-state > ion-icon { background: #172e5f; color: #84adff; }
+.facturacion-page.theme-dark .cita-linked-summary { border-color: #334155; background: #172236; }
+.facturacion-page.theme-dark .cita-linked-summary span { color: var(--pos-muted); }
+.facturacion-page.theme-dark .cita-linked-summary strong { color: var(--pos-text); }
+.facturacion-page.theme-dark .turno-status { background: #123524; color: #75e0a7; }
+.facturacion-page.theme-dark .turno-callout { border-color: #7a5b13; background: #352b14; box-shadow: none; animation: none; }
+.facturacion-page.theme-dark .turno-callout p { color: #fedf89; }
+.facturacion-page.theme-dark .theme-toggle { --border-color: #667085; --color: #f8fafc; }
+.facturacion-page.theme-dark .mobile-segment { border-color: #334155; background: #121b2d; }
+
+body.facturacion-light-theme ion-modal.quick-client-modal .quick-client-content,
+body.facturacion-light-theme ion-modal.cobro-modal .quick-client-content { --background: #f6f8fc; }
+
+body.facturacion-light-theme ion-modal.quick-client-modal::part(content),
+body.facturacion-light-theme ion-modal.cobro-modal::part(content) {
+  border-color: #d0d5dd;
+  background: #f6f8fc;
+  box-shadow: 0 24px 60px rgba(16,24,40,.18);
+}
+
+body.facturacion-light-theme ion-modal.quick-client-modal .quick-client-card,
+body.facturacion-light-theme ion-modal.cobro-modal .quick-client-card,
+body.facturacion-light-theme ion-modal.quick-client-modal .modal-card-client,
+body.facturacion-light-theme ion-modal.quick-client-modal .modal-card-cita,
+body.facturacion-light-theme ion-modal.quick-client-modal .modal-card-cobro,
+body.facturacion-light-theme ion-modal.quick-client-modal .facturas-manager-card {
+  border-color: #e4e7ec;
+  background: #fff !important;
+  color: #14213d;
+  box-shadow: 0 10px 30px rgba(16,24,40,.1);
+}
+
+body.facturacion-light-theme ion-modal.quick-client-modal ion-item,
+body.facturacion-light-theme ion-modal.cobro-modal ion-item {
+  --background: #fff;
+  --color: #14213d;
+  --border-color: #e4e7ec;
+  border-color: #e4e7ec;
+}
+
+body.facturacion-light-theme ion-modal.quick-client-modal ion-input,
+body.facturacion-light-theme ion-modal.quick-client-modal ion-textarea,
+body.facturacion-light-theme ion-modal.cobro-modal ion-input {
+  --color: #14213d;
+  --placeholder-color: #667085;
+}
+
+body.facturacion-light-theme ion-modal.quick-client-modal h2,
+body.facturacion-light-theme ion-modal.quick-client-modal h4,
+body.facturacion-light-theme ion-modal.quick-client-modal strong,
+body.facturacion-light-theme ion-modal.cobro-modal h2,
+body.facturacion-light-theme ion-modal.cobro-modal h4,
+body.facturacion-light-theme ion-modal.cobro-modal strong { color: #14213d; }
+
+body.facturacion-light-theme ion-modal.quick-client-modal p,
+body.facturacion-light-theme ion-modal.quick-client-modal small,
+body.facturacion-light-theme ion-modal.cobro-modal p,
+body.facturacion-light-theme ion-modal.cobro-modal span { color: #667085; }
+
+body.facturacion-dark-theme ion-modal.quick-client-modal .quick-client-content,
+body.facturacion-dark-theme ion-modal.cobro-modal .quick-client-content { --background: #0b1220; }
+
+body.facturacion-dark-theme ion-modal.quick-client-modal .quick-client-card,
+body.facturacion-dark-theme ion-modal.cobro-modal .quick-client-card {
+  border-color: #334155;
+  background: #121b2d !important;
+  color: #f8fafc;
+}
+
+.facturacion-page .product-price-hero {
+  display: inline-flex;
+  min-height: 34px;
+  align-items: center;
+  padding: 6px 12px;
+  border: 1px solid #004eeb;
+  border-radius: 8px;
+  background: #155eef;
+  box-shadow: 0 2px 5px rgba(21, 94, 239, 0.28);
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  opacity: 1;
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  ion-modal.quick-client-modal .facturas-manager-card {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .quick-client-header h2 {
+    font-size: 1.05rem;
+    line-height: 1.25;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .quick-client-header p {
+    font-size: 0.88rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card {
+    padding: 11px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card strong {
+    font-size: 0.95rem;
+    line-height: 1.25;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card p {
+    font-size: 0.86rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card .actions {
+    width: 100%;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card .actions ion-button {
+    flex: 1 1 calc(50% - 4px);
+  }
+}
+
+@media (max-width: 480px) {
+  ion-modal.quick-client-modal .facturas-manager-card {
+    padding: 10px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .quick-client-header h2 {
+    font-size: 0.98rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .quick-client-header p {
+    font-size: 0.84rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .header-actions ion-button {
+    flex: 1 1 100%;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card {
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card .actions ion-button {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 360px) {
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card strong {
+    font-size: 0.9rem;
+  }
+
+  ion-modal.quick-client-modal .facturas-manager-card .mobile-card p {
+    font-size: 0.82rem;
+  }
+}
+
+/* Highlight empty cart state on dark facturacion layout */
+.facturacion-page .cart-empty-state {
+  border: 1px dashed rgba(125, 211, 252, 0.45);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.62);
+  padding: 8px;
+}
+
+.facturacion-page .cart-empty-state .empty-state {
+  color: #dbeafe;
+  padding: 14px 10px;
+}
+
+.facturacion-page .cart-empty-state .empty-state h3 {
+  color: #ffffff !important;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.facturacion-page .cart-empty-state .empty-state p {
+  color: #bfdbfe;
+  font-size: .88rem;
+}
+
+/* Turno card + action bar compact POS */
+.facturacion-page .turno-card--active {
+  padding: 10px 14px;
+  gap: 8px;
+}
+
+.facturacion-page .turno-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: #dbeafe;
+  font-size: .82rem;
+  line-height: 1.2;
+}
+
+.facturacion-page .turno-compact-row ion-chip {
+  height: 24px;
+  margin: 0;
+}
+
+.facturacion-page .turno-card--active .actions {
+  margin-top: 0;
+}
+
+.facturacion-page .invoice-action-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-top: 8px;
+  padding: 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background: rgba(6, 10, 22, .82);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.facturacion-page .invoice-action-bar__total span {
+  color: #9fb2d4;
+  font-size: .75rem;
+  text-transform: uppercase;
+}
+
+.facturacion-page .invoice-action-bar__total strong {
+  color: #fff;
+  font-size: 1.05rem;
+}
+
+.facturacion-page .turno-callout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.55);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(251, 191, 36, 0.1));
+  box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.45);
+  animation: turnoCalloutPulse 1.8s ease-in-out infinite;
+}
+
+.facturacion-page .turno-callout ion-icon {
+  font-size: 1.1rem;
+  color: #fbbf24;
+}
+
+.facturacion-page .turno-callout p {
+  margin: 0;
+  color: #fff7db;
+  font-weight: 700;
+  font-size: .92rem;
+  line-height: 1.25;
+}
+
+@keyframes turnoCalloutPulse {
+  0% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.35); transform: translateY(0); }
+  50% { box-shadow: 0 0 0 8px rgba(251, 191, 36, 0); transform: translateY(-1px); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); transform: translateY(0); }
+}
+
+.facturacion-page .skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.facturacion-page .skeleton-product {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.09);
+  border-radius: 12px;
+}
+
+.facturacion-page .skeleton-cart {
+  display: grid;
+  gap: 10px;
+}
+
+ion-modal.quick-client-modal .cierre-turno-header h2 {
+  letter-spacing: .01em;
+}
+
+ion-modal.quick-client-modal .cierre-turno-kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+ion-modal.quick-client-modal .kpi-card {
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 12px;
+  background: rgba(15, 23, 42, 0.44);
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+ion-modal.quick-client-modal .kpi-card span {
+  font-size: .72rem;
+  color: #93a5c3;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+ion-modal.quick-client-modal .kpi-card strong {
+  font-size: .98rem;
+  color: #f8fbff;
+}
+
+ion-modal.quick-client-modal .kpi-card--primary {
+  border-color: rgba(56, 189, 248, 0.45);
+  background: linear-gradient(140deg, rgba(14, 116, 144, 0.32), rgba(15, 23, 42, 0.44));
+}
+
+ion-modal.quick-client-modal .kpi-card--primary strong {
+  font-size: 1.1rem;
+}
+
+ion-modal.quick-client-modal .kpi-card--accent {
+  border-color: rgba(251, 191, 36, 0.52);
+  background: linear-gradient(140deg, rgba(180, 83, 9, 0.26), rgba(15, 23, 42, 0.44));
+}
+
+ion-modal.quick-client-modal .cierre-turno-kpis--conciliacion {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+ion-modal.quick-client-modal .cierre-diferencia-final {
+  border-top: 1px solid rgba(251, 191, 36, 0.42);
+}
+
+ion-modal.quick-client-modal .cierre-diferencia-final strong {
+  font-size: 1.14rem;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cliente-list {
+  gap: 12px;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cliente-item {
+  padding: 16px;
+  gap: 8px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(10, 17, 32, 0.9)),
+    rgba(255, 255, 255, 0.03);
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cliente-item strong {
+  font-size: 1.05rem;
+  line-height: 1.3;
+  color: #f8fbff;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cliente-item p {
+  font-size: 0.94rem;
+  color: #d7e8ff;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cliente-item small {
+  font-size: 0.86rem;
+  color: #9fb2d4;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-metric {
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.5);
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-metric span {
+  display: block;
+  color: #9fb2d4;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-metric strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 1.05rem;
+  color: #f8fbff;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-metric--paid strong {
+  color: #86efac;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-metric--pending strong {
+  color: #fca5a5;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+ion-modal.quick-client-modal .modal-card-cita .cita-item-actions ion-button {
+  flex: 1 1 180px;
+}
+
+.cita-payment-badge {
+  margin: 0;
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid transparent;
+  background: rgba(148, 163, 184, 0.14);
+  color: #dbeafe;
+}
+
+.cita-payment-badge--success {
+  color: #86efac;
+  border-color: rgba(34, 197, 94, 0.34);
+  background: rgba(22, 163, 74, 0.14);
+}
+
+.cita-payment-badge--warning {
+  color: #fde68a;
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(217, 119, 6, 0.14);
+}
+
+.cita-payment-badge--danger {
+  color: #fca5a5;
+  border-color: rgba(239, 68, 68, 0.38);
+  background: rgba(185, 28, 28, 0.16);
+}
+
+.facturacion-page .cita-cobro-resumen strong.is-paid {
+  color: #86efac;
+}
+
+.facturacion-page .cita-cobro-resumen strong.is-pending {
+  color: #fca5a5;
+}
+
+.facturacion-page .cita-linked-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.42);
+}
+
+.facturacion-page .cita-linked-summary span {
+  display: block;
+  color: #9fb2d4;
+  font-size: 0.78rem;
+}
+
+.facturacion-page .cita-linked-summary strong {
+  display: block;
+  margin-top: 4px;
+  color: #f8fbff;
+  font-size: 0.98rem;
+}
+
+.facturacion-page .cita-linked-summary .is-paid {
+  color: #86efac;
+}
+
+.facturacion-page .cita-linked-summary .is-pending {
+  color: #fca5a5;
+}
+
+@media (max-width: 820px) {
+  .facturacion-page .mobile-segment {
+    display: block;
+    position: sticky;
+    top: 0;
+    z-index: 26;
+    margin: 4px 0 2px;
+    padding: 4px;
+    border-radius: 18px;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    background: linear-gradient(180deg, rgba(15, 23, 42, 0.86), rgba(15, 23, 42, 0.72));
+    backdrop-filter: blur(10px);
+    box-shadow:
+      0 14px 28px rgba(2, 6, 20, 0.3),
+      0 0 0 1px rgba(191, 219, 254, 0.08) inset;
+  }
+
+  .facturacion-page .mobile-segment ion-segment-button {
+    --indicator-color: transparent;
+    --color: #c9d8f2;
+    --color-checked: #ffffff;
+    --background-checked: transparent;
+    --border-radius: 14px;
+    min-height: 42px;
+    margin: 0 2px;
+    text-transform: none;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+
+  .facturacion-page .mobile-segment ion-segment-button.segment-button-checked {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow:
+      0 10px 20px rgba(37, 99, 235, 0.34),
+      0 0 0 1px rgba(191, 219, 254, 0.28) inset;
+    color: #fff;
+  }
+
+  .facturacion-page .mobile-segment ion-label {
+    font-size: 0.83rem;
+    font-weight: 800;
+  }
+
+  .facturacion-page .mobile-segment ion-icon {
+    font-size: 1.02rem;
+    margin-bottom: 2px;
+    color: inherit;
+    opacity: 0.98;
+  }
+
+  .facturacion-page .turno-card--active {
+    padding: 10px;
+  }
+
+  .facturacion-page .invoice-action-bar {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+    border-radius: 16px;
+  }
+
+  .facturacion-page .cart {
+    overflow: visible;
+    padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .facturacion-page .cart-items {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .facturacion-page .cart-footer {
+    position: relative;
+    z-index: 1;
+    padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+    margin-bottom: 0;
+  }
+
+  .facturacion-page .shell {
+    padding-bottom: calc(128px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .facturacion-page .skeleton-grid {
+    grid-template-columns: 1fr;
+  }
+
+  ion-modal.quick-client-modal .cierre-turno-kpis,
+  ion-modal.quick-client-modal .cierre-turno-kpis--conciliacion {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  ion-modal.quick-client-modal .modal-card-cita .cita-item-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  ion-modal.quick-client-modal .modal-card-cita .cita-item-actions ion-button {
+    flex: 1 1 100%;
+  }
+
+  .facturacion-page .cita-linked-summary {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  ion-modal.quick-client-modal .cierre-turno-kpis,
+  ion-modal.quick-client-modal .cierre-turno-kpis--conciliacion {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Usuarios modal emphasis: must be global because ion-modal renders at app root */
+ion-modal.users-form-modal::part(backdrop) {
+  background: rgba(2, 6, 20, 0.76);
+  backdrop-filter: blur(4px);
+}
+
+ion-modal.users-form-modal::part(content) {
+  width: min(980px, 96vw);
+  max-height: 88vh;
+  border-radius: 22px;
+  border: 1px solid rgba(147, 197, 253, 0.34);
+  box-shadow:
+    0 34px 88px rgba(0, 0, 0, 0.68),
+    0 0 0 1px rgba(147, 197, 253, 0.22),
+    0 0 44px rgba(56, 189, 248, 0.24);
+}
+
+ion-modal.users-form-modal .modal-card {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(191, 219, 254, 0.24);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.52),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Finanzas: realce de modales de categoría sobre fondo oscuro */
+ion-modal.fin-categoria-modal::part(backdrop) {
+  background: rgba(1, 8, 22, 0.82);
+  backdrop-filter: blur(5px);
+}
+
+ion-modal.fin-categoria-modal::part(content) {
+  border: 1px solid rgba(186, 230, 253, 0.42);
+  box-shadow:
+    0 36px 92px rgba(0, 0, 0, 0.72),
+    0 0 0 1px rgba(125, 211, 252, 0.24),
+    0 0 52px rgba(56, 189, 248, 0.3);
+}
+
+ion-modal.fin-categoria-modal .modal-card {
+  border: 1px solid rgba(191, 219, 254, 0.3);
+  background:
+    linear-gradient(150deg, rgba(15, 23, 42, 0.92), rgba(9, 15, 30, 0.96)),
+    radial-gradient(circle at top right, rgba(56, 189, 248, 0.2), transparent 44%);
+  box-shadow:
+    0 24px 56px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.11);
+}
+
+ion-modal.fin-categoria-modal .card-header h2 {
+  color: #eaf4ff;
+}
+
+ion-modal.fin-categoria-modal .card-header p {
+  color: #bfd0ea;
+}
+
+/* Searchable select: force visible searchbar text in iPad/iOS overlays */
+ion-modal.premium-select-modal ion-searchbar.premium-search {
+  --color: #f8fbff !important;
+  --placeholder-color: #b8c7df !important;
+  --icon-color: #b8c7df !important;
+  --clear-button-color: #b8c7df !important;
+  --background: rgba(255, 255, 255, 0.1) !important;
+}
+
+ion-modal.premium-select-modal ion-searchbar.premium-search::part(input) {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+ion-modal.premium-select-modal ion-searchbar.premium-search::part(container) {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 12px;
+}
+
+/* Finanzas: asegurar contraste alto en modales de turno */
+ion-modal.turno-modal::part(backdrop) {
+  background: rgba(2, 8, 22, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+ion-modal.turno-modal::part(content) {
+  border: 1px solid rgba(125, 211, 252, 0.32);
+  box-shadow:
+    0 28px 64px rgba(1, 6, 18, 0.72),
+    0 0 0 1px rgba(191, 219, 254, 0.2) inset;
+}
+
+ion-modal.turno-modal .movimientos-panel,
+ion-modal.turno-modal .movimientos-panel h2,
+ion-modal.turno-modal .movimientos-panel p,
+ion-modal.turno-modal .movimientos-panel span,
+ion-modal.turno-modal .movimientos-panel small,
+ion-modal.turno-modal .movimientos-panel strong,
+ion-modal.turno-modal .movimientos-panel th,
+ion-modal.turno-modal .movimientos-panel td {
+  color: #f8fbff !important;
+}
+
+ion-modal.turno-modal .movimientos-panel .kpi-label,
+ion-modal.turno-modal .movimientos-panel .panel-head p,
+ion-modal.turno-modal .movimientos-panel .turno-resumen-inline small,
+ion-modal.turno-modal .movimientos-panel .desktop-table th {
+  color: #c7d5ef !important;
+}
+
+.finanzas-content .hero-copy {
+  display: grid;
+  gap: 12px;
+  max-width: 760px;
+}
+
+.finanzas-content .hero-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.finanzas-content .hero-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 211, 252, 0.34);
+  background: rgba(14, 165, 233, 0.12);
+  color: #d9f3ff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.finanzas-content .hero-highlights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  width: 100%;
+  padding-top: 6px;
+}
+
+.finanzas-content .hero-stat {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.03);
+  display: grid;
+  gap: 6px;
+}
+
+.finanzas-content .hero-stat span {
+  color: #95a3bb;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finanzas-content .hero-stat strong {
+  color: #f6f8ff;
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.finanzas-content .hero-stat small {
+  color: #b6c4db;
+  font-size: 0.79rem;
+}
+
+.finanzas-content .hero-side-card {
+  width: 100%;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(125, 211, 252, 0.25);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.78), rgba(10, 14, 24, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  display: grid;
+  gap: 6px;
+}
+
+.finanzas-content .hero-side-card__label {
+  color: #9ac8ff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.finanzas-content .hero-side-card strong {
+  color: #f6f8ff;
+  font-size: 1.06rem;
+}
+
+.finanzas-content .hero-side-card small {
+  color: #95a3bb;
+  font-size: 0.8rem;
+  line-height: 1.4;
+}
+
+.finanzas-content .section-block {
+  display: grid;
+  gap: 12px;
+}
+
+.finanzas-content .section-title {
+  display: grid;
+  gap: 4px;
+}
+
+.finanzas-content .section-title h2 {
+  margin: 0;
+  color: #f6f8ff;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.finanzas-content .section-title p {
+  margin: 0;
+  color: #95a3bb;
+  font-size: 0.9rem;
+}
+
+.finanzas-content .section-kicker {
+  color: #9ac8ff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.finanzas-content .finance-dual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.finanzas-content .cxp-kpis {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.finanzas-content .cxp-kpis .kpi-card--featured {
+  grid-column: 1 / -1;
+  padding: 16px 18px;
+  border-color: rgba(191, 219, 254, 0.16);
+  background:
+    linear-gradient(180deg, rgba(20, 28, 44, 0.96), rgba(11, 16, 27, 0.98)),
+    rgba(255, 255, 255, 0.03);
+}
+
+.finanzas-content .cxp-kpis .kpi-card--featured .kpi-value {
+  font-size: 1.52rem;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+
+.finanzas-content .cxp-kpis .kpi-card--featured small {
+  font-size: 0.82rem;
+}
+
+.finanzas-content .cxp-access-card--success {
+  border-color: rgba(40, 199, 111, 0.3);
+  background: linear-gradient(135deg, rgba(40, 199, 111, 0.18), rgba(15, 118, 110, 0.08));
+}
+
+.finanzas-content .cxp-access-card--success .cxp-access-icon {
+  background: rgba(40, 199, 111, 0.18);
+  border-color: rgba(40, 199, 111, 0.28);
+}
+
+.finanzas-content .cxp-access-card--success .cxp-access-icon ion-icon {
+  color: #8cf2b8;
+}
+
+.finanzas-content .cxp-access-card--warning .cxp-access-icon {
+  background: rgba(251, 191, 36, 0.2);
+}
+
+.mov-fin-form-page .header-copy,
+.finance-movements-page .header-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.mov-fin-form-page .btn-secondary,
+.finance-movements-page .btn-secondary {
+  --border-color: rgba(148,163,184,.34);
+  --color:#e8efff;
+  --background: rgba(255,255,255,.04);
+  text-transform: none;
+}
+
+.mov-fin-form-page .btn-secondary {
+  --border-radius: 12px;
+}
+
+.finance-movements-page .btn-secondary {
+  --border-radius: 14px;
+}
+
+@media (max-width: 1080px) {
+  .finanzas-content .hero-highlights,
+  .finanzas-content .finance-dual-grid,
+  .finanzas-content .cxp-kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .finanzas-content .hero-top {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .finanzas-content .hero-copy {
+    max-width: none;
+  }
+
+  .finanzas-content .hero-top {
+    flex-direction: column;
+  }
+
+  .mov-fin-form-page .header {
+    align-items: stretch;
+  }
+
+  .mov-fin-form-page .header-actions,
+  .finance-movements-page .header-actions {
+    width: 100%;
+  }
+
+  .mov-fin-form-page .header-actions ion-button,
+  .finance-movements-page .header-actions ion-button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 820px) {
+  .facturacion-page .mobile-fab {
+    bottom: calc(86px + env(safe-area-inset-bottom));
+    right: 16px;
+    z-index: 34;
+  }
+
+  .facturacion-page .mobile-fab ion-fab-button {
+    --background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    --color: #fff;
+    --box-shadow: 0 16px 34px rgba(37, 99, 235, 0.34);
+    width: 58px;
+    height: 58px;
+    position: relative;
+  }
+
+  .facturacion-page .mobile-fab .cart-badge {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 7px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.74rem;
+    font-weight: 900;
+    border: 2px solid #0f172a;
+    box-shadow: 0 8px 18px rgba(239, 68, 68, 0.45);
+    z-index: 3;
+  }
+}

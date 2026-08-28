@@ -1,0 +1,102 @@
+<ion-content class="ecf-preview-page">
+  <div class="shell ion-padding" *ngIf="preview as preview">
+    <section class="header">
+      <div>
+        <h1>Previsualización e-CF draft</h1>
+        <p>Compra {{ preview.compra.numeroFactura }} · {{ preview.compra.proveedorNombre }}</p>
+      </div>
+      <ion-chip [color]="preview.validation.length ? 'warning' : 'success'">
+        <ion-label>{{ preview.validation.length ? 'Con observaciones' : 'Válido para siguiente fase' }}</ion-label>
+      </ion-chip>
+    </section>
+
+    <section class="card actions-row">
+      <ion-button class="btn-primary" (click)="imprimirCompra(preview.compra)">
+        <ion-icon slot="start" name="print-outline"></ion-icon>
+        Imprimir compra
+      </ion-button>
+      <ion-button fill="outline" (click)="guardarPdf(preview.compra)">
+        <ion-icon slot="start" name="download-outline"></ion-icon>
+        Guardar PDF
+      </ion-button>
+      <ion-button fill="outline" (click)="abrirPdf(preview.compra)">
+        <ion-icon slot="start" name="document-text-outline"></ion-icon>
+        Abrir PDF
+      </ion-button>
+      <ion-button fill="clear" (click)="volverACompras()">
+        <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+        Volver a compras
+      </ion-button>
+    </section>
+
+    <section class="card" *ngIf="preview.validation.length > 0">
+      <h3>Observaciones de validación</h3>
+      <ul>
+        <li *ngFor="let issue of preview.validation">Línea {{ issue.line }}: {{ issue.errors.join(', ') }}</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <div class="table-wrap desktop-table">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Item</th>
+              <th>Ind. B/S</th>
+              <th>Ind. Fact.</th>
+              <th>Cant.</th>
+              <th>Precio</th>
+              <th>ITBIS</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let line of pagedLines">
+              <td>{{ line.numeroLinea }}</td>
+              <td>{{ line.nombreItem }}</td>
+              <td>{{ line.indicadorBienServicio }}</td>
+              <td>{{ line.indicadorFacturacion }}</td>
+              <td>{{ line.cantidad }}</td>
+              <td>{{ line.precioUnitario | number:'1.2-2' }}</td>
+              <td>{{ line.montoItbis | number:'1.2-2' }}</td>
+              <td>{{ line.montoItem | number:'1.2-2' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-pagination" *ngIf="preview.lines.length > 0">
+        <div class="page-size">
+          <span>Filas por página</span>
+          <ion-select interface="popover" [value]="pageSize" (ionChange)="onPageSizeChange($any($event.detail).value)">
+            <ion-select-option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</ion-select-option>
+          </ion-select>
+        </div>
+        <div class="page-controls">
+          <ion-button size="small" fill="outline" [disabled]="!canGoPrev" (click)="prevPage()">Anterior</ion-button>
+          <span>Página {{ page }} de {{ totalPages }}</span>
+          <ion-button size="small" fill="outline" [disabled]="!canGoNext" (click)="nextPage()">Siguiente</ion-button>
+        </div>
+      </div>
+
+      <div class="mobile-lines">
+        <article class="line-card" *ngFor="let line of preview.lines">
+          <header>
+            <strong>Línea {{ line.numeroLinea }}</strong>
+            <ion-chip color="primary"><ion-label>{{ line.indicadorFacturacion }}</ion-label></ion-chip>
+          </header>
+
+          <p>{{ line.nombreItem }}</p>
+
+          <div class="line-grid">
+            <span>Ind. B/S: {{ line.indicadorBienServicio }}</span>
+            <span>Cantidad: {{ line.cantidad }}</span>
+            <span>Precio: {{ line.precioUnitario | number:'1.2-2' }}</span>
+            <span>ITBIS: {{ line.montoItbis | number:'1.2-2' }}</span>
+            <strong>Monto: {{ line.montoItem | number:'1.2-2' }}</strong>
+          </div>
+        </article>
+      </div>
+    </section>
+  </div>
+</ion-content>

@@ -1,0 +1,30 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Consumo de insumos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <form [formGroup]="form" (ngSubmit)="registrarConsumo()">
+    <ion-item>
+      <ion-label position="stacked">Insumo</ion-label>
+      <ion-select formControlName="insumoId">
+        <ion-select-option *ngFor="let insumo of insumos$ | async" [value]="insumo.id">{{ insumo.nombre }}</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Cantidad</ion-label>
+      <ion-input formControlName="cantidad" type="number"></ion-input>
+    </ion-item>
+
+    <ion-item>
+      <ion-label position="stacked">Cita (opcional)</ion-label>
+      <ion-select formControlName="citaId">
+        <ion-select-option *ngFor="let cita of citas$ | async" [value]="cita.id">{{ cita.fecha }} · {{ cita.clienteNombre }}</ion-select-option>
+      </ion-select>
+    </ion-item>
+
+    <ion-button expand="block" type="submit" class="ion-margin-top">Registrar consumo</ion-button>
+  </form>
+</ion-content>

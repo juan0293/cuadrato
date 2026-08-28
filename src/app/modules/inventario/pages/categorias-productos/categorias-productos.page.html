@@ -1,0 +1,49 @@
+<ion-content class="crud-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Gestión de categorías</h1>
+        <p>Organiza el catálogo para mantener productos y servicios bien clasificados.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" (click)="closeOrBack()">
+          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+          {{ modalMode ? 'Cerrar y volver al formulario' : 'Volver a productos' }}
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Listado de categorías</h2>
+      <p>Consulta, busca y actualiza la estructura comercial del inventario.</p>
+      <ion-searchbar placeholder="Buscar categoría..." (ionInput)="onSearch($event)"></ion-searchbar>
+
+      <div class="table-wrap" *ngIf="categorias$ | async as items">
+        <table>
+          <thead><tr><th>Nombre</th><th>Descripción</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let item of filterCategorias(items)">
+              <td>{{ item.nombre }}</td><td>{{ item.descripcion || '-' }}</td>
+              <td><ion-chip [color]="item.activo ? 'success' : 'medium'"><ion-label>{{ item.activo ? 'Activa' : 'Inactiva' }}</ion-label></ion-chip></td>
+              <td>
+                <ion-button fill="clear" (click)="edit(item)">Editar</ion-button>
+                <ion-button fill="clear" (click)="toggle(item)">{{ item.activo ? 'Inactivar' : 'Activar' }}</ion-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" [formGroup]="form">
+      <h2>{{ editingId ? 'Editar categoría' : 'Nueva categoría' }}</h2>
+      <p>{{ editingId ? 'Actualiza los datos de la categoría seleccionada.' : 'Crea una categoría para ordenar mejor el catálogo.' }}</p>
+      <div class="grid">
+        <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="nombre"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Descripción</ion-label><ion-input formControlName="descripcion"></ion-input></ion-item>
+      </div>
+      <ion-item><ion-label>Activa</ion-label><ion-toggle formControlName="activo"></ion-toggle></ion-item>
+      <div class="actions"><ion-button fill="outline"  color="danger" (click)="cancel()">Limpiar</ion-button><ion-button class="btn-primary" (click)="save()">Guardar</ion-button></div>
+    </section>
+  </div>
+</ion-content>

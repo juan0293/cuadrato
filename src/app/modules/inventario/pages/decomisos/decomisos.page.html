@@ -1,0 +1,29 @@
+<ion-content class="decomisos-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div>
+        <h1>Decomisos y ajustes</h1>
+        <p>Controla salidas operativas y ajustes físicos con trazabilidad.</p>
+      </div>
+      <ion-button class="btn-primary" (click)="goToNew()">Nuevo registro</ion-button>
+    </section>
+
+    <section class="card" *ngIf="decomisos$ | async as decomisos">
+      <div class="rows" *ngIf="decomisos.length; else emptyState">
+        <article class="row" *ngFor="let item of decomisos">
+          <div>
+            <h3>{{ item.productoNombre }}</h3>
+            <p>{{ movimientoLabel(item.tipoMovimiento) }} · {{ item.motivo || 'Sin motivo' }}</p>
+          </div>
+          <div class="meta">
+            <span>Cant: {{ item.cantidad }}</span>
+            <span>{{ item.fecha | date:'short' }}</span>
+          </div>
+        </article>
+      </div>
+      <ng-template #emptyState>
+        <app-empty-state title="Sin registros" message="No hay decomisos o ajustes registrados todavía."></app-empty-state>
+      </ng-template>
+    </section>
+  </div>
+</ion-content>

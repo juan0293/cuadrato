@@ -1,0 +1,177 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function role() {
+      return !isAuthenticated()
+        ? null
+        : (
+            exists(/databases/$(database)/documents/usuarios/$(request.auth.uid))
+              ? (
+                  get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol != null
+                    ? get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.rol
+                    : get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data.role
+                )
+              : (
+                  exists(/databases/$(database)/documents/users/$(request.auth.uid))
+                    ? (
+                        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol != null
+                          ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.rol
+                          : get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role
+                      )
+                    : null
+                )
+          );
+    }
+
+    function isAdmin() {
+      return role() == 'admin' || role() == 'superadmin';
+    }
+
+    function isAsistente() {
+      return role() == 'asistente' || role() == 'assistant';
+    }
+
+    function isArtista() {
+      return role() == 'artista' || role() == 'artist';
+    }
+
+    function isOperativo() {
+      return isAdmin() || isAsistente() || isArtista();
+    }
+
+    match /usuarios/{userId} {
+      allow read: if isAuthenticated() && (isOperativo() || request.auth.uid == userId);
+      allow create: if isAuthenticated() && isOperativo();
+      allow update: if isAuthenticated() && (isOperativo() || request.auth.uid == userId);
+      allow delete: if false;
+    }
+
+    match /citas/{citaId} {
+      allow read: if isAuthenticated() && (isOperativo() || resource.data.artistaId == request.auth.uid);
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /disponibilidadArtistas/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isOperativo();
+    }
+
+    match /insumos/{insumoId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
+    match /movimientosInventario/{movId} {
+      allow read: if isAuthenticated() && (isOperativo() || resource.data.artistaId == request.auth.uid);
+      allow create: if isAuthenticated() && (isOperativo() || isArtista());
+      allow update, delete: if false;
+    }
+
+    match /movimientosFinancieros/{movId} {
+      allow read: if isAuthenticated() && (isOperativo() || resource.data.artistaId == request.auth.uid);
+      allow create: if isAuthenticated() && isOperativo();
+      allow update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /facturas/{facturaId} {
+      allow read: if isAuthenticated() && (isOperativo() || resource.data.artistaId == request.auth.uid);
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /turnosCaja/{turnoId} {
+      allow read: if isAuthenticated() && (isOperativo() || resource.data.usuarioId == request.auth.uid);
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /facturacionSecuencias/{id} {
+      allow read, create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /clientes/{clienteId} {
+      allow read: if isAuthenticated() && isOperativo();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    // Inventario fiscal-ready
+    match /productosServicios/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if isAuthenticated() && isAdmin();
+    }
+
+    match /compras/{id} {
+      allow read: if isAuthenticated() && isOperativo();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /cuentasPorPagar/{id} {
+      allow read: if isAuthenticated() && isOperativo();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+
+      match /pagos/{pagoId} {
+        allow read, create: if isAuthenticated() && isOperativo();
+        allow update, delete: if false;
+      }
+    }
+
+    match /cuentasPorCobrar/{id} {
+      allow read: if isAuthenticated() && isOperativo();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+
+      match /cobros/{cobroId} {
+        allow read, create: if isAuthenticated() && isOperativo();
+        allow update, delete: if false;
+      }
+    }
+
+    match /categoriasProductos/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /unidadesMedida/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /utilidades/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /proveedores/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /configuracionEmpresa/{id} {
+      allow read: if isAuthenticated() && isOperativo();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+
+    match /categoriasFinancieras/{id} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOperativo();
+      allow delete: if false;
+    }
+  }
+}

@@ -1,0 +1,91 @@
+<ion-content class="company-profile-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <h1>Datos de empresa</h1>
+      <p>Centraliza la identidad comercial que usan facturas, compras y documentos PDF.</p>
+    </section>
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <section class="card">
+        <h2>Identidad comercial</h2>
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">Nombre comercial</ion-label>
+            <ion-input formControlName="companyTitle" placeholder="Vargas Tattoo"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Subtítulo del ticket</ion-label>
+            <ion-input formControlName="ticketSubtitle" placeholder="TICKET DE FACTURA"></ion-input>
+          </ion-item>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Datos fiscales y contacto</h2>
+        <p>Estos datos se imprimirán automáticamente en facturas y compras.</p>
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">RNC</ion-label>
+            <ion-input formControlName="rnc" placeholder="131234567"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Teléfono</ion-label>
+            <ion-input formControlName="telefono" placeholder="809-000-0000"></ion-input>
+          </ion-item>
+        </div>
+        <div class="grid single">
+          <ion-item>
+            <ion-label position="stacked">Dirección</ion-label>
+            <ion-textarea formControlName="direccion" autoGrow="true" rows="3" placeholder="Av., sector y ciudad"></ion-textarea>
+          </ion-item>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Logo institucional</h2>
+        <p>Sube el logo oficial que se imprimirá en el ticket y documentos PDF.</p>
+        <div class="logo-grid">
+          <div class="logo-preview" [class.logo-preview--empty]="!previewLogoUrl">
+            <img *ngIf="previewLogoUrl; else emptyLogo" [src]="previewLogoUrl" alt="Logo de empresa" />
+            <ng-template #emptyLogo>
+              <div class="logo-placeholder">
+                <ion-icon name="image-outline"></ion-icon>
+                <span>Sin logo cargado</span>
+              </div>
+            </ng-template>
+          </div>
+
+          <div class="logo-actions">
+            <input #logoInput type="file" accept="image/*" hidden (change)="onLogoSelected($event)" />
+            <ion-button fill="outline" type="button" (click)="openLogoPicker()" [disabled]="isUploadingLogo">
+              <ion-icon slot="start" name="cloud-upload-outline"></ion-icon>
+              {{ isUploadingLogo ? 'Cargando logo...' : 'Subir logo' }}
+            </ion-button>
+            <small>Formatos sugeridos: PNG o JPG con fondo limpio y buena resolución.</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="card preview-card">
+        <h2>Vista previa de impresión</h2>
+        <p>Así se verá el encabezado compartido en facturas y compras.</p>
+        <div class="ticket-preview">
+          <div class="ticket-logo" *ngIf="previewLogoUrl">
+            <img [src]="previewLogoUrl" alt="Preview logo" />
+          </div>
+          <strong>{{ companyTitlePreview }}</strong>
+          <span>{{ ticketSubtitlePreview }}</span>
+          <small>{{ contactPreview }}</small>
+          <small>{{ addressPreview }}</small>
+        </div>
+      </section>
+
+      <div class="actions">
+        <ion-button type="button" fill="clear" (click)="goBack()">Cancelar</ion-button>
+        <ion-button class="btn-primary" type="submit" [disabled]="isSaving || isLoading || isUploadingLogo">
+          {{ isSaving ? 'Guardando...' : 'Guardar datos' }}
+        </ion-button>
+      </div>
+    </form>
+  </div>
+</ion-content>

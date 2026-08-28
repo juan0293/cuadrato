@@ -1,0 +1,64 @@
+<div class="searchable-select">
+  <div class="top-row">
+    <ion-label>{{ label }}</ion-label>
+    <ion-button *ngIf="manageLabel" fill="clear" size="small" (click)="triggerManage()">{{ manageLabel }}</ion-button>
+  </div>
+
+  <button type="button" class="select-trigger" (click)="open()">
+    <div class="trigger-copy">
+      <span class="trigger-label" [class.placeholder]="!selectedId">{{ selectedLabel }}</span>
+      <span class="trigger-description" *ngIf="getItemValue(selectedItem, descriptionKey); else helperBlock">
+        {{ getItemValue(selectedItem, descriptionKey) }}
+      </span>
+      <ng-template #helperBlock>
+        <span class="trigger-description placeholder" *ngIf="helperText">{{ helperText }}</span>
+      </ng-template>
+    </div>
+    <ion-icon name="chevron-down-outline"></ion-icon>
+  </button>
+
+  <ion-modal [isOpen]="isOpen" (didDismiss)="close()" cssClass="premium-select-modal">
+    <ng-template>
+      <ion-content class="premium-modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="card-header">
+              <div>
+                <h2>{{ label }}</h2>
+                <p>{{ modalDescription }}</p>
+              </div>
+              <ion-button fill="clear" (click)="close()">Cerrar</ion-button>
+            </header>
+
+            <ion-searchbar class="premium-search" [placeholder]="searchPlaceholder" (ionInput)="onSearch($event)"></ion-searchbar>
+
+            <div class="results-summary" *ngIf="totalResults">
+              <span>{{ totalResults }} resultado(s)</span>
+              <small *ngIf="hasMoreResults">Mostrando los primeros {{ visibleItems.length }}. Refina la búsqueda para ver menos resultados.</small>
+            </div>
+
+            <div class="results-wrap">
+              <ion-list *ngIf="visibleItems.length > 0; else emptyState" lines="none" class="premium-list">
+                <ion-item button detail="false" *ngFor="let item of visibleItems; trackBy: trackByValue" (click)="selectItem(item)" [class.is-selected]="isSelected(item)">
+                  <ion-label>
+                    <span class="item-eyebrow" *ngIf="getItemValue(item, eyebrowKey)">{{ getItemValue(item, eyebrowKey) }}</span>
+                    <h3>{{ item[displayKey] }}</h3>
+                    <p *ngIf="getItemValue(item, descriptionKey)">{{ getItemValue(item, descriptionKey) }}</p>
+                    <div class="item-meta" *ngIf="metaKeys.length">
+                      <span *ngFor="let meta of getMetaEntries(item)">{{ meta.value }}</span>
+                    </div>
+                  </ion-label>
+                  <ion-icon *ngIf="isSelected(item)" slot="end" name="checkmark-circle" color="success"></ion-icon>
+                </ion-item>
+              </ion-list>
+
+              <ng-template #emptyState>
+                <app-empty-state [title]="emptyText" message=""></app-empty-state>
+              </ng-template>
+            </div>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</div>

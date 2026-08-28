@@ -1,0 +1,250 @@
+<ion-content class="movimientos-fiscal-page">
+  <div class="shell">
+    <section class="header">
+      <div>
+        <h1>Movimientos de inventario</h1>
+        <p>Monitorea entradas, salidas, ajustes y trazabilidad del inventario en tiempo real.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-outline" fill="outline" (click)="navigate('/admin/inventario')">
+          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+          Volver a inventario
+        </ion-button>
+        <ion-button class="btn-outline header-action-desktop" fill="outline" (click)="exportarExcel()">
+          <ion-icon name="download-outline" slot="start"></ion-icon>
+          Exportar Excel
+        </ion-button>
+        <ion-button class="btn-primary header-action-desktop" (click)="navigate('/admin/inventario/movimientos-inventario/nuevo')">
+          <ion-icon name="add-outline" slot="start"></ion-icon>
+          Registrar movimiento
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="hero card">
+      <div>
+        <h2>Dashboard operativo de movimientos</h2>
+        <p>Visualiza el impacto operativo y financiero de cada movimiento registrado sobre productos y servicios.</p>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi-card"><span>Total movimientos</span><strong>{{ totalMovimientos }}</strong></article>
+      <article class="kpi-card"><span>Entradas</span><strong>{{ entradasRegistradas }}</strong></article>
+      <article class="kpi-card"><span>Salidas</span><strong>{{ salidasRegistradas }}</strong></article>
+      <article class="kpi-card"><span>Ajustes</span><strong>{{ ajustesRealizados }}</strong></article>
+      <article class="kpi-card"><span>Productos impactados</span><strong>{{ productosImpactados }}</strong></article>
+      <article class="kpi-card"><span>Valor entradas</span><strong>{{ formatMoney(valorTotalEntradas) }}</strong></article>
+      <article class="kpi-card"><span>Valor salidas</span><strong>{{ formatMoney(valorTotalSalidas) }}</strong></article>
+      <article class="kpi-card"><span>Balance neto</span><strong>{{ formatMoney(balanceNetoInventario) }}</strong></article>
+      <article class="kpi-card"><span>Movimientos del mes</span><strong>{{ movimientosMes }}</strong></article>
+      <article class="kpi-card"><span>Último movimiento</span><strong>{{ ultimoMovimiento }}</strong></article>
+    </section>
+
+    <section class="card filters">
+      <div class="filters-header">
+        <h3>Filtros gerenciales</h3>
+        <p>Segmenta por tipo, fecha, responsable y búsqueda libre.</p>
+      </div>
+      <div class="filter-grid filter-grid-top">
+        <ion-searchbar
+          class="search-wide"
+          placeholder="Buscar por producto, referencia o motivo"
+          [value]="query"
+          (ionInput)="onSearch($any($event.detail).value)">
+        </ion-searchbar>
+
+        <ion-item>
+          <ion-label>Tipo</ion-label>
+          <ion-select [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover">
+            <ion-select-option value="todos">Todos</ion-select-option>
+            <ion-select-option value="entrada">Entrada</ion-select-option>
+            <ion-select-option value="salida">Salida</ion-select-option>
+            <ion-select-option value="ajuste">Ajuste</ion-select-option>
+            <ion-select-option value="devolucion">Devolución</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </div>
+
+      <div class="filter-grid filter-grid-bottom">
+        <ion-item>
+          <ion-label position="stacked">Fecha desde</ion-label>
+          <ion-input type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="stacked">Fecha hasta</ion-label>
+          <ion-input type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="stacked">Responsable</ion-label>
+          <ion-input [value]="filtroResponsable" placeholder="Ej. admin@empresa.com" (ionInput)="onResponsableChange($any($event.detail).value)"></ion-input>
+        </ion-item>
+      </div>
+    </section>
+
+    <section class="charts-grid">
+      <article class="card chart-card">
+        <h3>Distribución por tipo</h3>
+        <div class="chart-wrap">
+          <canvas #tipoChartCanvas></canvas>
+        </div>
+      </article>
+      <article class="card chart-card">
+        <h3>Tendencia temporal</h3>
+        <div class="chart-wrap">
+          <canvas #tendenciaChartCanvas></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <h3>Accesos rápidos</h3>
+        <p>Flujos frecuentes para control operativo diario.</p>
+      </div>
+      <div class="quick-grid">
+        <article class="quick-card" *ngFor="let action of quickActions" (click)="navigate(action.route)">
+          <ion-icon [name]="action.icon"></ion-icon>
+          <h4>{{ action.title }}</h4>
+          <p>{{ action.description }}</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="card insights-card">
+      <div class="section-head">
+        <h3>Insights operativos</h3>
+        <p>Señales clave para reforzar trazabilidad y control.</p>
+      </div>
+      <div class="insights-list" *ngIf="hasInsights">
+        <article class="insight-item" *ngFor="let insight of insights" [class.warn]="insight.level === 'warning'" [class.ok]="insight.level === 'ok'">
+          <ion-icon [name]="insight.level === 'warning' ? 'warning-outline' : (insight.level === 'ok' ? 'checkmark-circle-outline' : 'information-circle-outline')"></ion-icon>
+          <div>
+            <h4>{{ insight.title }}</h4>
+            <p>{{ insight.detail }}</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="card" *ngIf="!loading && !loadError">
+      <ng-container *ngIf="movimientosFiltrados.length > 0; else emptyState">
+        <div class="desktop-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Producto/Servicio</th>
+                <th>Código</th>
+                <th class="num">Cantidad</th>
+                <th class="num">Costo unitario</th>
+                <th class="num">Valor total</th>
+                <th>Referencia</th>
+                <th>Responsable</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of pagedMovimientos">
+                <td>{{ formatDate(m.fecha, true) }}</td>
+                <td>
+                  <ion-chip [color]="getTipoChipColor(m)">
+                    <ion-label>{{ movimientoLabel(getTipoValue(m)) }}</ion-label>
+                  </ion-chip>
+                </td>
+                <td class="producto-cell" [title]="m.productoNombre || m.insumoNombre || '—'">{{ m.productoNombre || m.insumoNombre || '—' }}</td>
+                <td>{{ m.productoId || m.insumoId || '—' }}</td>
+                <td class="num">{{ m.cantidad }}</td>
+                <td class="num">{{ formatMoney(m.costoUnitario) }}</td>
+                <td class="num"><strong>{{ formatMoney(getValorTotal(m)) }}</strong></td>
+                <td>{{ m.referenciaId || m.referenciaTipo || '—' }}</td>
+                <td>{{ getResponsableNombre(m) }}</td>
+                <td>
+                  <ion-chip color="success">
+                    <ion-label>Registrado</ion-label>
+                  </ion-chip>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="table-pagination">
+          <div class="page-size">
+            <span>Filas por página</span>
+            <ion-select interface="popover" [value]="pageSize" (ionChange)="onPageSizeChange($any($event.detail).value)">
+              <ion-select-option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</ion-select-option>
+            </ion-select>
+          </div>
+          <div class="page-controls">
+            <ion-button size="small" fill="outline" [disabled]="!canGoPrev" (click)="prevPage()">Anterior</ion-button>
+            <span>Página {{ page }} de {{ totalPages }}</span>
+            <ion-button size="small" fill="outline" [disabled]="!canGoNext" (click)="nextPage()">Siguiente</ion-button>
+          </div>
+        </div>
+
+        <div class="mobile-cards">
+          <article class="mov-card" *ngFor="let m of movimientosFiltrados; trackBy: trackByMovimiento">
+            <header>
+              <h4>{{ m.productoNombre || m.insumoNombre || 'Movimiento' }}</h4>
+              <ion-chip [color]="getTipoChipColor(m)">
+                <ion-label>{{ movimientoLabel(getTipoValue(m)) }}</ion-label>
+              </ion-chip>
+            </header>
+            <p>{{ formatDate(m.fecha, true) }}</p>
+            <div class="meta-grid">
+              <span>Cantidad: <strong>{{ m.cantidad }}</strong></span>
+              <span>Valor: <strong>{{ formatMoney(getValorTotal(m)) }}</strong></span>
+              <span>Responsable: <strong>{{ getResponsableNombre(m) }}</strong></span>
+              <span>Referencia: <strong>{{ m.referenciaId || m.referenciaTipo || '—' }}</strong></span>
+            </div>
+            <div class="card-actions">
+              <ion-button class="mobile-actions-trigger" fill="outline" size="small" (click)="openMobileActions(m)">
+                <ion-icon slot="start" name="ellipsis-horizontal-circle-outline"></ion-icon>
+                Ver opciones
+              </ion-button>
+            </div>
+          </article>
+        </div>
+      </ng-container>
+
+      <ng-template #emptyState>
+        <app-empty-state
+          title="Sin movimientos registrados"
+          message="Cuando registres entradas, salidas o ajustes, aparecerán aquí para dar trazabilidad al inventario.">
+        </app-empty-state>
+        <div class="empty-actions">
+          <ion-button class="btn-primary" (click)="navigate('/admin/inventario/movimientos-inventario/nuevo')">
+            Registrar movimiento
+          </ion-button>
+        </div>
+      </ng-template>
+    </section>
+
+    <section class="card" *ngIf="loading">
+      <app-skeleton-card></app-skeleton-card>
+    </section>
+
+    <section class="card" *ngIf="loadError">
+      <app-empty-state
+        title="No fue posible cargar movimientos"
+        message="Verifica tu conexión o intenta nuevamente en unos segundos.">
+      </app-empty-state>
+    </section>
+  </div>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="mobile-movimientos-fab">
+    <ion-fab-button aria-label="Acciones de movimientos de inventario">
+      <ion-icon name="swap-vertical-outline"></ion-icon>
+    </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button color="light" (click)="exportarExcel()" aria-label="Exportar Excel">
+        <ion-icon name="download-outline"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button color="primary" (click)="navigate('/admin/inventario/movimientos-inventario/nuevo')" aria-label="Registrar movimiento">
+        <ion-icon name="add-outline"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  </ion-fab>
+</ion-content>

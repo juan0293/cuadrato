@@ -1,0 +1,240 @@
+<ion-content class="compras-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Compras registradas</h1>
+        <p>Controla facturas de proveedores, impuestos y entradas de inventario.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" (click)="goToInventario()">
+          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+          Volver
+        </ion-button>
+        <ion-button class="btn-outline header-action-desktop" (click)="exportarExcelCompras()">
+          <ion-icon name="download-outline" slot="start"></ion-icon>
+          Exportar Excel
+        </ion-button>
+        <ion-button class="btn-primary header-action-desktop" (click)="goToNew()">
+          <ion-icon name="add-outline" slot="start"></ion-icon>
+          Nueva compra
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi-card">
+        <span>Compras del mes</span>
+        <strong>{{ kpiComprasMes }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>Total comprado</span>
+        <strong>{{ formatMoney(kpiTotalComprado) }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>ITBIS acumulado</span>
+        <strong>{{ formatMoney(kpiItbis) }}</strong>
+      </article>
+      <article class="kpi-card">
+        <span>Cuentas por pagar</span>
+        <strong>{{ formatMoney(kpiCxp) }}</strong>
+      </article>
+    </section>
+
+    <section class="card filters">
+      <div class="filters-header">
+        <h2>Filtros de compras</h2>
+        <p>Refina por proveedor, estado, condición y rango de fechas.</p>
+      </div>
+
+      <div class="filter-block filter-block-search">
+        <span class="filter-label">Búsqueda general</span>
+        <ion-searchbar
+          mode="ios"
+          placeholder="Buscar por proveedor, RNC, NCF, factura o estado"
+          color="light"
+          [value]="query"
+          (ionInput)="onSearch($any($event.detail).value)">
+        </ion-searchbar>
+      </div>
+
+      <div class="filter-block">
+        <span class="filter-label">Filtros principales</span>
+        <div class="filter-grid filter-grid-top">
+          <ion-item>
+            <ion-label position="stacked">Fecha desde</ion-label>
+            <ion-input type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Fecha hasta</ion-label>
+            <ion-input type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+
+          <app-searchable-select
+            label="Proveedor"
+            placeholder="Filtrar por proveedor"
+            [items]="proveedores"
+            displayKey="nombre"
+            valueKey="id"
+            [searchKeys]="['nombre','rnc','telefono','email']"
+            [selectedId]="filtroProveedorId"
+            (selected)="onProveedorFilterSelected($event)">
+          </app-searchable-select>
+        </div>
+
+        <div class="filter-grid filter-grid-bottom">
+          <ion-item>
+            <ion-label>Estado</ion-label>
+            <ion-select [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todos">Todos</ion-select-option>
+              <ion-select-option value="borrador">Borrador</ion-select-option>
+              <ion-select-option value="confirmada">Confirmada</ion-select-option>
+              <ion-select-option value="anulada">Anulada</ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label>Condición</ion-label>
+            <ion-select [value]="filtroCondicion" (ionChange)="onCondicionChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todas">Todas</ion-select-option>
+              <ion-select-option value="contado">Contado</ion-select-option>
+              <ion-select-option value="credito">Crédito</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+      </div>
+
+      <div class="filter-actions">
+        <ion-button class="btn-filter-secondary" fill="outline" size="small" (click)="verAnuladas()">
+          <ion-icon slot="start" name="ban-outline"></ion-icon>
+          Ver anuladas
+        </ion-button>
+        <ion-button class="btn-filter-ghost" fill="clear" size="small" (click)="clearProveedorFilter()" *ngIf="filtroProveedorId">
+          Limpiar proveedor
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="card" *ngIf="!loading">
+      <ng-container *ngIf="comprasFiltradas.length > 0; else emptyState">
+        <div class="desktop-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Proveedor</th>
+                <th>RNC</th>
+                <th>NCF</th>
+                <th>Factura</th>
+                <th>Condición</th>
+                <th>Estado</th>
+                <th class="num">Subtotal</th>
+                <th class="num">ITBIS</th>
+                <th class="num">Total</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let compra of pagedCompras">
+                <td>{{ formatDate(compra.fechaEmision) }}</td>
+                <td>{{ compra.proveedorNombre }}</td>
+                <td>{{ compra.proveedorRnc || '-' }}</td>
+                <td>{{ compra.ncf || '-' }}</td>
+                <td>{{ compra.numeroFactura || '-' }}</td>
+                <td>
+                  <ion-chip [color]="compra.condicionPago === 'credito' ? 'warning' : 'success'">
+                    <ion-label>{{ compra.condicionPago | titlecase }}</ion-label>
+                  </ion-chip>
+                </td>
+                <td>
+                  <ion-chip [color]="compra.estado === 'confirmada' ? 'success' : compra.estado === 'anulada' ? 'danger' : 'warning'">
+                    <ion-label>{{ compra.estado | titlecase }}</ion-label>
+                  </ion-chip>
+                </td>
+                <td class="num">{{ formatMoney(compra.subtotal) }}</td>
+                <td class="num">{{ formatMoney(compra.totalItbis) }}</td>
+                <td class="num total">{{ formatMoney(compra.total) }}</td>
+                <td>
+                  <ion-button fill="clear" size="small" (click)="openActions(compra)">
+                    <ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon>
+                  </ion-button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-pagination">
+          <div class="page-size">
+            <span>Filas por página</span>
+            <ion-select interface="popover" [value]="pageSize" (ionChange)="onPageSizeChange($any($event.detail).value)">
+              <ion-select-option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</ion-select-option>
+            </ion-select>
+          </div>
+          <div class="page-controls">
+            <ion-button size="small" fill="outline" [disabled]="!canGoPrev" (click)="prevPage()">Anterior</ion-button>
+            <span>Página {{ page }} de {{ totalPages }}</span>
+            <ion-button size="small" fill="outline" [disabled]="!canGoNext" (click)="nextPage()">Siguiente</ion-button>
+          </div>
+        </div>
+
+        <div class="mobile-cards">
+          <article class="compra-card" *ngFor="let compra of comprasFiltradas">
+            <header>
+              <h3>{{ compra.proveedorNombre }}</h3>
+              <ion-chip [color]="compra.estado === 'confirmada' ? 'success' : compra.estado === 'anulada' ? 'medium' : 'warning'">
+                <ion-label>{{ compra.estado | titlecase }}</ion-label>
+              </ion-chip>
+            </header>
+
+            <p>{{ compra.ncf || compra.numeroFactura || 'Sin comprobante' }}</p>
+            <small>{{ formatDate(compra.fechaEmision, true) }}</small>
+
+            <div class="chips">
+              <ion-chip [color]="compra.condicionPago === 'credito' ? 'warning' : 'success'">
+                <ion-label>{{ compra.condicionPago | titlecase }}</ion-label>
+              </ion-chip>
+            </div>
+
+            <div class="totals">
+              <span>Subtotal: {{ formatMoney(compra.subtotal) }}</span>
+              <span>ITBIS: {{ formatMoney(compra.totalItbis) }}</span>
+              <strong>Total: {{ formatMoney(compra.total) }}</strong>
+            </div>
+
+            <div class="card-actions">
+              <ion-button class="mobile-actions-trigger" fill="outline" size="small" (click)="openActions(compra)">
+                <ion-icon slot="start" name="ellipsis-horizontal-circle-outline"></ion-icon>
+                Ver opciones
+              </ion-button>
+            </div>
+          </article>
+        </div>
+      </ng-container>
+
+      <ng-template #emptyState>
+        <app-empty-state
+          title="Aún no hay compras registradas"
+          message="Cuando registres una factura de proveedor, aparecerá aquí para control y seguimiento.">
+        </app-empty-state>
+      </ng-template>
+    </section>
+
+    <section class="card" *ngIf="loading">
+      <app-skeleton-card></app-skeleton-card>
+    </section>
+  </div>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="mobile-compras-fab">
+    <ion-fab-button aria-label="Acciones de compras">
+      <ion-icon name="bag-handle-outline"></ion-icon>
+    </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button color="light" (click)="exportarExcelCompras()" aria-label="Exportar Excel">
+        <ion-icon name="download-outline"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button color="primary" (click)="goToNew()" aria-label="Nueva compra">
+        <ion-icon name="add-outline"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  </ion-fab>
+</ion-content>

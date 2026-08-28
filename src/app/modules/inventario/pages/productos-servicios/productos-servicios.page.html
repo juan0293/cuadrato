@@ -1,0 +1,240 @@
+<ion-content class="inventory-products-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Catálogo de productos y servicios</h1>
+        <p>Gestiona precios, costos, stock e impuestos desde un solo lugar.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" (click)="goToInventario()">
+          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+          Volver a inventario
+        </ion-button>
+        <ion-button class="btn-outline header-action-desktop" (click)="exportarExcel()">
+          <ion-icon name="download-outline" slot="start"></ion-icon>
+          Exportar Excel
+        </ion-button>
+        <ion-button class="btn-primary header-action-desktop" (click)="goToNew()">
+          <ion-icon name="add-outline" slot="start"></ion-icon>
+          Nuevo producto/servicio
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi-card"><span>Total catálogo</span><strong>{{ kpiTotal }}</strong></article>
+      <article class="kpi-card"><span>Productos activos</span><strong>{{ kpiProductosActivos }}</strong></article>
+      <article class="kpi-card"><span>Servicios activos</span><strong>{{ kpiServiciosActivos }}</strong></article>
+      <article class="kpi-card"><span>Stock total</span><strong>{{ kpiStockTotal }}</strong></article>
+      <article class="kpi-card"><span>Bajo stock mínimo</span><strong>{{ kpiBajoStock }}</strong></article>
+      <article class="kpi-card"><span>Valor inventario</span><strong>{{ formatMoney(kpiValorInventario) }}</strong></article>
+      <article class="kpi-card"><span>Costo inventario</span><strong>{{ formatMoney(kpiCostoInventario) }}</strong></article>
+      <article class="kpi-card"><span>Margen promedio</span><strong>{{ kpiMargenPromedio | number:'1.0-2' }}%</strong></article>
+      <article class="kpi-card"><span>Con ITBIS</span><strong>{{ kpiConItbis }}</strong></article>
+      <article class="kpi-card"><span>Sin ITBIS</span><strong>{{ kpiSinItbis }}</strong></article>
+    </section>
+
+    <section class="card filters">
+      <div class="filters-header">
+        <h2>Filtros del catálogo</h2>
+        <p>Explora por tipo, estado y salud de inventario.</p>
+      </div>
+      <div class="filter-block filter-block-search">
+        <span class="filter-label">Búsqueda general</span>
+        <ion-searchbar
+          placeholder="Buscar por nombre, código, categoría o unidad"
+          [value]="query"
+          (ionInput)="onSearch($event)"
+          debounce="250">
+        </ion-searchbar>
+      </div>
+      <div class="filter-block">
+        <span class="filter-label">Filtros principales</span>
+        <div class="filter-grid">
+          <ion-item>
+            <ion-label>Tipo</ion-label>
+            <ion-select [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todos">Todos</ion-select-option>
+              <ion-select-option value="producto">Producto</ion-select-option>
+              <ion-select-option value="servicio">Servicio</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label>Estado</ion-label>
+            <ion-select [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todos">Todos</ion-select-option>
+              <ion-select-option value="activo">Activo</ion-select-option>
+              <ion-select-option value="inactivo">Inactivo</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label>Stock</ion-label>
+            <ion-select [value]="filtroStock" (ionChange)="onStockChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todos">Todos</ion-select-option>
+              <ion-select-option value="normal">Stock normal</ion-select-option>
+              <ion-select-option value="bajo">Bajo stock</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" *ngIf="!loading">
+      <ng-container *ngIf="itemsFiltrados.length > 0; else emptyState">
+        <div class="desktop-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Nombre</th>
+                <th>Tipo</th>
+                <th>Categoría</th>
+                <th class="num">Precio venta</th>
+                <th class="num">Costo</th>
+                <th>ITBIS</th>
+                <th class="num">Stock actual</th>
+                <th class="num">Stock mínimo</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let item of pagedItems">
+                <td>{{ item.codigoInterno || '—' }}</td>
+                <td>{{ item.nombre }}</td>
+                <td>
+                  <ion-chip [color]="getTipoFilterValue(item) === 'producto' ? 'primary' : 'tertiary'">
+                    <ion-label>{{ getTipoLabel(item) }}</ion-label>
+                  </ion-chip>
+                </td>
+                <td>{{ item.categoriaNombre || '—' }}</td>
+                <td class="num">{{ formatMoney(item.precioVenta) }}</td>
+                <td class="num">{{ formatMoney(item.precioCompra ?? item.ultimoCosto ?? item.costoPromedio) }}</td>
+                <td>{{ getItbisLabel(item) }}</td>
+                <td class="num">
+                  <ion-chip [color]="getStockChipColor(item)">
+                    <ion-label>{{ item.manejaInventario ? item.stockActual : 'N/A' }}</ion-label>
+                  </ion-chip>
+                </td>
+                <td class="num">{{ item.manejaInventario ? (item.stockMinimo ?? 0) : 'N/A' }}</td>
+                <td>
+                  <ion-chip [color]="item.activo ? 'success' : 'medium'">
+                    <ion-label>{{ item.activo ? 'Activo' : 'Inactivo' }}</ion-label>
+                  </ion-chip>
+                </td>
+                <td>
+                  <ion-button fill="clear" size="small" (click)="openActions(item)">
+                    <ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon>
+                  </ion-button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-pagination">
+          <div class="page-size">
+            <span>Filas por página</span>
+            <ion-select interface="popover" [value]="pageSize" (ionChange)="onPageSizeChange($any($event.detail).value)">
+              <ion-select-option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</ion-select-option>
+            </ion-select>
+          </div>
+          <div class="page-controls">
+            <ion-button size="small" fill="outline" [disabled]="!canGoPrev" (click)="prevPage()">Anterior</ion-button>
+            <span>Página {{ page }} de {{ totalPages }}</span>
+            <ion-button size="small" fill="outline" [disabled]="!canGoNext" (click)="nextPage()">Siguiente</ion-button>
+          </div>
+        </div>
+
+        <div class="mobile-cards">
+          <article class="item-card" *ngFor="let item of itemsFiltrados">
+            <div class="item-card-glow"></div>
+
+            <header class="item-card-header">
+              <div class="item-card-copy">
+                <span class="item-card-overline">{{ item.codigoInterno || 'Sin código' }}</span>
+                <h3>{{ item.nombre }}</h3>
+                <p>{{ item.categoriaNombre || 'Sin categoría' }}</p>
+              </div>
+
+              <ion-chip class="status-chip" [color]="item.activo ? 'success' : 'medium'">
+                <ion-label>{{ item.activo ? 'Activo' : 'Inactivo' }}</ion-label>
+              </ion-chip>
+            </header>
+
+            <div class="item-card-chips">
+              <ion-chip class="soft-chip" [color]="getTipoFilterValue(item) === 'producto' ? 'primary' : 'tertiary'">
+                <ion-label>{{ getTipoLabel(item) }}</ion-label>
+              </ion-chip>
+              <ion-chip class="soft-chip" [color]="getStockChipColor(item)">
+                <ion-label>{{ item.manejaInventario ? ('Stock ' + item.stockActual) : 'Sin inventario' }}</ion-label>
+              </ion-chip>
+              <ion-chip class="soft-chip neutral-chip">
+                <ion-label>{{ getItbisLabel(item) }}</ion-label>
+              </ion-chip>
+            </div>
+
+            <section class="item-card-metrics">
+              <article class="metric-card metric-card-accent">
+                <span>Precio venta</span>
+                <strong>{{ formatMoney(item.precioVenta) }}</strong>
+              </article>
+              <article class="metric-card">
+                <span>Costo</span>
+                <strong>{{ formatMoney(item.precioCompra ?? item.ultimoCosto ?? item.costoPromedio) }}</strong>
+              </article>
+            </section>
+
+            <section class="item-card-meta">
+              <div class="meta-row" *ngIf="item.manejaInventario; else noInventoryMeta">
+                <span>Stock mínimo</span>
+                <strong>{{ item.stockMinimo ?? 0 }}</strong>
+              </div>
+              <ng-template #noInventoryMeta>
+                <div class="meta-row">
+                  <span>Inventario</span>
+                  <strong>No aplica</strong>
+                </div>
+              </ng-template>
+              <div class="meta-row">
+                <span>Impuesto</span>
+                <strong>{{ getItbisLabel(item) }}</strong>
+              </div>
+            </section>
+
+            <div class="card-actions">
+              <ion-button class="mobile-actions-trigger" fill="outline" size="small" (click)="openActions(item)">
+                <ion-icon slot="start" name="ellipsis-horizontal-circle-outline"></ion-icon>
+                Ver opciones
+              </ion-button>
+            </div>
+          </article>
+        </div>
+      </ng-container>
+
+      <ng-template #emptyState>
+        <app-empty-state
+          title="Sin productos registrados"
+          message="Agrega tu primer producto o servicio para iniciar la gestión comercial.">
+        </app-empty-state>
+      </ng-template>
+    </section>
+
+    <section class="card" *ngIf="loading">
+      <app-skeleton-card></app-skeleton-card>
+    </section>
+  </div>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="mobile-products-fab">
+    <ion-fab-button aria-label="Acciones del catálogo">
+      <ion-icon name="cube-outline"></ion-icon>
+    </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button color="light" (click)="exportarExcel()" aria-label="Exportar Excel">
+        <ion-icon name="download-outline"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button color="primary" (click)="goToNew()" aria-label="Nuevo producto o servicio">
+        <ion-icon name="add-outline"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  </ion-fab>
+</ion-content>

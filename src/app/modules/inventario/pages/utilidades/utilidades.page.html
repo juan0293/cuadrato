@@ -1,0 +1,46 @@
+<ion-content class="crud-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Gestión de utilidades</h1>
+        <p>Configura márgenes comerciales para calcular precios con más control y consistencia.</p>
+      </div>
+      <div class="header-actions" *ngIf="modalMode">
+        <ion-button class="btn-secondary" fill="outline" (click)="closeOrBack()">
+          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+          Cerrar y volver al formulario
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Listado de utilidades</h2>
+      <p>Consulta márgenes activos y ajusta la rentabilidad aplicada a cada operación.</p>
+      <ion-searchbar placeholder="Buscar utilidad..." (ionInput)="onSearch($event)"></ion-searchbar>
+      <div class="table-wrap" *ngIf="utilidades$ | async as items">
+        <table>
+          <thead><tr><th>Nombre</th><th>Porcentaje</th><th>Estado</th><th></th></tr></thead>
+          <tbody>
+            <tr *ngFor="let item of filterUtilidades(items)">
+              <td>{{ item.nombre }}</td>
+              <td><ion-chip color="primary"><ion-label>{{ item.porcentaje }}%</ion-label></ion-chip></td>
+              <td><ion-chip [color]="item.activo ? 'success' : 'medium'"><ion-label>{{ item.activo ? 'Activa' : 'Inactiva' }}</ion-label></ion-chip></td>
+              <td><ion-button fill="clear" (click)="edit(item)">Editar</ion-button><ion-button fill="clear" (click)="toggle(item)">{{ item.activo ? 'Inactivar' : 'Activar' }}</ion-button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="card" [formGroup]="form">
+      <h2>{{ editingId ? 'Editar utilidad' : 'Nueva utilidad' }}</h2>
+      <p>{{ editingId ? 'Modifica el margen seleccionado con control operativo.' : 'Define una nueva utilidad para estandarizar la venta.' }}</p>
+      <div class="grid">
+        <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="nombre"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Porcentaje</ion-label><ion-input type="number" formControlName="porcentaje"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Descripción</ion-label><ion-input formControlName="descripcion"></ion-input></ion-item>
+      </div>
+      <ion-item><ion-label>Activa</ion-label><ion-toggle formControlName="activo"></ion-toggle></ion-item>
+      <div class="actions"><ion-button  fill="outline"  color="danger" (click)="cancel()">Limpiar</ion-button><ion-button class="btn-primary" (click)="save()">Guardar</ion-button></div>
+    </section>
+  </div>
+</ion-content>

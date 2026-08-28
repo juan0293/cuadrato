@@ -1,0 +1,204 @@
+<ion-content class="product-form-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <h1>{{ isEditMode ? 'Editar producto/servicio' : 'Nuevo producto/servicio' }}</h1>
+      <p>Define la información base para inventario y facturación.</p>
+    </section>
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <section class="card">
+        <h2>Identificación</h2>
+        <div class="grid code-row">
+          <ion-item>
+            <ion-label position="stacked">Código interno</ion-label>
+            <ion-input formControlName="codigoInterno"></ion-input>
+          </ion-item>
+          <div class="inline-actions">
+            <ion-button fill="outline" type="button" (click)="generateCodigo()">Generar código</ion-button>
+            <ion-button fill="outline" type="button" (click)="validateCodigo()">Validar disponibilidad</ion-button>
+            <ion-chip *ngIf="codigoDisponible === true" color="success"><ion-label>Disponible</ion-label></ion-chip>
+            <ion-chip *ngIf="codigoDisponible === false" color="danger"><ion-label>Duplicado</ion-label></ion-chip>
+          </div>
+        </div>
+
+        <div class="grid">
+          <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="nombre"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Descripción</ion-label><ion-input formControlName="descripcion"></ion-input></ion-item>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Clasificación</h2>
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">Tipo item</ion-label>
+            <ion-select formControlName="tipoItem">
+              <ion-select-option value="bien">Bien</ion-select-option>
+              <ion-select-option value="servicio">Servicio</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label>Maneja inventario</ion-label>
+            <ion-toggle formControlName="manejaInventario"></ion-toggle>
+          </ion-item>
+        </div>
+
+        <div class="grid selects">
+          <app-searchable-select
+            label="Categoría"
+            placeholder="Selecciona una categoría"
+            [items]="(categoriasActivas$ | async) ?? []"
+            displayKey="nombre"
+            valueKey="id"
+            [searchKeys]="['nombre']"
+            [selectedId]="form.controls.categoriaId.value"
+            manageLabel="Gestionar categorías"
+            (selected)="onCategoriaSelected($event)"
+            (manage)="goCategorias()">
+          </app-searchable-select>
+          <div class="searchable-select">
+            <div class="top-row">
+              <ion-label>Proveedor</ion-label>
+              <ion-button size="small" fill="clear" type="button" (click)="goProveedores()">Gestionar</ion-button>
+            </div>
+            <button type="button" class="select-trigger" (click)="openProveedorModal()">
+              <span [class.placeholder]="!form.controls.proveedorId.value">{{ selectedProveedorLabel }}</span>
+              <ion-icon name="chevron-down-outline"></ion-icon>
+            </button>
+          </div>
+          <app-searchable-select
+            label="Unidad de medida"
+            placeholder="Selecciona una unidad"
+            [items]="(unidadesActivas$ | async) ?? []"
+            displayKey="nombre"
+            valueKey="id"
+            [searchKeys]="['nombre','codigo']"
+            [selectedId]="form.controls.unidadMedidaId.value"
+            manageLabel="Gestionar unidades"
+            (selected)="onUnidadSelected($event)"
+            (manage)="goUnidades()">
+          </app-searchable-select>
+        </div>
+      </section>
+
+      <section class="card" *ngIf="showStockSection">
+        <h2>Inventario</h2>
+        <div class="grid">
+          <ion-item><ion-label position="stacked">Stock actual</ion-label><ion-input type="number" formControlName="stockActual"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Stock mínimo</ion-label><ion-input type="number" formControlName="stockMinimo"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Stock máximo</ion-label><ion-input type="number" formControlName="stockMaximo"></ion-input></ion-item>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Precios</h2>
+        <div class="grid selects">
+          <ion-item [class.item-invalid]="precioCompraInvalid">
+            <ion-label position="stacked">Precio de compra</ion-label>
+            <ion-input
+              inputmode="decimal"
+              [value]="precioCompraDisplay"
+              (ionFocus)="onPrecioCompraFocus()"
+              (ionInput)="onPrecioCompraInput($event)"
+              (ionBlur)="onPrecioCompraBlur()">
+            </ion-input>
+          </ion-item>
+
+          <app-searchable-select
+            label="Utilidad"
+            placeholder="Selecciona una utilidad"
+            [items]="(utilidadesActivas$ | async) ?? []"
+            displayKey="nombre"
+            valueKey="id"
+            [searchKeys]="['nombre','porcentaje']"
+            [selectedId]="form.controls.utilidadId.value"
+            manageLabel="Gestionar utilidades"
+            (selected)="onUtilidadSelected($event)"
+            (manage)="goUtilidades()">
+          </app-searchable-select>
+        </div>
+        <small class="field-error" *ngIf="precioCompraInvalid">Precio de compra inválido.</small>
+
+        <div class="grid">
+          <ion-item [class.item-invalid]="precioVentaInvalid">
+            <ion-label position="stacked">Precio de venta</ion-label>
+            <ion-input
+              inputmode="decimal"
+              [value]="precioVentaDisplay"
+              (ionFocus)="onPrecioVentaFocus()"
+              (ionInput)="onPrecioVentaInput($event); markPrecioVentaManual()"
+              (ionBlur)="onPrecioVentaBlur()">
+            </ion-input>
+          </ion-item>
+        </div>
+        <small class="field-error" *ngIf="precioVentaInvalid">Precio de venta inválido.</small>
+
+        <div class="inline-actions">
+          <ion-button fill="outline" type="button" (click)="recalculatePrecioVenta()">Recalcular precio de venta</ion-button>
+          <small>Calculado según precio de compra y utilidad seleccionada.</small>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Configuración fiscal</h2>
+        <p>Este producto quedará preparado para facturación.</p>
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">Indicador facturación</ion-label>
+            <ion-select formControlName="indicadorFacturacion" interface="popover">
+              <ion-select-option *ngFor="let i of indicadores" [value]="i.codigo">{{ i.nombre }}</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item><ion-label position="stacked">Tasa ITBIS</ion-label><ion-input type="number" formControlName="tasaItbis"></ion-input></ion-item>
+          <ion-item><ion-label>Exento</ion-label><ion-toggle formControlName="esExento"></ion-toggle></ion-item>
+          <ion-item><ion-label>No facturable</ion-label><ion-toggle formControlName="esNoFacturable"></ion-toggle></ion-item>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Estado</h2>
+        <ion-item><ion-label>Activo</ion-label><ion-toggle formControlName="activo"></ion-toggle></ion-item>
+      </section>
+
+      <div class="actions">
+        <ion-button type="button" fill="clear" routerLink="/admin/inventario/productos-servicios">Cancelar</ion-button>
+        <ion-button class="btn-primary" type="submit" [disabled]="isSaving || isLoading">{{ isSaving ? 'Guardando...' : 'Guardar' }}</ion-button>
+      </div>
+    </form>
+  </div>
+
+  <ion-modal [isOpen]="proveedorModalOpen" (didDismiss)="closeProveedorModal()" cssClass="premium-select-modal">
+    <ng-template>
+      <ion-content class="premium-modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="card-header">
+              <div>
+                <h2>Seleccionar proveedor</h2>
+                <p>Busca por nombre, RNC, teléfono o correo.</p>
+              </div>
+              <ion-button fill="clear" (click)="closeProveedorModal()">Cerrar</ion-button>
+            </header>
+
+            <ion-searchbar class="premium-search" placeholder="Buscar proveedor..." (ionInput)="onProveedorSearch($event)"></ion-searchbar>
+
+            <div class="results-wrap">
+              <ion-list *ngIf="filteredProveedores.length; else emptyProveedores" lines="none" class="premium-list">
+                <ion-item button detail="false" *ngFor="let item of filteredProveedores" (click)="selectProveedorFromModal(item)">
+                  <ion-label>
+                    <h3>{{ item.nombre }}</h3>
+                    <p>{{ item.rnc || 'Sin RNC' }} · {{ item.telefono || 'Sin teléfono' }} · {{ item.email || 'Sin email' }}</p>
+                  </ion-label>
+                  <ion-icon *ngIf="item.id === form.controls.proveedorId.value" slot="end" name="checkmark-circle" color="success"></ion-icon>
+                </ion-item>
+              </ion-list>
+              <ng-template #emptyProveedores>
+                <app-empty-state title="No hay proveedores" message=""></app-empty-state>
+              </ng-template>
+            </div>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

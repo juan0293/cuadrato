@@ -1,0 +1,44 @@
+<ion-content class="compra-detalle-page">
+  <div class="shell ion-padding" *ngIf="compra$ | async as compra">
+    <section class="header">
+      <div>
+        <h1>Compra {{ compra.numeroFactura }}</h1>
+        <p>{{ compra.proveedorNombre }} · {{ compra.condicionPago | titlecase }}</p>
+      </div>
+      <div class="actions">
+        <ion-button fill="outline" (click)="volverACompras()">
+          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+          Volver a compras
+        </ion-button>
+        <ion-button fill="outline" [routerLink]="['/admin/inventario/ecf-preview', compra.id]">Ver e-CF draft</ion-button>
+        <ion-button
+          *ngIf="compra.estado === 'borrador'"
+          class="btn-primary"
+          (click)="confirmar()">
+          Confirmar compra
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="summary">
+        <ion-chip [color]="compra.estado === 'confirmada' ? 'success' : compra.estado === 'anulada' ? 'danger' : 'warning'">
+          <ion-label>{{ compra.estado | titlecase }}</ion-label>
+        </ion-chip>
+        <span>Afecta inventario: {{ compra.afectaInventario ? 'Sí' : 'No' }}</span>
+        <span>NCF: {{ compra.ncf || 'N/A' }}</span>
+      </div>
+
+      <div class="items">
+        <app-compra-item-row *ngFor="let item of compra.items" [item]="item"></app-compra-item-row>
+      </div>
+
+      <div class="totals">
+        <span>Subtotal: {{ compra.subtotal | currency:'USD':'symbol':'1.2-2' }}</span>
+        <span>ITBIS: {{ compra.totalItbis | currency:'USD':'symbol':'1.2-2' }}</span>
+        <span>Total impuestos adicionales: {{ compra.totalImpuestosAdicionales | currency:'USD':'symbol':'1.2-2' }}</span>
+        <strong>Total: {{ compra.total | currency:'USD':'symbol':'1.2-2' }}</strong>
+      </div>
+    </section>
+  </div>
+</ion-content>

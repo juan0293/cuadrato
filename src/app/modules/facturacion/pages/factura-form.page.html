@@ -1,0 +1,194 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Nueva factura</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="factura-form-page ion-padding">
+  <form [formGroup]="form" (ngSubmit)="save()" class="form-shell">
+    <ion-card class="section-card">
+      <ion-card-header>
+        <ion-card-title>Datos generales</ion-card-title>
+      </ion-card-header>
+
+      <ion-card-content class="grid">
+        <button type="button" class="cliente-picker" (click)="openClienteModal()">
+          <span class="field-label">Cliente</span>
+          <strong>{{ form.value.clienteNombre || 'Seleccionar cliente' }}</strong>
+          <small>{{ form.value.clienteTelefono || 'Toca para buscar por nombre, cédula/RNC o teléfono' }}</small>
+        </button>
+
+        <ion-item>
+          <ion-label position="stacked">Artista</ion-label>
+          <ion-select formControlName="artistaId" interface="popover">
+            <ion-select-option *ngFor="let artista of onlyArtists(artistas$ | async)" [value]="artista.id">{{ artista.nombre }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Cita asociada (opcional)</ion-label>
+          <ion-select formControlName="citaId" interface="popover">
+            <ion-select-option *ngFor="let cita of citasByArtist(citas$ | async, form.value.artistaId || '')" [value]="cita.id">
+              {{ cita.fecha }} · {{ cita.clienteNombre }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Impuesto (%)</ion-label>
+          <ion-input type="number" formControlName="impuestoPorcentaje"></ion-input>
+        </ion-item>
+
+        <ion-item>
+          <ion-label position="stacked">Estado</ion-label>
+          <ion-select formControlName="estado" interface="popover">
+            <ion-select-option value="emitida">Emitida</ion-select-option>
+            <ion-select-option value="pagada">Pagada</ion-select-option>
+            <ion-select-option value="anulada">Anulada</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="section-card">
+      <ion-card-header>
+        <ion-card-title>Productos y servicios</ion-card-title>
+      </ion-card-header>
+      <ion-card-content>
+        <div class="product-grid" *ngIf="productos.length > 0">
+          <button type="button" class="product-card" *ngFor="let item of productos" [disabled]="!canAddProducto(item)" (click)="addProductoToItems(item)">
+            <div class="product-head">
+              <strong>{{ item.nombre }}</strong>
+              <span class="stock-badge" [ngClass]="getStockClass(item)">{{ getStockLabel(item) }}</span>
+            </div>
+            <p>{{ item.codigoInterno || 'SIN-COD' }} · {{ item.categoriaNombre || 'General' }}</p>
+            <div class="product-foot">
+              <span>RD$ {{ item.precioVenta | number: '1.2-2' }}</span>
+              <ion-chip [color]="item.tipoItem === 'servicio' ? 'tertiary' : 'primary'">
+                <ion-label>{{ item.tipoItem === 'servicio' ? 'Servicio' : 'Producto' }}</ion-label>
+              </ion-chip>
+            </div>
+          </button>
+        </div>
+
+        <div [formGroup]="itemForm" class="manual-item-grid">
+          <ion-item>
+            <ion-label position="stacked">Descripción</ion-label>
+            <ion-input formControlName="descripcion"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Cantidad</ion-label>
+            <ion-input formControlName="cantidad" type="number"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Precio unitario</ion-label>
+            <ion-input formControlName="precioUnitario" type="number"></ion-input>
+          </ion-item>
+          <ion-button expand="block" fill="outline" (click)="addItem()">Agregar item manual</ion-button>
+        </div>
+
+        <ion-list>
+          <app-factura-item-row *ngFor="let item of items; let i = index" [item]="item" (remove)="removeItem(i)"></app-factura-item-row>
+        </ion-list>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-card class="section-card">
+      <ion-card-content>
+        <p>Subtotal: {{ subtotal | number: '1.2-2' }}</p>
+        <p>Impuesto: {{ impuesto | number: '1.2-2' }}</p>
+        <p><strong>Total: {{ total | number: '1.2-2' }}</strong></p>
+      </ion-card-content>
+    </ion-card>
+
+    <ion-button expand="block" type="submit" class="btn-primary">Guardar factura</ion-button>
+  </form>
+
+  <ion-modal [isOpen]="clienteModalOpen" (didDismiss)="closeClienteModal()" cssClass="cliente-modal">
+    <ng-template>
+      <ion-content class="modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="modal-header">
+              <div>
+                <h2>Seleccionar cliente</h2>
+                <p>Busca por nombre, cédula/RNC, teléfono o correo.</p>
+              </div>
+              <ion-button fill="clear" (click)="closeClienteModal()">Cerrar</ion-button>
+            </header>
+
+            <ion-searchbar
+              placeholder="Nombre, cédula/RNC, teléfono o correo"
+              [value]="busquedaClientes"
+              (ionInput)="onBuscarClientes($event)">
+            </ion-searchbar>
+
+            <div class="cliente-list" *ngIf="clientesFiltrados.length > 0; else emptyClientes">
+              <button type="button" class="cliente-item" *ngFor="let c of clientesFiltrados" (click)="selectCliente(c)">
+                <strong>{{ c.nombreCompleto }}</strong>
+                <p>{{ c.rncCedula || 'Sin cédula/RNC' }} · {{ c.telefono || 'Sin teléfono' }}</p>
+                <small>{{ c.correo || 'Sin correo' }}</small>
+              </button>
+            </div>
+
+            <ng-template #emptyClientes>
+              <div class="empty-cliente-state">
+                <h4>No encontramos clientes con ese dato.</h4>
+                <p>Puedes crear uno nuevo para continuar con la factura.</p>
+              </div>
+            </ng-template>
+
+            <footer class="modal-actions">
+              <ion-button fill="outline" (click)="setConsumidorFinal()">Consumidor final</ion-button>
+              <ion-button fill="outline" (click)="openNuevoClienteModal()">Nuevo cliente</ion-button>
+            </footer>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <ion-modal [isOpen]="nuevoClienteModalOpen" (didDismiss)="closeNuevoClienteModal()" cssClass="cliente-modal">
+    <ng-template>
+      <ion-content class="modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="modal-header">
+              <div>
+                <h2>Nuevo cliente</h2>
+                <p>Registra los datos mínimos para continuar con la factura.</p>
+              </div>
+              <ion-button fill="clear" (click)="closeNuevoClienteModal()">Cerrar</ion-button>
+            </header>
+
+            <form [formGroup]="nuevoClienteForm" (ngSubmit)="saveNuevoCliente()">
+              <div class="modal-form-grid">
+                <ion-item>
+                  <ion-label position="stacked">Nombre completo</ion-label>
+                  <ion-input formControlName="nombreCompleto"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Teléfono</ion-label>
+                  <ion-input formControlName="telefono"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Correo</ion-label>
+                  <ion-input formControlName="correo" type="email"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Cédula / RNC</ion-label>
+                  <ion-input formControlName="rncCedula"></ion-input>
+                </ion-item>
+              </div>
+
+              <footer class="modal-actions">
+                <ion-button type="button" fill="outline" (click)="closeNuevoClienteModal()">Cancelar</ion-button>
+                <ion-button type="submit" class="btn-primary">Guardar cliente</ion-button>
+              </footer>
+            </form>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

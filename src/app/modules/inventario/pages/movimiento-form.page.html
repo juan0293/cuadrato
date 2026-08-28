@@ -1,0 +1,142 @@
+<ion-content class="movement-form-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <h1>Registrar movimiento</h1>
+      <p>Registra entradas y salidas con trazabilidad operativa.</p>
+    </section>
+
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <section class="card">
+        <h2>Datos del movimiento</h2>
+        <div class="grid">
+          <div class="searchable-select">
+            <div class="top-row">
+              <ion-label>Producto / Servicio</ion-label>
+            </div>
+            <button type="button" class="select-trigger" (click)="openProductoModal()">
+              <span [class.placeholder]="!form.controls.insumoId.value">{{ selectedProductoLabel }}</span>
+              <ion-icon name="chevron-down-outline"></ion-icon>
+            </button>
+          </div>
+
+          <div class="searchable-select">
+            <div class="top-row">
+              <ion-label>Tipo de movimiento</ion-label>
+            </div>
+            <button type="button" class="select-trigger" (click)="openTipoModal()">
+              <span>{{ selectedTipoLabel }}</span>
+              <ion-icon name="chevron-down-outline"></ion-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">Cantidad</ion-label>
+            <ion-input formControlName="cantidad" type="number"></ion-input>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Motivo</ion-label>
+            <ion-input formControlName="motivo"></ion-input>
+          </ion-item>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Asociación opcional</h2>
+        <div class="grid">
+          <ion-item>
+            <ion-label position="stacked">Cita asociada</ion-label>
+            <ion-select formControlName="citaId" (ionChange)="onCitaChange($event.detail.value)">
+              <ion-select-option *ngFor="let cita of citas$ | async" [value]="cita.id">
+                {{ cita.fecha }} · {{ cita.clienteNombre }} · {{ cita.artistaNombre }}
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+
+          <ion-item>
+            <ion-label position="stacked">Artista asociado</ion-label>
+            <ion-input formControlName="artistaId"></ion-input>
+          </ion-item>
+        </div>
+      </section>
+
+      <div class="actions">
+        <ion-button type="button" fill="clear" routerLink="/admin/inventario/movimientos">Cancelar</ion-button>
+        <ion-button type="submit" class="btn-primary">Guardar movimiento</ion-button>
+      </div>
+    </form>
+  </div>
+
+  <ion-modal [isOpen]="productoModalOpen" (didDismiss)="closeProductoModal()" cssClass="premium-select-modal">
+    <ng-template>
+      <ion-content class="premium-modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="card-header">
+              <div>
+                <h2>Producto / Servicio</h2>
+                <p>Selecciona el item para registrar el movimiento.</p>
+              </div>
+              <ion-button fill="clear" (click)="closeProductoModal()">Cerrar</ion-button>
+            </header>
+
+            <ion-searchbar class="premium-search" placeholder="Buscar por nombre, código, categoría o proveedor..." (ionInput)="onProductoSearch($event)"></ion-searchbar>
+
+            <div class="results-wrap">
+              <ion-list *ngIf="filteredProductos.length; else emptyProductos" lines="none" class="premium-list">
+                <ion-item button detail="false" *ngFor="let item of filteredProductos" (click)="selectProducto(item)">
+                  <ion-label>
+                    <h3>{{ item.nombre }}</h3>
+                    <p>
+                      {{ getProductoCodigo(item) }} ·
+                      {{ item.categoria || 'Sin categoría' }} ·
+                      {{ getProductoProveedor(item) }}
+                    </p>
+                  </ion-label>
+                  <ion-icon *ngIf="item.id === form.controls.insumoId.value" slot="end" name="checkmark-circle" color="success"></ion-icon>
+                </ion-item>
+              </ion-list>
+              <ng-template #emptyProductos>
+                <app-empty-state title="No hay productos o servicios" message=""></app-empty-state>
+              </ng-template>
+            </div>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+
+  <ion-modal [isOpen]="tipoModalOpen" (didDismiss)="closeTipoModal()" cssClass="premium-select-modal">
+    <ng-template>
+      <ion-content class="premium-modal-content ion-padding">
+        <div class="modal-shell">
+          <section class="modal-card">
+            <header class="card-header">
+              <div>
+                <h2>Tipo de movimiento</h2>
+                <p>Selecciona el tipo operativo de ajuste.</p>
+              </div>
+              <ion-button fill="clear" (click)="closeTipoModal()">Cerrar</ion-button>
+            </header>
+
+            <ion-searchbar class="premium-search" placeholder="Buscar tipo..." (ionInput)="onTipoSearch($event)"></ion-searchbar>
+
+            <div class="results-wrap">
+              <ion-list *ngIf="filteredTipos.length; else emptyTipos" lines="none" class="premium-list">
+                <ion-item button detail="false" *ngFor="let item of filteredTipos" (click)="selectTipo(item.value)">
+                  <ion-label><h3>{{ item.label }}</h3></ion-label>
+                  <ion-icon *ngIf="isTipoSelected(item.value)" slot="end" name="checkmark-circle" color="success"></ion-icon>
+                </ion-item>
+              </ion-list>
+              <ng-template #emptyTipos>
+                <app-empty-state title="No hay tipos disponibles" message=""></app-empty-state>
+              </ng-template>
+            </div>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

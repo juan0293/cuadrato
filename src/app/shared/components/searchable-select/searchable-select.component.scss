@@ -1,0 +1,193 @@
+.searchable-select { display: grid; gap: 8px; }
+.top-row { display: flex; align-items: center; justify-content: space-between; }
+.top-row ion-label { color: #aeb6c8; font-size: .86rem; }
+
+.select-trigger {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,.15);
+  background: rgba(255,255,255,.08);
+  color: #fff;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  gap: 12px;
+  text-align: left;
+}
+.trigger-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1;
+}
+.trigger-label {
+  color: #fff;
+  font-size: .94rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trigger-description {
+  color: #9db0ca;
+  font-size: .78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.select-trigger .placeholder { color: #aeb6c8; }
+.select-trigger ion-icon { color: #aeb6c8; }
+
+.premium-modal-content {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+
+.modal-shell {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.modal-card {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.card-header h2 {
+  margin: 0;
+  font-size: 1.02rem;
+  color: #fff;
+}
+
+.card-header p {
+  margin: 4px 0 0;
+  color: #aeb6c8;
+  font-size: .86rem;
+}
+
+.premium-search {
+  --background: rgba(255,255,255,.08);
+  --color: #fff;
+  --placeholder-color: #aeb6c8;
+  --icon-color: #aeb6c8;
+  --border-radius: 12px;
+}
+
+.results-wrap {
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 14px;
+  background: rgba(255,255,255,.03);
+  overflow: hidden;
+}
+
+.results-summary {
+  display: grid;
+  gap: 4px;
+  padding: 0 2px;
+  color: #c6d6ea;
+
+  span {
+    font-size: .78rem;
+    font-weight: 600;
+  }
+
+  small {
+    color: #91a4bf;
+    font-size: .72rem;
+    line-height: 1.35;
+  }
+}
+
+.premium-list { background: transparent; }
+
+.premium-list ion-item {
+  --background: transparent;
+  --color: #eaf1ff;
+  --padding-start: 12px;
+  --padding-end: 12px;
+  --inner-padding-end: 6px;
+  border-bottom: 1px solid rgba(255,255,255,.06);
+  transition: background .18s ease, border-color .18s ease, transform .18s ease;
+}
+
+.premium-list ion-item:last-child { border-bottom: 0; }
+.premium-list ion-item.is-selected {
+  --background: rgba(56, 189, 248, .08);
+}
+.premium-list ion-item:hover {
+  --background: rgba(255,255,255,.04);
+}
+
+.item-eyebrow {
+  display: inline-block;
+  margin-bottom: 4px;
+  font-size: .68rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #8fc7eb;
+  font-weight: 700;
+}
+.premium-list h3 { margin: 0; font-size: .95rem; font-weight: 600; }
+.premium-list p { margin: 4px 0 0; font-size: .8rem; color: #c6d6ea; }
+.item-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.item-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.08);
+  color: #aebed3;
+  font-size: .72rem;
+}
+
+:host ::ng-deep .premium-select-modal {
+  --height: auto;
+  --max-height: 88vh;
+  --width: min(980px, 96vw);
+  --border-radius: 22px;
+}
+
+/* Force searchbar text contrast in iOS/iPad/mobile overlay rendering */
+:host ::ng-deep .premium-select-modal .premium-search .searchbar-input {
+  color: #f8fbff !important;
+  -webkit-text-fill-color: #f8fbff !important;
+}
+
+:host ::ng-deep .premium-select-modal .premium-search .searchbar-input::placeholder {
+  color: #aeb6c8 !important;
+  opacity: 1 !important;
+}
+
+:host ::ng-deep .premium-select-modal .premium-search .searchbar-search-icon,
+:host ::ng-deep .premium-select-modal .premium-search .searchbar-clear-button {
+  color: #aeb6c8 !important;
+}
+
+@media (max-width: 640px) {
+  .select-trigger { min-height: 54px; }
+  .trigger-description { white-space: normal; }
+  .item-meta { gap: 5px; }
+}

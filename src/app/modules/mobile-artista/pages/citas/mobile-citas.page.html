@@ -1,0 +1,12 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Próximas citas</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div *ngIf="citas$ | async as citas">
+    <app-cita-card *ngFor="let cita of citas" [cita]="cita"></app-cita-card>
+    <ion-text color="medium" *ngIf="citas.length === 0">No hay citas próximas.</ion-text>
+  </div>
+</ion-content>

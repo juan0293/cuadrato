@@ -1,0 +1,7 @@
+<ion-item>
+  <ion-label>
+    <h3>{{ item.descripcion }}</h3>
+    <p>{{ item.cantidad }} x {{ item.precioUnitario | number: '1.2-2' }} = {{ item.total | number: '1.2-2' }}</p>
+  </ion-label>
+  <ion-button fill="clear" color="danger" (click)="remove.emit()">Quitar</ion-button>
+</ion-item>

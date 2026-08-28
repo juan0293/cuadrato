@@ -1,0 +1,15 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Movimientos de inventario</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/admin/inventario/movimientos/nuevo">Nuevo</ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <ion-list *ngIf="movimientos$ | async as movimientos">
+    <app-movimiento-inventario-card *ngFor="let movimiento of movimientos" [movimiento]="movimiento"></app-movimiento-inventario-card>
+    <ion-text color="medium" *ngIf="movimientos.length === 0">No hay movimientos registrados.</ion-text>
+  </ion-list>
+</ion-content>

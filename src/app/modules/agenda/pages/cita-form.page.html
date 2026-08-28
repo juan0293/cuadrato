@@ -1,0 +1,204 @@
+<ion-content class="cita-form-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>{{ isEdit ? 'Editar cita' : 'Nueva cita' }}</h1>
+        <p>Programa una cita asociando cliente, servicio, fecha y hora.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/agenda">
+          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+          Volver a agenda
+        </ion-button>
+      </div>
+    </section>
+
+    <form [formGroup]="form" (ngSubmit)="save('guardar')">
+      <section class="card">
+        <h3>Cliente</h3>
+        <div class="grid two">
+          <ion-item>
+            <ion-label position="stacked">Nombre completo <span class="required">*</span></ion-label>
+            <ion-input formControlName="clienteNombre"></ion-input>
+          </ion-item>
+          <app-searchable-select
+            label="Cliente existente"
+            placeholder="Selecciona cliente"
+            [items]="(clientes$ | async) || []"
+            displayKey="nombreCompleto"
+            valueKey="id"
+            [searchKeys]="['nombreCompleto', 'telefono']"
+            [selectedId]="form.controls.clienteId.value"
+            emptyText="No hay clientes disponibles"
+            (selected)="onSelectCliente($event)">
+          </app-searchable-select>
+          <ion-item>
+            <ion-label position="stacked">Teléfono <span class="required">*</span></ion-label>
+            <ion-input formControlName="clienteTelefono"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Correo</ion-label>
+            <ion-input formControlName="clienteCorreo"></ion-input>
+          </ion-item>
+        </div>
+        <small class="field-error" *ngIf="form.controls.clienteNombre.touched && form.controls.clienteNombre.invalid">Agrega el nombre del cliente.</small>
+        <small class="field-error" *ngIf="form.controls.clienteTelefono.touched && form.controls.clienteTelefono.invalid">Agrega un teléfono válido.</small>
+        <ion-button fill="clear" size="small" (click)="openQuickClienteModal()">
+          <ion-icon slot="start" name="person-add-outline"></ion-icon>
+          Crear cliente rápido
+        </ion-button>
+      </section>
+
+      <section class="card">
+        <h3>Programación</h3>
+        <div class="grid two">
+          <ion-item>
+            <ion-label position="stacked">Servicio <span class="required">*</span></ion-label>
+            <ion-input formControlName="servicioNombre"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Artista <span class="required">*</span></ion-label>
+            <ion-select formControlName="artistaId" interface="popover">
+              <ion-select-option *ngFor="let artista of onlyArtists(artistas$ | async)" [value]="artista.id">
+                {{ artista.nombre || artista.displayName }}
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Fecha <span class="required">*</span></ion-label>
+            <ion-input formControlName="fecha" type="date"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Estado</ion-label>
+            <ion-select formControlName="estado" interface="popover">
+              <ion-select-option value="pendiente">Pendiente</ion-select-option>
+              <ion-select-option value="atendida">Atendida</ion-select-option>
+              <ion-select-option value="anulada">Anulada</ion-select-option>
+              <ion-select-option value="reprogramada">Reprogramada</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Hora inicio <span class="required">*</span></ion-label>
+            <ion-input formControlName="horaInicio" type="time"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Hora fin <span class="required">*</span></ion-label>
+            <ion-input formControlName="horaFin" type="time"></ion-input>
+          </ion-item>
+        </div>
+        <small class="field-error" *ngIf="form.controls.fecha.touched && form.controls.fecha.invalid">Selecciona la fecha y hora de la cita.</small>
+      </section>
+
+      <section class="card">
+        <h3>Detalle comercial</h3>
+        <div class="grid two">
+          <ion-item>
+            <ion-label position="stacked">Precio estimado <span class="required">*</span></ion-label>
+            <ion-input inputmode="decimal" [value]="precioEstimadoInput" (ionInput)="onPrecioEstimadoInput($event)" (ionBlur)="onPrecioEstimadoBlur()"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">ITBIS</ion-label>
+            <ion-select formControlName="itbisPorcentaje" interface="popover">
+              <ion-select-option [value]="0">0%</ion-select-option>
+              <ion-select-option [value]="18">18%</ion-select-option>
+              <ion-select-option [value]="form.value.itbisPorcentaje">{{ form.value.itbisPorcentaje || 0 }}% (Personalizado)</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Observación</ion-label>
+            <ion-input formControlName="observacion"></ion-input>
+          </ion-item>
+        </div>
+        <small>Por defecto, las citas se registran sin ITBIS. Puedes cambiarlo si aplica.</small>
+        <div class="reserva-summary">
+          <p><span>ITBIS calculado</span><strong>{{ itbisMontoCalculado | number:'1.2-2' }}</strong></p>
+          <p><span>Total con ITBIS</span><strong>{{ totalConItbisCalculado | number:'1.2-2' }}</strong></p>
+        </div>
+        <ion-item>
+          <ion-label position="stacked">Trabajo <span class="required">*</span></ion-label>
+          <ion-textarea formControlName="descripcionTrabajo" rows="4"></ion-textarea>
+        </ion-item>
+        <small class="field-error" *ngIf="form.controls.precioEstimado.touched && form.controls.precioEstimado.invalid">Indica el precio estimado de la cita.</small>
+        <small class="field-error" *ngIf="form.controls.descripcionTrabajo.touched && form.controls.descripcionTrabajo.invalid">Este campo es obligatorio.</small>
+      </section>
+
+      <section class="card">
+        <h3>Reserva y pago inicial</h3>
+        <div class="grid two">
+          <ion-item>
+            <ion-label position="stacked">Tipo de abono</ion-label>
+            <ion-select formControlName="tipoAbono" interface="popover">
+              <ion-select-option value="sin_abono">Reserva sin pago</ion-select-option>
+              <ion-select-option value="porcentaje">Reservar con 50%</ion-select-option>
+              <ion-select-option value="monto_fijo">Reservar con monto específico</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item *ngIf="form.value.tipoAbono === 'porcentaje'">
+            <ion-label position="stacked">Porcentaje de abono</ion-label>
+            <ion-input type="number" formControlName="porcentajeAbono"></ion-input>
+          </ion-item>
+          <ion-item *ngIf="form.value.tipoAbono === 'monto_fijo'">
+            <ion-label position="stacked">Monto de abono</ion-label>
+            <ion-input type="number" formControlName="montoAbono"></ion-input>
+          </ion-item>
+        </div>
+        <div class="reserva-summary">
+          <p><span>Abono sugerido</span><strong>{{ montoAbonoCalculado | number:'1.2-2' }}</strong></p>
+          <p><span>Balance pendiente</span><strong>{{ balancePendienteCalculado | number:'1.2-2' }}</strong></p>
+          <small>Este balance podrá cobrarse el día de la cita.</small>
+        </div>
+      </section>
+
+      <div class="actions">
+        <small class="action-hint">{{ actionHintLabel }}</small>
+        <ion-button type="submit" class="btn-primary" *ngIf="shouldShowSavePrimaryButton">{{ savePrimaryLabel }}</ion-button>
+        <ion-button type="button" class="btn-outline" fill="outline" *ngIf="shouldShowFacturarAbonoButton" (click)="save('abono')">
+          Guardar y facturar abono
+        </ion-button>
+        <ion-button type="button" class="btn-primary" *ngIf="shouldShowFacturarTotalButton" (click)="save('total')">
+          Guardar y facturar total
+        </ion-button>
+      </div>
+    </form>
+  </div>
+
+  <ion-modal [isOpen]="quickClienteModalOpen" (didDismiss)="closeQuickClienteModal()" cssClass="quick-client-modal">
+    <ng-template>
+      <ion-content class="quick-client-content ion-padding">
+        <div class="quick-client-shell">
+          <section class="quick-client-card">
+            <header class="quick-client-header">
+              <div>
+                <h2>Nuevo cliente</h2>
+                <p>Registra cliente y continúa con la cita sin salir del formulario.</p>
+              </div>
+              <ion-button fill="clear" (click)="closeQuickClienteModal()">Cerrar</ion-button>
+            </header>
+
+            <form [formGroup]="quickClienteForm" (ngSubmit)="saveQuickCliente()">
+              <div class="grid two">
+                <ion-item>
+                  <ion-label position="stacked">Nombre completo</ion-label>
+                  <ion-input formControlName="nombreCompleto"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Teléfono</ion-label>
+                  <ion-input formControlName="telefono"></ion-input>
+                </ion-item>
+                <ion-item class="full">
+                  <ion-label position="stacked">Correo</ion-label>
+                  <ion-input formControlName="correo" type="email"></ion-input>
+                </ion-item>
+              </div>
+
+              <div class="actions">
+                <ion-button type="button" fill="outline" (click)="closeQuickClienteModal()">Cancelar</ion-button>
+                <ion-button type="submit" class="btn-primary">Guardar cliente</ion-button>
+              </div>
+            </form>
+          </section>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
+</ion-content>

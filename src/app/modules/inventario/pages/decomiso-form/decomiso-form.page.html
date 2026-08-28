@@ -1,0 +1,43 @@
+<ion-content class="decomiso-form-page">
+  <div class="shell ion-padding" [formGroup]="form">
+    <section class="header">
+      <div>
+        <h1>Nuevo decomiso / ajuste</h1>
+        <p>Registra salida operativa con motivo y evidencia opcional.</p>
+      </div>
+    </section>
+
+    <section class="card form-grid">
+      <ion-item>
+        <ion-label position="stacked">Producto/Servicio</ion-label>
+        <ion-select formControlName="productoId" interface="popover">
+          <ion-select-option *ngFor="let item of (items$ | async) ?? []" [value]="item.id">{{ labelForItem(item) }}</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Tipo</ion-label>
+        <ion-select formControlName="tipoMovimiento">
+          <ion-select-option *ngFor="let tipo of tipos" [value]="tipo">{{ tipo }}</ion-select-option>
+        </ion-select>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Cantidad</ion-label>
+        <ion-input type="number" formControlName="cantidad"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Motivo</ion-label>
+        <ion-input formControlName="motivo"></ion-input>
+      </ion-item>
+
+      <ion-item>
+        <ion-label position="stacked">Evidencia URL (opcional)</ion-label>
+        <ion-input formControlName="evidenciaUrl"></ion-input>
+      </ion-item>
+
+      <ion-button class="btn-primary" (click)="save()">Registrar</ion-button>
+    </section>
+  </div>
+</ion-content>

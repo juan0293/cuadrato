@@ -1,0 +1,25 @@
+.crud-page { --background: linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%); }
+.shell { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+.header-copy { display:grid; gap:6px; }
+.header h1 { margin: 0; }
+.header p { margin: 0; color: #aeb6c8; max-width: 72ch; }
+.header-actions { display:flex; gap:8px; flex-wrap:wrap; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; display: grid; gap: 12px; }
+.card h2 { margin: 0; }
+.card p { color: #aeb6c8; margin-top: 6px; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 820px; }
+th, td { text-align: left; padding: 10px; border-bottom: 1px solid rgba(255,255,255,.08); }
+th { color: #aeb6c8; font-size: .84rem; }
+.grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+ion-item { --background: rgba(255,255,255,.08); --color: #fff; border-radius: 12px; }
+.actions { margin-top: 10px; display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.btn-primary { --background: linear-gradient(120deg,#3b82f6,#1d4ed8); --border-radius: 14px; text-transform: none; }
+.btn-secondary { --border-color: rgba(148,163,184,.34); --color:#e8efff; --border-radius: 14px; --background: rgba(255,255,255,.04); text-transform: none; }
+@media (max-width: 720px){
+  .grid{ grid-template-columns: 1fr; }
+  .header { align-items: stretch; }
+  .header-actions { width: 100%; }
+  .header-actions ion-button, .actions ion-button { width: 100%; min-height: 44px; }
+}

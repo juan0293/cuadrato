@@ -1,0 +1,108 @@
+<ion-content class="agenda-page">
+  <div class="shell ion-padding">
+    <section class="header">
+      <div>
+        <h1>Agenda</h1>
+        <p>Gestiona tus citas, clientes y disponibilidad desde un calendario simple y moderno.</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-outline" fill="outline" routerLink="/admin/agenda/disponibilidad">
+          <ion-icon slot="start" name="time-outline"></ion-icon>
+          Disponibilidad
+        </ion-button>
+        <ion-button class="btn-primary" routerLink="/admin/agenda/citas/nueva">
+          <ion-icon slot="start" name="add-outline"></ion-icon>
+          Nueva cita
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="hero card">
+      <div>
+        <h2>Calendario operativo diario</h2>
+        <p>Visualiza citas por hora, estado y artista para tomar decisiones rápidas durante la jornada.</p>
+      </div>
+      <ion-chip color="primary">
+        <ion-label>{{ selectedDate }}</ion-label>
+      </ion-chip>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi-card"><span>Citas del día</span><strong>{{ kpiCitasDia }}</strong></article>
+      <article class="kpi-card"><span>Pendientes</span><strong>{{ kpiPendientes }}</strong></article>
+      <article class="kpi-card"><span>Atendidas</span><strong>{{ kpiAtendidas }}</strong></article>
+      <article class="kpi-card"><span>Anuladas</span><strong>{{ kpiAnuladas }}</strong></article>
+      <article class="kpi-card"><span>Próxima cita</span><strong>{{ proximaCita }}</strong></article>
+      <article class="kpi-card"><span>Horas ocupadas</span><strong>{{ kpiHorasOcupadas }} h</strong></article>
+      <article class="kpi-card"><span>Clientes agendados</span><strong>{{ kpiClientes }}</strong></article>
+    </section>
+
+    <section class="agenda-grid" *ngIf="!loading; else loadingState">
+      <article class="card timeline">
+        <h3>Calendario interactivo</h3>
+        <p class="calendar-helper">Arrastra una cita para moverla de fecha u hora sin salir de la agenda.</p>
+        <full-calendar [options]="calendarOptions"></full-calendar>
+      </article>
+
+      <!--
+        Sección oculta temporalmente por solicitud:
+        Navegación rápida por día
+      -->
+      <article class="card day-nav" style="display: none;">
+        <h3>Navegación rápida por día</h3>
+        <div class="day-controls">
+          <ion-button size="small" fill="outline" (click)="goPreviousDay()">
+            <ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon>
+          </ion-button>
+          <ion-button size="small" fill="outline" (click)="goToday()">Hoy</ion-button>
+          <ion-button size="small" fill="outline" (click)="goNextDay()">
+            <ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon>
+          </ion-button>
+        </div>
+        <div class="day-segment">
+          <ion-segment [value]="selectedDate" (ionChange)="onSelectDate($any($event.detail).value)">
+            <ion-segment-button *ngFor="let d of days" [value]="d.date">
+              <ion-label>{{ d.dayName }} · {{ d.label }}</ion-label>
+            </ion-segment-button>
+          </ion-segment>
+        </div>
+      </article>
+
+      <article class="card day-list">
+        <h3>Lista de citas del día</h3>
+        <div class="cita-list" *ngIf="dayCitas.length > 0; else emptyDay">
+          <article class="cita-row" *ngFor="let cita of dayCitas">
+            <div>
+              <strong>{{ cita.horaInicio }} · {{ cita.clienteNombre }}</strong>
+              <p>{{ cita.artistaNombre }} · {{ cita.clienteTelefono || 'Sin teléfono' }}</p>
+              <p>Servicio: {{ cita.servicioNombre || cita.descripcionTrabajo }}</p>
+              <p>Precio estimado: {{ formatDop(cita.precioEstimado) }}</p>
+            </div>
+            <div class="cita-row-actions">
+              <ion-chip [color]="estadoColor(cita.estado)">
+                <ion-label>{{ estadoLabel(cita.estado) }}</ion-label>
+              </ion-chip>
+              <ion-button fill="clear" size="small" (click)="openActions(cita)">
+                <ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon>
+              </ion-button>
+            </div>
+          </article>
+        </div>
+        <ng-template #emptyDay>
+           <div class="cart-empty-state">
+             <app-empty-state
+               title="Sin citas para este día"
+               message="Selecciona otra fecha o agenda una nueva cita.">
+             </app-empty-state>
+           </div>
+        </ng-template>
+      </article>
+    </section>
+
+    <ng-template #loadingState>
+      <section class="card">
+        <app-skeleton-card></app-skeleton-card>
+      </section>
+    </ng-template>
+  </div>
+</ion-content>

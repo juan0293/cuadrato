@@ -1,0 +1,6 @@
+<ion-chip [color]="disponibilidad.disponible ? 'success' : 'warning'">
+  <ion-label>
+    {{ disponibilidad.diaSemana }} · {{ disponibilidad.horaInicio }}-{{ disponibilidad.horaFin }}
+    <span *ngIf="!disponibilidad.disponible"> · {{ disponibilidad.motivoBloqueo || 'Bloqueado' }}</span>
+  </ion-label>
+</ion-chip>

@@ -1,0 +1,22 @@
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Item</th><th>Tipo</th><th>Fiscal</th><th>Stock</th><th>Precio</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let item of items">
+        <td>
+          <strong>{{ item.nombre }}</strong>
+          <div class="muted">{{ item.codigoInterno }}</div>
+        </td>
+        <td>{{ item.tipoItem === 'bien' ? 'Bien' : 'Servicio' }}</td>
+        <td><app-tax-indicator-chip [indicador]="item.indicadorFacturacion"></app-tax-indicator-chip></td>
+        <td><app-stock-status-chip [manejaInventario]="item.manejaInventario" [stockActual]="item.stockActual" [stockMinimo]="item.stockMinimo"></app-stock-status-chip></td>
+        <td>{{ item.precioVenta | number:'1.2-2' }}</td>
+        <td><ion-button fill="clear" (click)="edit.emit(item)">Editar</ion-button></td>
+      </tr>
+    </tbody>
+  </table>
+</div>

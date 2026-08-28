@@ -1,0 +1,34 @@
+<ion-content class="cxp-detalle-page">
+  <div class="shell ion-padding" *ngIf="cuenta$ | async as cuenta">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Cuenta por pagar</h1>
+        <p>{{ cuenta.proveedorNombre }} · Factura {{ cuenta.numeroFactura }}</p>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" (click)="goBack()">
+          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
+          Volver a cuentas por pagar
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <p><strong>Estado:</strong> {{ cuenta.estado | titlecase }}</p>
+        <p><strong>Monto original:</strong> {{ cuenta.montoOriginal | currency:'USD':'symbol':'1.2-2' }}</p>
+        <p><strong>Monto pagado:</strong> {{ cuenta.montoPagado | currency:'USD':'symbol':'1.2-2' }}</p>
+        <p><strong>Balance pendiente:</strong> {{ cuenta.balancePendiente | currency:'USD':'symbol':'1.2-2' }}</p>
+      </div>
+    </section>
+
+    <section class="card" [formGroup]="form">
+      <h3>Registrar abono</h3>
+      <ion-item>
+        <ion-label position="stacked">Monto</ion-label>
+        <ion-input type="number" formControlName="montoAbono"></ion-input>
+      </ion-item>
+      <ion-button class="btn-primary" (click)="registrarAbono()">Aplicar abono</ion-button>
+    </section>
+  </div>
+</ion-content>

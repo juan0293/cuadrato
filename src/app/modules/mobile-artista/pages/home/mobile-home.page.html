@@ -1,0 +1,16 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Inicio artista</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding" *ngIf="resumen$ | async as resumen">
+  <ion-grid>
+    <ion-row>
+      <ion-col size="6"><app-resumen-card label="Citas hoy" [value]="'' + resumen.citasHoy"></app-resumen-card></ion-col>
+      <ion-col size="6"><app-resumen-card label="Pendientes" [value]="'' + resumen.citasPendientes"></app-resumen-card></ion-col>
+      <ion-col size="6"><app-resumen-card label="Insumos hoy" [value]="'' + resumen.insumosConsumidosHoy"></app-resumen-card></ion-col>
+      <ion-col size="6"><app-resumen-card label="Ingresos mes" [value]="resumen.ingresosPropiosMesLabel"></app-resumen-card></ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>

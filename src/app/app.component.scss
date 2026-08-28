@@ -1,0 +1,176 @@
+:host {
+  --boot-text: #f8fbff;
+  --boot-muted: #c7d2e8;
+}
+
+.app-boot-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: grid;
+  place-items: center;
+  padding: max(24px, env(safe-area-inset-top)) 18px max(24px, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(1100px 540px at 0% -5%, rgba(56, 189, 248, 0.18), transparent 52%),
+    radial-gradient(950px 520px at 100% 100%, rgba(59, 130, 246, 0.2), transparent 50%),
+    linear-gradient(170deg, #030811 0%, #081226 52%, #050a15 100%);
+  backdrop-filter: blur(6px);
+}
+
+.app-boot-card {
+  width: min(420px, 92vw);
+  border-radius: 28px;
+  padding: 30px 24px 24px;
+  border: 1px solid rgba(186, 230, 253, 0.22);
+  background: linear-gradient(150deg, rgba(15, 23, 42, 0.9), rgba(8, 15, 30, 0.94));
+  box-shadow:
+    0 34px 88px rgba(0, 0, 0, 0.58),
+    0 0 0 1px rgba(125, 211, 252, 0.12) inset;
+  animation: bootCardIn 0.35s ease-out;
+}
+
+.app-boot-logo-wrap {
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+}
+
+.app-boot-logo {
+  width: 82px;
+  height: 82px;
+  object-fit: cover;
+  border-radius: 22px;
+  border: 1px solid rgba(191, 219, 254, 0.28);
+  box-shadow:
+    0 18px 36px rgba(2, 8, 24, 0.55),
+    0 0 24px rgba(56, 189, 248, 0.22);
+  animation: bootPulse 2.2s ease-in-out infinite;
+}
+
+.app-boot-brand {
+  text-align: center;
+
+  h1 {
+    margin: 12px 0 8px;
+    font-size: 1.36rem;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: var(--boot-text);
+  }
+
+  p {
+    margin: 0;
+    color: var(--boot-muted);
+    font-size: 0.95rem;
+    line-height: 1.45;
+    min-height: 1.45em;
+  }
+}
+
+.app-boot-kicker,
+.app-boot-stage {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.38);
+  padding: 5px 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.app-boot-kicker {
+  background: rgba(59, 130, 246, 0.2);
+  color: #bfdbfe;
+  margin-right: 6px;
+}
+
+.app-boot-stage {
+  background: rgba(30, 41, 59, 0.72);
+  color: #e2e8f0;
+}
+
+.app-boot-alert {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  background: rgba(180, 83, 9, 0.2);
+  color: #fde68a;
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  font-size: 0.82rem;
+
+  ion-icon {
+    font-size: 1rem;
+  }
+}
+
+.app-boot-progress {
+  margin-top: 16px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+  overflow: hidden;
+}
+
+.app-boot-bar {
+  height: 100%;
+  width: 35%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #0ea5e9, #3b82f6, #38bdf8);
+  animation: bootLoading 1.6s ease-in-out infinite;
+}
+
+.app-boot-skeleton {
+  margin-top: 16px;
+  display: grid;
+  gap: 8px;
+
+  span {
+    display: block;
+    height: 8px;
+    border-radius: 99px;
+    background: linear-gradient(90deg, rgba(148, 163, 184, 0.1), rgba(191, 219, 254, 0.3), rgba(148, 163, 184, 0.1));
+    background-size: 200% 100%;
+    animation: bootShimmer 1.3s linear infinite;
+  }
+
+  span:nth-child(1) { width: 78%; }
+  span:nth-child(2) { width: 90%; }
+  span:nth-child(3) { width: 68%; }
+}
+
+@keyframes bootCardIn {
+  from { opacity: 0; transform: translateY(12px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes bootPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes bootLoading {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+@keyframes bootShimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (max-width: 640px) {
+  .app-boot-card {
+    padding: 24px 18px 18px;
+    border-radius: 22px;
+  }
+
+  .app-boot-logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 18px;
+  }
+}

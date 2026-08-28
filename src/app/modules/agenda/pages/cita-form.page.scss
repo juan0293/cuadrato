@@ -1,0 +1,80 @@
+.cita-form-page {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+
+.shell { max-width: 1100px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; flex-wrap:wrap; }
+.header-copy { display:grid; gap:6px; }
+.header h1 { margin: 0; }
+.header p { margin: 6px 0 0; color: #aeb6c8; }
+.header-actions { display:flex; gap:8px; flex-wrap:wrap; }
+
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; display: grid; gap: 12px; }
+.card h3 { margin: 0; }
+.required { color: #fda4af; margin-left: 2px; font-weight: 700; }
+.field-error { color: #fecaca; font-size: .78rem; margin-top: -6px; }
+
+.grid { display: grid; gap: 10px; }
+.grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+ion-item { --background: rgba(255,255,255,.08); --color:#fff; border-radius: 12px; }
+app-searchable-select { display: block; }
+
+.full { grid-column: 1 / -1; }
+
+.actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.action-hint { flex: 1 1 100%; color: #aeb6c8; font-size: .82rem; text-align: right; }
+.btn-secondary { --border-color: rgba(148,163,184,.34); --color:#e8efff; --border-radius: 14px; --background: rgba(255,255,255,.04); text-transform: none; }
+.btn-primary { --background: linear-gradient(120deg, #3b82f6, #1d4ed8); --border-radius: 14px; text-transform: none; }
+.btn-outline { --border-color: rgba(56,189,248,.6); --color:#cbe7ff; }
+.reserva-summary { border: 1px solid rgba(255,255,255,.12); border-radius: 14px; padding: 10px 12px; background: rgba(255,255,255,.03); }
+.reserva-summary p { margin: 0 0 6px; display: flex; justify-content: space-between; color: #d7e6ff; }
+.reserva-summary small { color: #aeb6c8; }
+
+.quick-client-content {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+
+.quick-client-shell {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.quick-client-card {
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: 20px;
+  backdrop-filter: blur(14px);
+  padding: 16px;
+  color: #fff;
+}
+
+.quick-client-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.quick-client-header h2 {
+  margin: 0;
+}
+
+.quick-client-header p {
+  margin: 6px 0 0;
+  color: #aeb6c8;
+}
+
+@media (max-width: 860px) {
+  .header { align-items: stretch; }
+  .header-actions { width: 100%; }
+  .header-actions ion-button { width: 100%; min-height: 44px; }
+  .action-hint { text-align: left; }
+  .grid.two { grid-template-columns: 1fr; }
+}

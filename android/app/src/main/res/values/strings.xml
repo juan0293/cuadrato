@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">VargasTattooApp</string>
+    <string name="title_activity_main">VargasTattooApp</string>
+    <string name="package_name">com.vargastattoo.app</string>
+    <string name="custom_url_scheme">com.vargastattoo.app</string>
+</resources>

@@ -1,0 +1,131 @@
+:host {
+  display: block;
+}
+
+.profile-page {
+  --background:
+    radial-gradient(900px 420px at 8% 0%, rgba(56, 189, 248, 0.14), transparent 58%),
+    linear-gradient(160deg, #05070d 0%, #0b1220 100%);
+}
+
+.profile-shell {
+  max-width: 980px;
+  margin: 0 auto;
+  display: grid;
+  gap: 16px;
+}
+
+.menu-fab-btn {
+  position: fixed;
+  top: 14px;
+  left: 14px;
+  z-index: 1000;
+  --border-radius: 12px;
+  --background: linear-gradient(120deg, #3b82f6, #1d4ed8);
+  --background-hover: linear-gradient(120deg, #60a5fa, #2563eb);
+  --color: #ffffff;
+  --box-shadow: 0 12px 26px rgba(29, 78, 216, 0.34);
+}
+
+.profile-header h1 {
+  margin: 0;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.profile-header p {
+  margin: 4px 0 0;
+  color: #aeb6c8;
+}
+
+.profile-card {
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  padding: 18px;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 18px;
+}
+
+.avatar-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.profile-avatar {
+  width: 118px;
+  height: 118px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.profile-avatar-fallback {
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #dbeafe;
+  background: linear-gradient(120deg, rgba(59, 130, 246, 0.42), rgba(29, 78, 216, 0.42));
+}
+
+.profile-data {
+  display: grid;
+  gap: 10px;
+}
+
+.profile-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 10px 12px;
+}
+
+.profile-row span {
+  color: #aeb6c8;
+  font-size: 13px;
+}
+
+.profile-row strong {
+  color: #ffffff;
+  font-size: 13px;
+  text-align: right;
+}
+
+.btn-secondary {
+  --border-color: rgba(255, 255, 255, 0.2);
+  --color: #dbeafe;
+  --background: rgba(255, 255, 255, 0.04);
+  --border-radius: 12px;
+  text-transform: none;
+}
+
+.btn-danger {
+  justify-self: start;
+  --color: #fca5a5;
+  text-transform: none;
+}
+
+@media (max-width: 760px) {
+  .profile-card {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .profile-row strong {
+    text-align: left;
+  }
+}

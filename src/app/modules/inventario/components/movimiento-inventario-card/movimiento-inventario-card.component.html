@@ -1,0 +1,8 @@
+<ion-item>
+  <ion-label>
+    <h3>{{ movimiento.insumoNombre }} · {{ movimiento.tipo | uppercase }} {{ movimiento.cantidad }}</h3>
+    <p>{{ movimiento.motivo }} · {{ movimiento.fecha }}</p>
+    <p *ngIf="movimiento.artistaId">Artista: {{ movimiento.artistaId }}</p>
+    <p *ngIf="movimiento.citaId">Cita: {{ movimiento.citaId }}</p>
+  </ion-label>
+</ion-item>

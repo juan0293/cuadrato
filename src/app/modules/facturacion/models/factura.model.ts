@@ -1,0 +1,57 @@
+import { FacturaItem } from './factura-item.model';
+
+export interface Factura {
+  id?: string;
+  numero: string;
+  numeroFactura?: string;
+  ncf?: string;
+  tipoComprobante?: 'B01' | 'B02' | 'B14' | 'B15' | 'E31' | 'E32';
+  clienteNombre: string;
+  clienteId?: string;
+  clienteRncCedula?: string;
+  clienteTelefono?: string;
+  clienteCorreo?: string;
+  artistaId: string;
+  artistaNombre: string;
+  citaId?: string;
+  items: FacturaItem[];
+  subtotal: number;
+  impuesto: number;
+  descuentoTotal?: number;
+  itbisTotal?: number;
+  total: number;
+  estado: 'borrador' | 'emitida' | 'anulada' | 'pagada';
+  origen?: 'manual' | 'agenda';
+  formaPago?: 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'credito';
+  pagos?: {
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+    credito: number;
+    totalPagadoAhora: number;
+    totalCredito: number;
+  };
+  totalPagado?: number;
+  montoPagado?: number;
+  devuelta?: number;
+  cambio?: number;
+  fechaPago?: string;
+  estadoPago?: 'pagada' | 'pendiente' | 'parcial' | 'credito';
+  estadoFiscal?: 'pendiente' | 'validada' | 'anulada';
+  preparadoParaECF?: boolean;
+  inventarioAfectado?: boolean;
+  anuladaEn?: string;
+  motivoAnulacion?: string;
+  fecha: string;
+  creadaPor: string;
+  creadoEn?: string;
+  actualizadoEn?: string;
+  turnoId?: string;
+  turnoNumero?: string;
+  cajaId?: string;
+  cajaNombre?: string;
+  aperturaTurno?: string;
+  cierreTurno?: string;
+  usuarioTurnoId?: string;
+  usuarioTurnoNombre?: string;
+}

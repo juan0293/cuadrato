@@ -1,0 +1,12 @@
+.tax-chip {
+  display: inline-flex;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 11px;
+  border: 1px solid transparent;
+}
+.tax-18 { background: rgba(59,130,246,.2); border-color: rgba(59,130,246,.4); color: #dbeafe; }
+.tax-16 { background: rgba(56,189,248,.18); border-color: rgba(56,189,248,.4); color: #e0f2fe; }
+.tax-0 { background: rgba(148,163,184,.18); border-color: rgba(148,163,184,.35); color: #e2e8f0; }
+.tax-exento { background: rgba(52,211,153,.14); border-color: rgba(52,211,153,.4); color: #a7f3d0; }
+.tax-no-facturable { background: rgba(248,113,113,.14); border-color: rgba(248,113,113,.35); color: #fecaca; }

@@ -1,0 +1,38 @@
+export interface Cita {
+  id?: string;
+  clienteId?: string;
+  clienteNombre: string;
+  clienteTelefono?: string;
+  clienteCorreo?: string;
+  servicioId?: string;
+  servicioNombre?: string;
+  artistaId: string;
+  artistaNombre: string;
+  fecha: string;
+  horaInicio: string;
+  horaFin: string;
+  duracionMinutos?: number;
+  descripcionTrabajo: string;
+  estado: 'programada' | 'confirmada' | 'cancelada' | 'completada' | 'pendiente' | 'atendida' | 'anulada' | 'reprogramada';
+  observacion?: string;
+  responsableId?: string;
+  responsableNombre?: string;
+  precioEstimado?: number;
+  montoPagado?: number;
+  balancePendiente?: number;
+  estadoPago?: 'sin_pago' | 'parcial' | 'pagada';
+  facturaIds?: string[];
+  cuentaPorCobrarId?: string;
+  tipoAbono?: 'sin_abono' | 'porcentaje' | 'monto_fijo';
+  porcentajeAbono?: number;
+  montoAbonoSugerido?: number;
+  itbisPorcentaje?: number;
+  itbisMonto?: number;
+  precioBase?: number;
+  totalConItbis?: number;
+  creadaPor: string;
+  fechaCreacion: string;
+  actualizadoEn?: string;
+  anuladaEn?: string;
+  motivoAnulacion?: string;
+}

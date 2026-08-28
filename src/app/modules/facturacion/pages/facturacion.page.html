@@ -1,0 +1,699 @@
+<ion-content class="facturacion-page" [class.theme-light]="posTheme === 'light'" [class.theme-dark]="posTheme === 'dark'">
+  <ng-container *ngIf="loading; else facturacionReady">
+    <main class="shell shell--loading" aria-label="Cargando facturación">
+      <ion-skeleton-text animated class="skeleton-turno"></ion-skeleton-text>
+      <section class="pos-grid">
+        <article class="card skeleton-panel">
+          <ion-skeleton-text animated class="skeleton-title"></ion-skeleton-text>
+          <div class="skeleton-grid">
+            <ion-skeleton-text animated *ngFor="let p of [1,2,3,4,5,6]"></ion-skeleton-text>
+          </div>
+        </article>
+        <article class="card skeleton-panel">
+          <ion-skeleton-text animated class="skeleton-title"></ion-skeleton-text>
+          <ion-skeleton-text animated class="skeleton-cart"></ion-skeleton-text>
+        </article>
+      </section>
+    </main>
+  </ng-container>
+
+  <ng-template #facturacionReady>
+    <main class="shell">
+      <section class="card turno-card" *ngIf="!turnoLoading && facturacionBloqueadaPorTurno" aria-labelledby="turno-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Punto de venta</span>
+            <h2 id="turno-title">Iniciar turno</h2>
+          </div>
+          <ion-button class="theme-toggle" fill="outline" (click)="togglePosTheme()"
+            [attr.aria-label]="posTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'"
+            [attr.aria-pressed]="posTheme === 'dark'">
+            <ion-icon slot="start" [name]="posTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>
+            {{ posTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
+          </ion-button>
+        </div>
+        <div class="turno-callout" role="status" aria-live="polite">
+          <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
+          <p>Registra el efectivo inicial para comenzar a facturar.</p>
+        </div>
+        <form [formGroup]="aperturaTurnoForm" class="turno-form">
+          <ion-item><ion-label position="stacked">Caja / Punto de venta</ion-label><ion-input formControlName="cajaNombre"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Código caja</ion-label><ion-input formControlName="cajaId"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Monto inicial</ion-label><ion-input type="number" formControlName="montoInicial"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Observación</ion-label><ion-input formControlName="observacionApertura"></ion-input></ion-item>
+        </form>
+        <div class="actions">
+          <ion-button class="btn-primary" (click)="iniciarTurno()" [disabled]="turnoActionLoading">Iniciar turno</ion-button>
+        </div>
+      </section>
+
+      <header class="turno-bar" *ngIf="turnoActivo && turnoActivo.estado === 'abierto'" aria-label="Información del turno activo">
+        <div class="turno-status"><span class="status-dot" aria-hidden="true"></span><strong>Turno activo</strong></div>
+        <dl class="turno-data">
+          <div><dt>Caja</dt><dd>{{ turnoActivo.cajaNombre }}</dd></div>
+          <div><dt>Apertura</dt><dd>{{ formatTurnoApertura(turnoActivo.fechaApertura) }}</dd></div>
+          <div><dt>Ventas del turno</dt><dd>{{ formatCurrency(turnoTotales.totalVentas) }}</dd></div>
+        </dl>
+        <div class="turno-actions">
+          <ion-button class="theme-toggle" fill="outline" (click)="togglePosTheme()"
+            [attr.aria-label]="posTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'"
+            [attr.aria-pressed]="posTheme === 'dark'">
+            <ion-icon slot="start" [name]="posTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>
+            {{ posTheme === 'light' ? 'Oscuro' : 'Claro' }}
+          </ion-button>
+          <ion-button class="btn-secondary" fill="outline" (click)="abrirModalFacturas('emitida')" [disabled]="facturasModalLoading">
+            <ion-icon slot="start" name="receipt-outline" aria-hidden="true"></ion-icon>Ver facturas
+          </ion-button>
+          <ion-button class="btn-danger-soft" fill="outline" (click)="abrirModalCierreTurno()" [disabled]="turnoActionLoading">Cerrar turno</ion-button>
+        </div>
+      </header>
+
+      <ion-segment class="mobile-segment" [(ngModel)]="tabMobile" aria-label="Sección de facturación">
+        <ion-segment-button value="catalogo"><ion-icon name="grid-outline"></ion-icon><ion-label>Productos</ion-label></ion-segment-button>
+        <ion-segment-button value="carrito"><ion-icon name="cart-outline"></ion-icon><ion-label>Factura ({{ cartItems.length }})</ion-label></ion-segment-button>
+      </ion-segment>
+
+      <section class="pos-grid">
+        <article class="card catalog" [class.hide-mobile]="tabMobile !== 'catalogo'" aria-labelledby="catalog-title">
+          <div class="section-head">
+            <div><span class="eyebrow">Catálogo</span><h1 id="catalog-title">Productos y servicios</h1></div>
+            <span class="counter" aria-live="polite">{{ productosFiltrados.length }} resultados</span>
+          </div>
+
+          <form [formGroup]="filtrosCatalogo" class="filters" aria-label="Filtros del catálogo">
+            <ion-item class="search-field">
+              <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
+              <ion-label position="stacked">Buscar</ion-label>
+              <ion-input formControlName="busqueda" placeholder="Buscar por nombre, código o categoría" clearInput="true"></ion-input>
+            </ion-item>
+            <ion-item><ion-label position="stacked">Tipo</ion-label><ion-select formControlName="tipo" interface="popover"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="producto">Producto</ion-select-option><ion-select-option value="servicio">Servicio</ion-select-option></ion-select></ion-item>
+            <ion-item><ion-label position="stacked">Categoría</ion-label><ion-select formControlName="categoria" interface="popover"><ion-select-option value="todas">Todas</ion-select-option><ion-select-option *ngFor="let categoria of categoriasDisponibles" [value]="categoria">{{ categoria }}</ion-select-option></ion-select></ion-item>
+          </form>
+
+          <ion-segment class="availability-filter" [value]="catalogStockFilter" (ionChange)="setCatalogStockFilter($any($event).detail.value)" aria-label="Disponibilidad">
+            <ion-segment-button value="todos"><ion-label>Todos</ion-label></ion-segment-button>
+            <ion-segment-button value="disponibles"><ion-label>Disponibles</ion-label></ion-segment-button>
+          </ion-segment>
+
+          <div class="catalog-body" *ngIf="productosFiltrados.length > 0; else emptyProducts">
+            <div class="product-grid">
+              <article class="product-card" *ngFor="let item of productosPaginados" [class.product-card--disabled]="!canAddProducto(item)">
+                <div class="product-content">
+                  <div class="product-header">
+                    <div class="product-visual" [class.product-visual--service]="item.tipoItem === 'servicio'">
+                      <ion-icon [name]="item.tipoItem === 'servicio' ? 'sparkles-outline' : 'cube-outline'" aria-hidden="true"></ion-icon>
+                    </div>
+                    <div class="product-title"><strong>{{ item.nombre }}</strong><span class="type-label">{{ item.tipoItem === 'servicio' ? 'Servicio' : 'Producto' }}</span></div>
+                  </div>
+                  <p>{{ item.codigoInterno || 'SIN-COD' }} · {{ item.categoriaNombre || 'General' }}</p>
+                  <div class="product-footer"><span class="product-price-hero">{{ formatCurrency(item.precioVenta) }}</span><small class="stock-badge" [ngClass]="getStockClass(item)">{{ getStockLabel(item) }}</small></div>
+                  <ion-button expand="block" class="product-add" type="button" (click)="addProductoToCart(item)" [disabled]="!canAddProducto(item)" [attr.aria-label]="(canAddProducto(item) ? 'Agregar ' : 'Sin existencias: ') + item.nombre">
+                    <ion-icon slot="start" [name]="canAddProducto(item) ? 'add-outline' : 'ban-outline'" aria-hidden="true"></ion-icon>{{ canAddProducto(item) ? 'Agregar' : 'Sin existencias' }}
+                  </ion-button>
+                </div>
+              </article>
+            </div>
+            <nav class="table-pagination" aria-label="Paginación del catálogo">
+              <ion-button size="small" fill="outline" (click)="goProductosPrevPage()" [disabled]="productosPage === 1" aria-label="Página anterior"><ion-icon slot="icon-only" name="chevron-back-outline"></ion-icon></ion-button>
+              <span>Página <strong>{{ productosPage }}</strong> de {{ productosTotalPages }}</span>
+              <ion-button size="small" fill="outline" (click)="goProductosNextPage()" [disabled]="productosPage === productosTotalPages" aria-label="Página siguiente"><ion-icon slot="icon-only" name="chevron-forward-outline"></ion-icon></ion-button>
+            </nav>
+          </div>
+          <ng-template #emptyProducts><app-empty-state title="Sin productos disponibles" message="No encontramos productos o servicios con estos filtros."></app-empty-state></ng-template>
+        </article>
+
+        <aside class="card cart" [class.hide-mobile]="tabMobile !== 'carrito'" aria-labelledby="invoice-title">
+          <div class="section-head cart-heading">
+            <div><span class="eyebrow">Venta en curso</span><h2 id="invoice-title">Factura actual</h2></div>
+            <ion-button class="new-client-btn" fill="clear" size="small" (click)="openQuickClienteModal()"><ion-icon slot="start" name="person-add-outline"></ion-icon>Nuevo cliente</ion-button>
+          </div>
+
+          <form [formGroup]="facturaForm" class="cart-meta">
+            <button type="button" class="cliente-picker cliente-picker--wide" (click)="openClienteSelectorModal()">
+              <span class="cliente-picker__icon"><ion-icon name="person-outline"></ion-icon></span>
+              <span><small>Cliente seleccionado</small><strong>{{ selectedCliente?.nombreCompleto || 'Consumidor final' }}</strong><em>Buscar o cambiar cliente</em></span>
+              <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+            </button>
+            <button type="button" class="cliente-picker cliente-picker--wide" (click)="openCitaSelectorModal()">
+              <span class="cliente-picker__icon"><ion-icon name="calendar-outline"></ion-icon></span>
+              <span><small>Factura vinculada</small><strong>{{ selectedCita ? (selectedCita.clienteNombre || 'Cita seleccionada') : 'Sin factura vinculada' }}</strong><em>{{ selectedCita ? formatCitaFecha(selectedCita) : 'Buscar cita' }}</em></span>
+              <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
+            </button>
+            <ion-item><ion-label position="stacked">Tipo de comprobante</ion-label><ion-select formControlName="tipoComprobante" interface="popover"><ion-select-option value="B01">B01 Crédito Fiscal</ion-select-option><ion-select-option value="B02">B02 Consumo</ion-select-option><ion-select-option value="B14">B14 Régimen Especial</ion-select-option><ion-select-option value="B15">B15 Gubernamental</ion-select-option></ion-select></ion-item>
+            <ion-item><ion-label position="stacked">Forma de pago</ion-label><ion-select formControlName="formaPago" interface="popover"><ion-select-option value="efectivo">Efectivo</ion-select-option><ion-select-option value="tarjeta">Tarjeta</ion-select-option><ion-select-option value="transferencia">Transferencia</ion-select-option><ion-select-option value="mixto">Mixto</ion-select-option><ion-select-option value="credito">Crédito</ion-select-option></ion-select></ion-item>
+            <ion-item class="discount-field"><ion-label position="stacked">Descuento</ion-label><ion-input formControlName="descuentoGlobal" type="number" min="0" inputmode="decimal"></ion-input></ion-item>
+          </form>
+
+          <div class="cita-linked-summary" *ngIf="selectedCita">
+            <div><span>Estimado</span><strong>{{ formatCurrency(citaPrecioEstimadoActual) }}</strong></div><div><span>Pagado</span><strong class="is-paid">{{ formatCurrency(citaPagadoAnteriorActual) }}</strong></div><div><span>Restante</span><strong class="is-pending">{{ formatCurrency(getCitaBalancePendiente(selectedCita)) }}</strong></div><div><span>Modo</span><strong>{{ selectedCitaModo === 'abono' ? 'Abono' : selectedCitaModo === 'pendiente' ? 'Restante' : 'Total' }}</strong></div>
+          </div>
+
+          <section class="cart-products" aria-labelledby="cart-products-title">
+            <div class="cart-products__head"><h3 id="cart-products-title">Productos agregados</h3><span>{{ cartItems.length }} {{ cartItems.length === 1 ? 'artículo' : 'artículos' }}</span></div>
+            <div class="cart-items" *ngIf="cartItems.length > 0; else emptyCart">
+              <article class="cart-item" *ngFor="let item of cartItems">
+                <div class="cart-item-head"><div><strong>{{ item.descripcion }}</strong><p>{{ item.codigo || '—' }} · {{ item.tipo === 'servicio' ? 'Servicio' : 'Producto' }}</p></div><ion-button size="small" fill="clear" color="danger" (click)="removeCartItem(item)" [attr.aria-label]="'Quitar ' + item.descripcion"><ion-icon slot="icon-only" name="trash-outline"></ion-icon></ion-button></div>
+                <div class="item-edit">
+                  <label class="item-field"><span>Cant.</span><span class="qty-stepper"><button type="button" aria-label="Disminuir cantidad" [disabled]="item.cantidad <= 1" (click)="updateQuantity(item, item.cantidad - 1)"><ion-icon name="remove-outline"></ion-icon></button><ion-input class="qty-stepper__input" inputmode="numeric" type="number" [value]="item.cantidad" (ionInput)="updateQuantity(item, +($any($event.target).value || 1))"></ion-input><button type="button" aria-label="Aumentar cantidad" [disabled]="item.manejaInventario && item.cantidad >= (item.stockActual || 0)" (click)="updateQuantity(item, item.cantidad + 1)"><ion-icon name="add-outline"></ion-icon></button></span></label>
+                  <label class="item-field"><span>Precio</span><ion-item><ion-input inputmode="decimal" type="text" [value]="formatCartPriceInput(item.precioUnitario)" (ionFocus)="onCartPriceFocus($event, item)" (ionInput)="onCartPriceInput(item, $event)" (ionBlur)="onCartPriceBlur($event, item)"></ion-input></ion-item></label>
+                  <label class="item-field"><span>Desc.</span><ion-item><ion-input inputmode="decimal" type="number" [value]="item.descuento || 0" (ionInput)="updateDiscount(item, +($any($event.target).value || 0))"></ion-input></ion-item></label>
+                </div>
+                <div class="item-totals"><span>ITBIS {{ formatCurrency(item.itbis || 0) }}</span><strong>{{ formatCurrency(item.total) }}</strong></div>
+              </article>
+            </div>
+            <ng-template #emptyCart><div class="cart-empty-state"><ion-icon name="cart-outline" aria-hidden="true"></ion-icon><h3>Tu carrito está vacío</h3><p>Agrega productos o servicios para comenzar la factura</p><ion-button fill="clear" class="mobile-catalog-link" (click)="tabMobile = 'catalogo'">Ver productos</ion-button></div></ng-template>
+          </section>
+
+          <footer class="cart-footer">
+            <div class="totals"><p><span>Subtotal</span><strong>{{ formatCurrency(subtotal) }}</strong></p><p><span>Descuento</span><strong>- {{ formatCurrency(descuentoGlobal) }}</strong></p><p><span>ITBIS</span><strong>{{ formatCurrency(itbisTotal) }}</strong></p><p class="grand-total"><span>Total</span><strong>{{ formatCurrency(total) }}</strong></p></div>
+            <ion-button expand="block" class="charge-button" (click)="openCobroModal()" [disabled]="isEmitting || facturacionBloqueadaPorTurno || turnoActionLoading || cartItems.length === 0"><ion-icon name="card-outline" slot="start"></ion-icon>Cobrar {{ formatCurrency(total) }}</ion-button>
+            <ion-button expand="block" fill="clear" class="clear-button" color="danger" (click)="limpiarFacturaActual()" [disabled]="cartItems.length === 0 || isEmitting || turnoActionLoading">Limpiar factura</ion-button>
+          </footer>
+        </aside>
+      </section>
+    </main>
+
+    <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="mobile-fab">
+      <ion-badge *ngIf="cartItems.length > 0 && tabMobile === 'catalogo'" color="danger" class="cart-badge">{{ cartItems.length }}</ion-badge>
+      <ion-fab-button (click)="tabMobile = tabMobile === 'catalogo' ? 'carrito' : 'catalogo'" [attr.aria-label]="tabMobile === 'catalogo' ? 'Ir a la factura actual' : 'Ir al catálogo'"><ion-icon [name]="tabMobile === 'catalogo' ? 'cart-outline' : 'grid-outline'"></ion-icon></ion-fab-button>
+    </ion-fab>
+
+    <ion-modal [isOpen]="facturasModalOpen" (didDismiss)="cerrarModalFacturas()" cssClass="quick-client-modal">
+      <ng-template>
+        <ion-content class="quick-client-content ion-padding">
+          <div class="quick-client-shell">
+            <section class="quick-client-card facturas-manager-card">
+              <header class="quick-client-header">
+                <div>
+                  <h2>{{ facturasModalTitle }}</h2>
+                  <p>{{ facturasModalDateLabel }}</p>
+                </div>
+                <div class="header-actions">
+                  <ion-button fill="outline" (click)="cerrarModalFacturas()">Cerrar</ion-button>
+                  <ion-button fill="outline" size="small" (click)="cargarFacturasHoyPorEstado()"
+                    [disabled]="facturasModalLoading">Refrescar</ion-button>
+
+                </div>
+              </header>
+
+              <div *ngIf="facturasModalLoading" class="modal-loading">
+                <ion-spinner name="crescent"></ion-spinner>
+                <span>Cargando facturas del día...</span>
+              </div>
+
+              <ng-container *ngIf="!facturasModalLoading">
+                <div class="desktop-table" *ngIf="facturasDelDia.length > 0; else emptyFacturas">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Número</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>NCF</th>
+                        <th>Subtotal</th>
+                        <th>ITBIS</th>
+                        <th>Total</th>
+                        <th>Estado</th>
+                        <th>Origen</th>
+                        <th>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let f of facturasModalPaginadas">
+                        <td>{{ f.numero }}</td>
+                        <td>{{ (f.creadoEn || f.fecha) | date:'dd/MM/yyyy hh:mm a' }}</td>
+                        <td>{{ f.clienteNombre }}</td>
+                        <td>{{ f.ncf || '—' }}</td>
+                        <td>{{ formatCurrency(f.subtotal) }}</td>
+                        <td>{{ formatCurrency(f.itbisTotal || f.impuesto || 0) }}</td>
+                        <td><strong>{{ formatCurrency(f.total) }}</strong></td>
+                        <td><ion-chip [color]="estadoColor(f.estado)"><ion-label>{{ f.estado }}</ion-label></ion-chip>
+                        </td>
+                        <td>{{ f.origen || 'manual' }}</td>
+                        <td class="row-actions">
+                          <ion-button fill="outline" size="small" (click)="openFacturasActionsPopover($event, f)">
+                            Acciones
+                            <ion-icon slot="end" name="chevron-down-outline"></ion-icon>
+                          </ion-button>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div class="table-pagination">
+                    <ion-button size="small" fill="outline" (click)="goFacturasModalPrevPage()"
+                      [disabled]="facturasModalPage === 1">Anterior</ion-button>
+                    <span>Página {{ facturasModalPage }} de {{ facturasModalTotalPages }}</span>
+                    <ion-button size="small" fill="outline" (click)="goFacturasModalNextPage()"
+                      [disabled]="facturasModalPage === facturasModalTotalPages">Siguiente</ion-button>
+                  </div>
+                </div>
+
+                <div class="mobile-cards" *ngIf="facturasDelDia.length > 0">
+                  <article class="mobile-card" *ngFor="let f of facturasModalPaginadas">
+                    <strong>{{ f.numero }} · {{ formatCurrency(f.total) }}</strong>
+                    <p>{{ (f.creadoEn || f.fecha) | date:'hh:mm a' }} · {{ f.clienteNombre }}</p>
+                    <ion-chip [color]="estadoColor(f.estado)"><ion-label>{{ f.estado }}</ion-label></ion-chip>
+                    <div class="actions">
+                      <ion-button fill="outline" size="small" (click)="openFacturaActions(f)">Acciones</ion-button>
+                      <ion-button *ngIf="f.estado === 'borrador'" fill="outline" size="small"
+                        (click)="continuarBorrador(f)">Continuar</ion-button>
+                    </div>
+                  </article>
+                </div>
+              </ng-container>
+
+              <ng-template #emptyFacturas>
+                <app-empty-state title="Sin facturas para hoy"
+                  message="No hay registros del estado seleccionado en la fecha actual."></app-empty-state>
+              </ng-template>
+
+              <ion-popover [isOpen]="facturasActionsPopoverOpen" [event]="facturasActionsEvent"
+                (didDismiss)="closeFacturasActionsPopover()" cssClass="facturas-actions-popover">
+                <ng-template>
+                  <ion-content class="facturas-popover-content">
+                    <div class="facturas-popover-list">
+                      <ion-button expand="block" fill="clear" (click)="popoverVerDetalle()">Ver detalle</ion-button>
+                      <ion-button expand="block" fill="clear" (click)="popoverAbrirPdf()">Abrir PDF</ion-button>
+                      <ion-button expand="block" fill="clear" (click)="popoverImprimirTicket()">Imprimir
+                        ticket</ion-button>
+                      <ion-button *ngIf="selectedFacturaAction?.estado === 'borrador'" expand="block" fill="clear"
+                        (click)="popoverContinuarBorrador()">Continuar borrador</ion-button>
+                      <ion-button *ngIf="selectedFacturaAction?.estado === 'emitida'" expand="block" fill="clear"
+                        color="danger" (click)="popoverAnularFactura()">Anular factura</ion-button>
+                    </div>
+                  </ion-content>
+                </ng-template>
+              </ion-popover>
+            </section>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal [isOpen]="quickClienteModalOpen" (didDismiss)="closeQuickClienteModal()"
+      cssClass="quick-client-modal quick-cliente-compact">
+      <ng-template>
+        <ion-content class="quick-client-content ion-padding">
+          <div class="quick-client-shell">
+            <section class="quick-client-card modal-card-client quick-create-client">
+              <div class="quick-create-hero">
+                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
+                <div class="quick-create-icon"><ion-icon name="person-add-outline"></ion-icon></div>
+                <h2>Nuevo cliente</h2>
+                <p>Registra un cliente para continuar la venta.</p>
+              </div>
+
+              <form [formGroup]="quickClienteForm" (ngSubmit)="saveQuickCliente()" class="quick-create-form">
+                <article class="quick-create-resumen">
+                  <h4>Resumen rápido</h4>
+                  <p><span>Cliente:</span> <strong>{{ quickClienteForm.value.nombreCompleto || 'Sin nombre' }}</strong>
+                  </p>
+                  <p><span>Teléfono:</span> <strong>{{ quickClienteForm.value.telefono || 'Sin teléfono' }}</strong></p>
+                </article>
+
+                <article class="quick-create-fields">
+                  <h4>Información del cliente</h4>
+                  <div class="quick-form-grid quick-form-grid--single">
+                    <div class="field-wrap">
+                      <ion-item>
+                        <ion-icon name="person-outline" slot="start"></ion-icon>
+                        <ion-label position="stacked">Nombre completo <span class="required-soft">*</span></ion-label>
+                        <ion-input formControlName="nombreCompleto"></ion-input>
+                      </ion-item>
+                      <small class="field-error"
+                        *ngIf="quickClienteForm.controls.nombreCompleto.touched && quickClienteForm.controls.nombreCompleto.invalid">
+                        Ingresa el nombre del cliente.
+                      </small>
+                    </div>
+
+                    <div class="field-wrap">
+                      <ion-item>
+                        <ion-icon name="call-outline" slot="start"></ion-icon>
+                        <ion-label position="stacked">Teléfono <span class="required-soft">*</span></ion-label>
+                        <ion-input formControlName="telefono"></ion-input>
+                      </ion-item>
+                      <small class="field-error"
+                        *ngIf="quickClienteForm.controls.telefono.touched && quickClienteForm.controls.telefono.invalid">
+                        Ingresa un teléfono válido.
+                      </small>
+                    </div>
+
+                    <ion-item>
+                      <ion-icon name="mail-outline" slot="start"></ion-icon>
+                      <ion-label position="stacked">Correo electrónico</ion-label>
+                      <ion-input formControlName="correo" type="email"></ion-input>
+                    </ion-item>
+
+                    <ion-item>
+                      <ion-icon name="card-outline" slot="start"></ion-icon>
+                      <ion-label position="stacked">Documento</ion-label>
+                      <ion-input formControlName="rncCedula"></ion-input>
+                    </ion-item>
+                  </div>
+                </article>
+
+                <article class="quick-create-exists" *ngIf="quickTelefonoExistente as existing">
+                  <ion-icon name="alert-circle-outline"></ion-icon>
+                  <div>
+                    <strong>Cliente existente encontrado.</strong>
+                    <p>{{ existing.nombreCompleto }} · {{ existing.telefono || 'Sin teléfono' }}</p>
+                  </div>
+                  <ion-button fill="outline" size="small" (click)="selectClienteFromModal(existing)">Ver
+                    cliente</ion-button>
+                  <ion-button class="btn-primary" size="small"
+                    (click)="seleccionarClienteExistenteDesdeQuick()">Seleccionar cliente</ion-button>
+                </article>
+
+                <div class="quick-create-footer">
+                  <ion-button type="button" fill="outline" (click)="closeQuickClienteModal()">Cancelar</ion-button>
+                  <ion-button type="submit" class="btn-primary">Guardar y continuar</ion-button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal [isOpen]="clienteSelectorModalOpen" (didDismiss)="closeClienteSelectorModal()"
+      cssClass="quick-client-modal">
+      <ng-template>
+        <ion-content class="quick-client-content ion-padding">
+          <div class="quick-client-shell">
+            <section class="quick-client-card modal-card-client">
+              <div class="quick-create-hero">
+                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
+                <div class="quick-create-icon"><ion-icon name="people-outline"></ion-icon></div>
+                <h2>Seleccionar cliente</h2>
+                <p>Busca por nombre, cédula/RNC, teléfono o correo.</p>
+              </div>
+
+              <ion-searchbar placeholder="Nombre, cédula/RNC, teléfono o correo" color="dark"
+                [value]="clienteSearchTerm" (ionInput)="onClienteSearch($event)">
+              </ion-searchbar>
+
+              <div class="cliente-list" *ngIf="clientesFiltrados.length > 0; else emptyClientes">
+                <button type="button" class="cliente-item" *ngFor="let c of clientesFiltrados"
+                  (click)="selectClienteFromModal(c)">
+                  <strong>{{ c.nombreCompleto }}</strong>
+                  <p>{{ c.rncCedula || 'Sin cédula/RNC' }} · {{ c.telefono || 'Sin teléfono' }}</p>
+                  <small>{{ c.correo || 'Sin correo' }}</small>
+                </button>
+              </div>
+
+              <ng-template #emptyClientes>
+                <div class="empty-cliente-state">
+                  <h4>No encontramos clientes con ese dato.</h4>
+                </div>
+              </ng-template>
+
+              <div class="actions selector-actions quick-create-footer">
+                <ion-button fill="outline" (click)="closeClienteSelectorModal()">Cerrar</ion-button>
+                <ion-button fill="outline" (click)="selectConsumidorFinal()">Consumidor final</ion-button>
+                <ion-button class="btn-primary" (click)="openQuickClienteModal()">Nuevo cliente</ion-button>
+              </div>
+            </section>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal [isOpen]="citaSelectorModalOpen" (didDismiss)="closeCitaSelectorModal()" cssClass="quick-client-modal">
+      <ng-template>
+        <ion-content class="quick-client-content ion-padding">
+          <div class="quick-client-shell">
+            <section class="quick-client-card modal-card-cita">
+              <div class="quick-create-hero">
+                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
+                <div class="quick-create-icon"><ion-icon name="calendar-outline"></ion-icon></div>
+                <h2>Seleccionar cita</h2>
+                <p>Busca por cliente o servicio y filtra por rango de fecha.</p>
+              </div>
+
+              <ion-searchbar placeholder="Buscar por cliente, servicio o artista" color="dark" [value]="citaSearchTerm"
+                (ionInput)="onCitaSearch($event)">
+              </ion-searchbar>
+
+              <div class="date-filters">
+                <ion-item>
+                  <ion-label position="stacked">Desde</ion-label>
+                  <ion-input type="date" [(ngModel)]="citaFechaDesde"></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-label position="stacked">Hasta</ion-label>
+                  <ion-input type="date" [(ngModel)]="citaFechaHasta"></ion-input>
+                </ion-item>
+                <ion-button fill="outline" (click)="clearCitaFilters()">Limpiar filtros</ion-button>
+              </div>
+
+              <div class="cliente-list" *ngIf="citasFiltradas.length > 0; else emptyCitas">
+                <button type="button" class="cliente-item" *ngFor="let c of citasFiltradas"
+                  (click)="selectCitaFromModal(c.id || '')" [disabled]="!c.id">
+                  <strong>{{ c.clienteNombre || 'Cliente' }}</strong>
+                  <p>{{ formatCitaFecha(c) }} · {{ c.servicioNombre || 'Servicio' }}</p>
+                  <small>{{ c.clienteTelefono || 'Sin teléfono' }} · {{ c.artistaNombre || 'Sin artista' }}</small>
+                  <div class="cita-item-metrics">
+                    <div class="cita-item-metric">
+                      <span>Precio estimado</span>
+                      <strong>{{ formatCurrency(getCitaTotalEstimado(c)) }}</strong>
+                    </div>
+                    <div class="cita-item-metric cita-item-metric--paid">
+                      <span>Pagado</span>
+                      <strong>{{ formatCurrency(getCitaMontoPagado(c)) }}</strong>
+                    </div>
+                    <div class="cita-item-metric cita-item-metric--pending">
+                      <span>Restante</span>
+                      <strong>{{ formatCurrency(getCitaBalancePendiente(c)) }}</strong>
+                    </div>
+                  </div>
+                  <div class="cita-item-footer">
+                    <ion-chip [class]="getCitaEstadoPagoClass(c)">
+                      <ion-label>{{ getCitaEstadoPagoLabel(c) }}</ion-label>
+                    </ion-chip>
+                    <small>ITBIS: {{ (c.itbisPorcentaje ?? 0) }}%</small>
+                  </div>
+                  <div class="cita-item-actions">
+                    <ion-button size="small" fill="outline"
+                      (click)="selectCitaConModo(c.id || '', 'abono'); $event.stopPropagation()">
+                      Facturar abono
+                    </ion-button>
+                    <ion-button size="small" fill="outline"
+                      (click)="selectCitaConModo(c.id || '', 'pendiente'); $event.stopPropagation()">
+                      Facturar restante
+                    </ion-button>
+                    <ion-button size="small" fill="outline"
+                      (click)="selectCitaConModo(c.id || '', 'total'); $event.stopPropagation()">
+                      Facturar total
+                    </ion-button>
+                  </div>
+                </button>
+              </div>
+
+              <ng-template #emptyCitas>
+                <div class="empty-cliente-state">
+                  <h4>No encontramos citas con esos filtros.</h4>
+                </div>
+              </ng-template>
+
+              <div class="actions selector-actions quick-create-footer">
+                <ion-button fill="outline" (click)="closeCitaSelectorModal()">Cerrar</ion-button>
+                <ion-button fill="outline" (click)="clearCitaSelection()">Sin cita</ion-button>
+              </div>
+            </section>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal [isOpen]="cobroModalOpen" (didDismiss)="closeCobroModal()" cssClass="cobro-modal">
+      <ng-template>
+        <ion-content class="quick-client-content ion-padding">
+          <div class="quick-client-shell">
+            <section class="quick-client-card modal-card-cobro">
+              <header class="quick-client-header">
+                <div>
+                  <h2>Confirmar cobro</h2>
+                  <p>Valida el monto recibido antes de emitir la factura.</p>
+                </div>
+                <ion-button fill="outline" color="danger" (click)="closeCobroModal()">Cerrar</ion-button>
+              </header>
+
+              <div class="cobro-highlight">
+                <span>Total a pagar</span>
+                <strong>{{ formatCurrency(total) }}</strong>
+              </div>
+
+              <div class="cobro-resumen cita-cobro-resumen" *ngIf="selectedCita">
+                <span>Precio estimado</span>
+                <strong>{{ formatCurrency(citaPrecioEstimadoActual) }}</strong>
+                <span>Pagado anteriormente</span>
+                <strong class="is-paid">{{ formatCurrency(citaPagadoAnteriorActual) }}</strong>
+                <span>Monto a facturar ahora</span>
+                <strong>{{ formatCurrency(citaMontoFacturarAhora) }}</strong>
+                <span>Restante después de esta factura</span>
+                <strong class="is-pending">{{ formatCurrency(citaRestanteDespuesFactura) }}</strong>
+              </div>
+
+              <form [formGroup]="cobroForm" (ngSubmit)="confirmarCobroYEmitir(false)">
+                <div class="cobro-highlight cobro-input-highlight">
+                  <span>Monto pagado</span>
+                  <div class="cobro-money-input-row">
+                    <strong>RD$</strong>
+                    <ion-input inputmode="decimal" [value]="montoPagadoDisplay" (ionInput)="onMontoPagadoInput($event)"
+                      (ionBlur)="onMontoPagadoBlur()"></ion-input>
+                  </div>
+                </div>
+
+                <section class="cobro-split" *ngIf="esPagoMixtoConCredito">
+                  <h4>Distribución del pago</h4>
+                  <div class="cobro-split-grid">
+                    <ion-item>
+                      <ion-label position="stacked">Monto en efectivo</ion-label>
+                      <ion-input inputmode="decimal" [value]="pagoDistribucion.efectivo"
+                        (ionInput)="onDistribucionInput('efectivo', $event)"></ion-input>
+                    </ion-item>
+                    <ion-item>
+                      <ion-label position="stacked">Monto por tarjeta</ion-label>
+                      <ion-input inputmode="decimal" [value]="pagoDistribucion.tarjeta"
+                        (ionInput)="onDistribucionInput('tarjeta', $event)"></ion-input>
+                    </ion-item>
+                    <ion-item>
+                      <ion-label position="stacked">Monto por transferencia</ion-label>
+                      <ion-input inputmode="decimal" [value]="pagoDistribucion.transferencia"
+                        (ionInput)="onDistribucionInput('transferencia', $event)"></ion-input>
+                    </ion-item>
+                    <ion-item>
+                      <ion-label position="stacked">Monto a crédito</ion-label>
+                      <ion-input inputmode="decimal" [value]="pagoDistribucion.credito"
+                        (ionInput)="onDistribucionInput('credito', $event)"></ion-input>
+                    </ion-item>
+                  </div>
+                </section>
+
+                <div class="cobro-resumen">
+                  <span>Total factura</span>
+                  <strong>{{ formatCurrency(total) }}</strong>
+                  <span>Pagado ahora</span>
+                  <strong>{{ formatCurrency(pagoDistribucion.totalPagadoAhora) }}</strong>
+                  <span>Saldo a crédito</span>
+                  <strong>{{ formatCurrency(pagoDistribucion.credito) }}</strong>
+                  <span>Pendiente por cobrar</span>
+                  <strong>{{ formatCurrency(pagoDistribucion.diferencia > 0 ? pagoDistribucion.diferencia : 0)
+                    }}</strong>
+                </div>
+
+                <ion-text color="danger" *ngIf="pagoDistribucion.totalRegistrado > total">
+                  <p class="cobro-alert">El pago no puede superar el total de la factura.</p>
+                </ion-text>
+                <ion-text color="danger"
+                  *ngIf="pagoDistribucion.credito <= 0 && pagoDistribucion.totalRegistrado < total">
+                  <p class="cobro-alert">Sin crédito, el pago debe cubrir el total de la factura.</p>
+                </ion-text>
+
+                <div class="actions">
+                  <!-- <ion-button type="button" fill="outline" (click)="closeCobroModal()"
+                    [disabled]="isEmitting">Cancelar</ion-button> -->
+                  <ion-button type="submit" class="btn-primary"
+                    [disabled]="isEmitting || pagoDistribucion.totalRegistrado > total">
+                    {{ pagoDistribucion.credito > 0 ? 'Emitir factura y crear cuenta por cobrar' : 'Emitir factura' }}
+                    <ion-icon name="receipt-outline" slot="start"></ion-icon>
+                  </ion-button>
+                  <ion-button type="button" class="btn-outline" (click)="confirmarCobroYEmitir(true)"
+                    [disabled]="isEmitting || pagoDistribucion.totalRegistrado > total">Emitir e imprimir
+                    <ion-icon name="print-outline" slot="start"></ion-icon>
+                  </ion-button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+
+    <ion-modal [isOpen]="showCierreTurnoModal" (didDismiss)="cerrarModalCierreTurno()" cssClass="quick-client-modal">
+      <ng-template>
+        <ion-content class="quick-client-content ion-padding">
+          <div class="quick-client-shell">
+            <section class="quick-client-card modal-card-cobro">
+              <div class="quick-create-hero cierre-turno-header">
+                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
+                <div class="quick-create-icon"><ion-icon name="lock-closed-outline"></ion-icon></div>
+                <h2>Cierre de turno</h2>
+                <p>Valida el efectivo contado antes de finalizar la jornada.</p>
+              </div>
+
+              <div class="cierre-turno-kpis">
+                <article class="kpi-card kpi-card--primary">
+                  <span>Ventas del turno</span>
+                  <strong>{{ formatCurrency(turnoTotales.totalVentas) }}</strong>
+                </article>
+                <article class="kpi-card">
+                  <span>Facturas</span>
+                  <strong>{{ turnoTotales.cantidadFacturas }}</strong>
+                </article>
+                <article class="kpi-card">
+                  <span>Efectivo</span>
+                  <strong>{{ formatCurrency(turnoTotales.totalEfectivo) }}</strong>
+                </article>
+                <article class="kpi-card">
+                  <span>Tarjeta</span>
+                  <strong>{{ formatCurrency(turnoTotales.totalTarjeta) }}</strong>
+                </article>
+                <article class="kpi-card">
+                  <span>Transferencia</span>
+                  <strong>{{ formatCurrency(turnoTotales.totalTransferencia) }}</strong>
+                </article>
+                <article class="kpi-card">
+                  <span>Crédito</span>
+                  <strong>{{ formatCurrency(turnoTotales.totalCredito) }}</strong>
+                </article>
+              </div>
+
+              <div class="cierre-turno-kpis cierre-turno-kpis--conciliacion">
+                <article class="kpi-card">
+                  <span>Efectivo inicial</span>
+                  <strong>{{ formatCurrency(turnoActivo?.montoInicial || 0) }}</strong>
+                </article>
+                <article class="kpi-card">
+                  <span>Efectivo esperado</span>
+                  <strong>{{ formatCurrency(efectivoEsperadoCierre) }}</strong>
+                </article>
+                <article class="kpi-card kpi-card--accent">
+                  <span>Diferencia actual</span>
+                  <strong>{{ formatCurrency(diferenciaCierre) }}</strong>
+                </article>
+              </div>
+
+              <form [formGroup]="cierreTurnoForm" (ngSubmit)="cerrarTurno()">
+                <div class="cobro-highlight cobro-input-highlight">
+                  <span>Efectivo contado</span>
+                  <div class="cobro-money-input-row">
+                    <strong>RD$</strong>
+                    <ion-input inputmode="decimal" [value]="efectivoContadoDisplay"
+                      (ionInput)="onEfectivoContadoInput($event)" (ionBlur)="onEfectivoContadoBlur()"></ion-input>
+                  </div>
+                </div>
+                <ion-item class="cierre-observacion-item">
+                  <ion-label position="stacked">Observación cierre</ion-label>
+                  <ion-textarea formControlName="observacionCierre" autoGrow="true" rows="3"
+                    placeholder="Agrega una observación breve del cierre"></ion-textarea>
+                </ion-item>
+                <div class="cobro-resumen cierre-diferencia-final">
+                  <span>Diferencia</span>
+                  <strong>{{ formatCurrency(diferenciaCierre) }}</strong>
+                </div>
+                <div class="actions quick-create-footer">
+                  <ion-button type="button" fill="outline" (click)="cerrarModalCierreTurno()"
+                    [disabled]="turnoActionLoading">Cerrar</ion-button>
+                  <ion-button type="button" fill="outline" (click)="cerrarModalCierreTurno()"
+                    [disabled]="turnoActionLoading">Cancelar</ion-button>
+                  <ion-button type="submit" color="warning" [disabled]="turnoActionLoading">Cerrar turno</ion-button>
+                </div>
+              </form>
+            </section>
+          </div>
+        </ion-content>
+      </ng-template>
+    </ion-modal>
+  </ng-template>
+</ion-content>

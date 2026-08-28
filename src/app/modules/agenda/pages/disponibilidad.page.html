@@ -1,0 +1,201 @@
+
+
+<ion-content class="disponibilidad-page">
+
+
+  <div class="shell ion-padding">
+    <section class="header">
+      <div class="header-copy">
+        <h1>Disponibilidad</h1>
+        <p>Monitorea disponibilidad, estados y capacidad operativa desde una vista gerencial.</p>
+        <small>Consulta información clave en tiempo real para tomar decisiones rápidas y mantener el control del negocio.</small>
+      </div>
+      <div class="header-actions">
+        <ion-button class="btn-secondary" routerLink="/admin/agenda" fill="outline">
+          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+          <ion-label>Volver a agenda</ion-label>
+        </ion-button>
+      </div>
+    </section>
+
+    <section class="kpis">
+      <article class="kpi-card"><span>Total registros</span><strong>{{ totalRegistros }}</strong></article>
+      <article class="kpi-card"><span>Disponibles</span><strong>{{ totalDisponibles }}</strong></article>
+      <article class="kpi-card"><span>No disponibles</span><strong>{{ totalNoDisponibles }}</strong></article>
+      <article class="kpi-card"><span>Pendientes</span><strong>{{ totalPendientes }}</strong></article>
+      <article class="kpi-card"><span>En proceso</span><strong>{{ totalEnProceso }}</strong></article>
+      <article class="kpi-card"><span>% disponibilidad</span><strong>{{ disponibilidadPorcentaje }}%</strong></article>
+      <article class="kpi-card"><span>Última actualización</span><strong>{{ ultimaActualizacion }}</strong></article>
+      <article class="kpi-card alert"><span>Alertas críticas</span><strong>{{ alertasCriticas }}</strong></article>
+    </section>
+
+    <section class="card">
+      <h3>Disponibilidad operativa</h3>
+      <p class="section-copy">Controla estados, capacidad y disponibilidad desde una sola vista.</p>
+      <form [formGroup]="filtrosForm" class="filters-grid">
+        <ion-item>
+          <ion-label position="stacked">Búsqueda general</ion-label>
+          <ion-input formControlName="busqueda" placeholder="Buscar artista, día u horario"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="stacked">Estado</ion-label>
+          <ion-select formControlName="estado" interface="popover">
+            <ion-select-option value="todos">Todos</ion-select-option>
+            <ion-select-option value="disponible">Disponible</ion-select-option>
+            <ion-select-option value="no-disponible">No disponible</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item>
+          <ion-label position="stacked">Día</ion-label>
+          <ion-select formControlName="diaSemana" interface="popover">
+            <ion-select-option value="todos">Todos</ion-select-option>
+            <ion-select-option value="monday">Lunes</ion-select-option>
+            <ion-select-option value="tuesday">Martes</ion-select-option>
+            <ion-select-option value="wednesday">Miércoles</ion-select-option>
+            <ion-select-option value="thursday">Jueves</ion-select-option>
+            <ion-select-option value="friday">Viernes</ion-select-option>
+            <ion-select-option value="saturday">Sábado</ion-select-option>
+            <ion-select-option value="sunday">Domingo</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item>
+          <ion-label position="stacked">Responsable (artista)</ion-label>
+          <ion-select formControlName="artistaId" interface="popover">
+            <ion-select-option value="todos">Todos</ion-select-option>
+            <ion-select-option *ngFor="let artista of onlyArtists(artistas$ | async)" [value]="artista.id">
+              {{ artista.nombre || artista.displayName }}
+            </ion-select-option>
+          </ion-select>
+        </ion-item>
+      </form>
+    </section>
+
+    <section class="layout-grid">
+      <article class="card">
+        <h3>Registrar disponibilidad</h3>
+        <form [formGroup]="form" (ngSubmit)="save()" class="form-grid">
+          <ion-item>
+            <ion-label position="stacked">Artista</ion-label>
+            <ion-select formControlName="artistaId" interface="popover">
+              <ion-select-option *ngFor="let artista of onlyArtists(artistas$ | async)" [value]="artista.id">
+                {{ artista.nombre || artista.displayName }}
+              </ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Día de semana</ion-label>
+            <ion-select formControlName="diaSemana" interface="popover">
+              <ion-select-option value="monday">Lunes</ion-select-option>
+              <ion-select-option value="tuesday">Martes</ion-select-option>
+              <ion-select-option value="wednesday">Miércoles</ion-select-option>
+              <ion-select-option value="thursday">Jueves</ion-select-option>
+              <ion-select-option value="friday">Viernes</ion-select-option>
+              <ion-select-option value="saturday">Sábado</ion-select-option>
+              <ion-select-option value="sunday">Domingo</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Hora inicio</ion-label>
+            <ion-input formControlName="horaInicio" type="time"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Hora fin</ion-label>
+            <ion-input formControlName="horaFin" type="time"></ion-input>
+          </ion-item>
+          <ion-item lines="none">
+            <ion-label>Disponible</ion-label>
+            <ion-toggle formControlName="disponible"></ion-toggle>
+          </ion-item>
+          <ion-item *ngIf="!form.value.disponible">
+            <ion-label position="stacked">Motivo de bloqueo</ion-label>
+            <ion-input formControlName="motivoBloqueo"></ion-input>
+          </ion-item>
+          <div class="actions">
+            <ion-button type="submit" class="btn-primary">Guardar disponibilidad</ion-button>
+            
+          </div>
+        </form>
+      </article>
+
+      <article class="card insights">
+        <h3>Insights de disponibilidad</h3>
+        <ul *ngIf="alertasCriticas > 0; else noAlerts">
+          <li>Recursos no disponibles: {{ totalNoDisponibles }}</li>
+          <li>Disponibilidad por debajo del nivel esperado: {{ disponibilidadPorcentaje }}%</li>
+          <li>Registros recomendados para revisión manual: {{ alertasCriticas }}</li>
+        </ul>
+        <ng-template #noAlerts>
+          <p>No se detectan alertas críticas.</p>
+        </ng-template>
+      </article>
+    </section>
+
+    <section class="card" *ngIf="!loading; else loadingState">
+      <div class="table-header">
+        <h3>Disponibilidad operativa detallada</h3>
+      </div>
+
+      <div class="desktop-table" *ngIf="filteredItems.length > 0; else emptyState">
+        <table>
+          <thead>
+            <tr>
+              <th>Recurso</th>
+              <th>Día</th>
+              <th>Horario</th>
+              <th>Estado</th>
+              <th>Motivo</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of filteredItems">
+              <td>{{ item.artistaNombre }}</td>
+              <td>{{ formatDiaSemana(item.diaSemana) }}</td>
+              <td>{{ item.horaInicio }} - {{ item.horaFin }}</td>
+              <td>
+                <ion-chip [color]="getEstadoColor(item)">
+                  <ion-label>{{ getEstadoLabel(item) }}</ion-label>
+                </ion-chip>
+              </td>
+              <td>{{ item.motivoBloqueo || '—' }}</td>
+              <td>
+                <ion-button size="small" fill="clear" (click)="toggleDisponibilidad(item)">
+                  {{ item.disponible ? 'Marcar no disponible' : 'Marcar disponible' }}
+                </ion-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mobile-cards" *ngIf="filteredItems.length > 0">
+        <article class="mobile-card" *ngFor="let item of filteredItems">
+          <div>
+            <strong>{{ item.artistaNombre }}</strong>
+            <p>{{ formatDiaSemana(item.diaSemana) }} · {{ item.horaInicio }} - {{ item.horaFin }}</p>
+          </div>
+          <ion-chip [color]="getEstadoColor(item)">
+            <ion-label>{{ getEstadoLabel(item) }}</ion-label>
+          </ion-chip>
+          <p *ngIf="item.motivoBloqueo">Motivo: {{ item.motivoBloqueo }}</p>
+          <ion-button size="small" fill="outline" (click)="toggleDisponibilidad(item)">
+            {{ item.disponible ? 'No disponible' : 'Disponible' }}
+          </ion-button>
+        </article>
+      </div>
+    </section>
+
+    <ng-template #emptyState>
+      <app-empty-state
+        title="Sin registros disponibles"
+        message="Agrega tu primer registro para iniciar el control.">
+      </app-empty-state>
+    </ng-template>
+
+    <ng-template #loadingState>
+      <section class="card">
+        <app-skeleton-card></app-skeleton-card>
+      </section>
+    </ng-template>
+  </div>
+</ion-content>

@@ -1,0 +1,64 @@
+:host { display: block; }
+
+.modal-header ion-toolbar {
+  --background: rgba(5, 7, 13, 0.92);
+  --color: #fff;
+}
+
+.crud-page {
+  --background: linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+
+.shell {
+  max-width: 960px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+  color: #fff;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.card h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.card p {
+  color: #aeb6c8;
+  margin: 6px 0 14px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+ion-item {
+  --background: rgba(255, 255, 255, 0.08);
+  --color: #fff;
+  border-radius: 12px;
+}
+
+.actions {
+  margin-top: 12px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.btn-primary {
+  --background: linear-gradient(120deg, #3b82f6, #1d4ed8);
+}
+
+@media (max-width: 720px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}

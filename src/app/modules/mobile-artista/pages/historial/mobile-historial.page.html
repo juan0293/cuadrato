@@ -1,0 +1,12 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Historial de trabajos</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div *ngIf="historial$ | async as historial">
+    <app-cita-card *ngFor="let cita of historial" [cita]="cita"></app-cita-card>
+    <ion-text color="medium" *ngIf="historial.length === 0">No hay trabajos en historial.</ion-text>
+  </div>
+</ion-content>

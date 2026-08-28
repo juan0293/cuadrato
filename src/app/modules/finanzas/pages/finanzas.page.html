@@ -1,0 +1,510 @@
+<ion-header class="ion-no-border finanzas-header">
+  <ion-toolbar class="finanzas-toolbar" mode="ios">
+    <div class="toolbar-inner">
+      <ion-title>Finanzas</ion-title>
+    </div>
+    <ion-buttons slot="end">
+        <ion-button routerLink="/admin/finanzas/movimientos/nuevo" fill="solid" color="primary">
+          <ion-icon slot="start" name="add"></ion-icon>
+          Movimiento</ion-button>
+      </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content [fullscreen]="true" class="finanzas-content">
+  <div class="finanzas-shell" *ngIf="vm$ | async as vm">
+    <section class="finanzas-hero card-premium">
+      <div class="hero-top">
+        <div class="hero-copy">
+          <span class="hero-eyebrow">Centro financiero</span>
+          <h1>Dashboard financiero</h1>
+          <p>Monitorea caja, cobranza, pagos y rentabilidad con una lectura clara de la operación.</p>
+        </div>
+        <div class="hero-actions">
+          <ion-segment [value]="periodo" (ionChange)="changePeriodo($event.detail.value)">
+            <ion-segment-button value="diario"><ion-label>Diario</ion-label></ion-segment-button>
+            <ion-segment-button value="semanal"><ion-label>Semanal</ion-label></ion-segment-button>
+            <ion-segment-button value="mensual"><ion-label>Mensual</ion-label></ion-segment-button>
+            <ion-segment-button value="anual"><ion-label>Anual</ion-label></ion-segment-button>
+          </ion-segment>
+          <div class="hero-side-card">
+            <span class="hero-side-card__label">Vista activa</span>
+            <strong>{{ getPeriodoTitulo() | titlecase }}</strong>
+            <small>Actualiza los indicadores, gráficos y listados del tablero.</small>
+          </div>
+          <ion-button class="btn-movimientos" fill="outline" size="small" routerLink="/admin/finanzas/movimientos">Ver movimientos financieros</ion-button>
+        </div>
+      </div>
+
+      <div class="hero-highlights">
+        <article class="hero-stat">
+          <span>Balance actual</span>
+          <strong [class.is-success]="vm.balance >= 0" [class.is-danger]="vm.balance < 0">{{ formatCurrency(vm.balance) }}</strong>
+          <small>{{ vm.balance >= 0 ? 'Conciliado con facturas emitidas y gastos del periodo.' : 'Requiere revisión de gastos, cobros y facturación.' }}</small>
+        </article>
+        <article class="hero-stat">
+          <span>Cobranza pendiente</span>
+          <strong>{{ formatCurrency(vm.cxc.totalPorCobrar) }}</strong>
+          <small>{{ vm.cxc.cuentasPendientes }} cuenta(s) activas por recuperar.</small>
+        </article>
+        <article class="hero-stat">
+          <span>Compromisos por pagar</span>
+          <strong>{{ formatCurrency(vm.cxp.totalPorPagar) }}</strong>
+          <small>{{ vm.cxp.facturasPendientes }} factura(s) pendientes con proveedores.</small>
+        </article>
+      </div>
+    </section>
+
+    <section class="section-block">
+      <div class="section-title">
+        <span class="section-kicker">Resumen ejecutivo</span>
+        <h2>Indicadores clave del periodo</h2>
+        <p>Una lectura rápida del rendimiento financiero y el ritmo operativo.</p>
+      </div>
+    <section class="kpi-grid">
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Ingresos {{ getPeriodoTitulo() }}</span>
+        <strong class="kpi-value is-success">{{ formatCurrency(vm.ingresos) }}</strong>
+        <small>Ventas facturadas y otros ingresos manuales del periodo.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Gastos {{ getPeriodoTitulo() }}</span>
+        <strong class="kpi-value is-danger">{{ formatCurrency(vm.gastos) }}</strong>
+        <small>Total ejecutado en operaciones.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Balance neto</span>
+        <strong class="kpi-value" [class.is-success]="vm.balance >= 0" [class.is-danger]="vm.balance < 0">{{ formatCurrency(vm.balance) }}</strong>
+        <small>Resultado conciliado entre ventas reales y gastos registrados.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Rentabilidad</span>
+        <strong class="kpi-value">{{ vm.rentabilidad | number: '1.0-2' }}%</strong>
+        <small>Margen estimado del periodo.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Movimientos</span>
+        <strong class="kpi-value">{{ vm.totalMovimientos }}</strong>
+        <small>Registros contabilizados.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Promedio por movimiento</span>
+        <strong class="kpi-value">{{ formatCurrency(vm.promedioMovimiento) }}</strong>
+        <small>Ticket financiero promedio.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Categoria principal</span>
+        <strong class="kpi-value">{{ vm.topCategoriaGasto }}</strong>
+        <small>Mayor concentracion de gastos.</small>
+      </article>
+      <article class="card-premium kpi-card">
+        <span class="kpi-label">Ultimo movimiento</span>
+        <strong class="kpi-value">{{ vm.ultimoMovimiento?.descripcion || 'Sin datos' }}</strong>
+        <small>{{ vm.ultimoMovimiento?.fecha ? (vm.ultimoMovimiento?.fecha | date: 'dd/MM/yyyy') : 'Aun no registrado' }}</small>
+      </article>
+    </section>
+    </section>
+
+    <section class="section-block">
+      <div class="section-title">
+        <span class="section-kicker">Caja y recaudo</span>
+        <h2>Turnos de caja</h2>
+        <p>Controla aperturas, cierres y diferencias para validar la jornada operativa.</p>
+      </div>
+      <section class="card-premium cxp-summary">
+      <div class="panel-head">
+        <div>
+          <h2>Consolidado de turnos</h2>
+          <p>Monitorea aperturas, cierres, ventas y diferencias de caja.</p>
+        </div>
+      </div>
+
+      <ng-container *ngIf="getTurnosResumen(vm) as turnosResumen">
+        <div class="kpi-grid cxp-kpis">
+          <article class="card-premium kpi-card"><span class="kpi-label">Ventas del rango</span><strong class="kpi-value is-success">{{ formatCurrency(turnosResumen.ventasFiltradas) }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Turnos abiertos</span><strong class="kpi-value">{{ turnosResumen.abiertos }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Turnos cerrados</span><strong class="kpi-value is-success">{{ turnosResumen.cerrados }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Efectivo esperado</span><strong class="kpi-value">{{ formatCurrency(turnosResumen.efectivoEsperado) }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Diferencia de caja</span><strong class="kpi-value" [class.is-danger]="turnosResumen.diferenciaTotal < 0" [class.is-success]="turnosResumen.diferenciaTotal > 0">{{ formatCurrency(turnosResumen.diferenciaTotal) }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Facturas emitidas</span><strong class="kpi-value">{{ turnosResumen.cantidadFacturas }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Caja con más ventas</span><strong class="kpi-value">{{ turnosResumen.cajaMayorVentas }}</strong></article>
+          <article class="card-premium kpi-card"><span class="kpi-label">Usuario con más ventas</span><strong class="kpi-value">{{ turnosResumen.usuarioMayorVentas }}</strong></article>
+        </div>
+      </ng-container>
+
+      <div class="filtros-turnos">
+        <ion-searchbar placeholder="Buscar turno, caja o usuario…" [value]="turnoSearch" (ionInput)="onTurnoSearchChange($any($event.detail).value)"></ion-searchbar>
+        <ion-item>
+          <ion-label>Estado</ion-label>
+          <ion-select [value]="turnoEstado" (ionChange)="onTurnoEstadoChange($any($event.detail).value)">
+            <ion-select-option value="todos">Todos</ion-select-option>
+            <ion-select-option value="abierto">Abierto</ion-select-option>
+            <ion-select-option value="cerrado">Cerrado</ion-select-option>
+          </ion-select>
+        </ion-item>
+        <ion-item><ion-label position="stacked">Desde</ion-label><ion-input type="date" [value]="turnoFechaDesde" (ionInput)="onTurnoFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Hasta</ion-label><ion-input type="date" [value]="turnoFechaHasta" (ionInput)="onTurnoFechaHastaChange($any($event.detail).value)"></ion-input></ion-item>
+      </div>
+
+      <div class="panel-actions turnos-actions" *ngIf="getTurnosFiltrados(vm).length">
+        <ion-button fill="outline" size="small" (click)="exportarExcelTurnos(vm)">Exportar Excel</ion-button>
+      </div>
+
+      <div class="desktop-table" *ngIf="getTurnosFiltrados(vm).length; else emptyTurnos">
+        <table>
+          <thead>
+            <tr>
+              <th>Número</th>
+              <th>Caja</th>
+              <th>Usuario</th>
+              <th>Apertura</th>
+              <th>Cierre</th>
+              <th>Total ventas</th>
+              <th>Efectivo esperado</th>
+              <th>Efectivo contado</th>
+              <th>Diferencia</th>
+              <th>Facturas</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let t of getTurnosPaginados(vm)">
+              <td>{{ t.numeroTurno }}</td>
+              <td>{{ t.cajaNombre }}</td>
+              <td>{{ t.usuarioNombre }}</td>
+              <td>{{ formatDate(t.fechaApertura) }}</td>
+              <td>{{ formatDate(t.fechaCierre) }}</td>
+              <td>{{ formatCurrency(t.totalVentas) }}</td>
+              <td>{{ formatCurrency(t.efectivoEsperado) }}</td>
+              <td>{{ formatCurrency(t.efectivoContado || 0) }}</td>
+              <td [class]="getDiferenciaClass(t.diferencia)">{{ formatCurrency(t.diferencia || 0) }}</td>
+              <td>{{ t.cantidadFacturas }}</td>
+              <td><span [class]="getTurnoEstadoClass(t.estado)">{{ getTurnoEstadoLabel(t.estado) }}</span></td>
+              <td>
+                <ion-button size="small" fill="clear" (click)="abrirDetalleTurno(t)">Ver detalle</ion-button>
+                <ion-button size="small" fill="clear" (click)="verFacturasTurno(t, vm)">Ver facturas</ion-button>
+                <ion-button *ngIf="t.estado === 'abierto'" size="small" fill="clear" color="warning" (click)="cerrarTurnoDesdeFinanzas(t)">Cerrar turno</ion-button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="table-pagination">
+          <span>Mostrando {{ getTurnosPaginados(vm).length }} de {{ getTurnosFiltrados(vm).length }}</span>
+          <div class="table-pagination__controls">
+            <ion-item lines="none">
+              <ion-label>Filas</ion-label>
+              <ion-select interface="popover" [value]="turnoPageSize" (ionChange)="onTurnoPageSizeChange($any($event.detail).value)">
+                <ion-select-option *ngFor="let size of turnoPageSizeOptions" [value]="size">{{ size }}</ion-select-option>
+              </ion-select>
+            </ion-item>
+            <ion-button size="small" fill="outline" [disabled]="turnoPage <= 1" (click)="goToTurnoPage(turnoPage - 1, vm)">Anterior</ion-button>
+            <span>Página {{ turnoPage }} de {{ getTurnoTotalPages(vm) }}</span>
+            <ion-button size="small" fill="outline" [disabled]="turnoPage >= getTurnoTotalPages(vm)" (click)="goToTurnoPage(turnoPage + 1, vm)">Siguiente</ion-button>
+          </div>
+        </div>
+      </div>
+    </section>
+    </section>
+
+    <section class="section-block">
+      <div class="section-title">
+        <span class="section-kicker">Obligaciones y cobranza</span>
+        <h2>Liquidez comprometida y recuperación</h2>
+        <p>Contrasta lo que debes pagar con lo que aún está pendiente por cobrar.</p>
+      </div>
+      <div class="finance-dual-grid">
+        <section class="card-premium cxp-summary">
+          <div class="panel-head">
+            <div>
+              <h2>Resumen de cuentas por pagar</h2>
+              <p>Monitorea tus compromisos pendientes, vencimientos y pagos registrados.</p>
+            </div>
+            <ion-button fill="solid" color="warning" routerLink="/admin/cuentas-por-pagar">Gestionar</ion-button>
+          </div>
+
+          <article class="cxp-access-card cxp-access-card--warning" routerLink="/admin/cuentas-por-pagar">
+            <div class="cxp-access-icon"><ion-icon name="wallet-outline"></ion-icon></div>
+            <div>
+              <h3>Cuentas por pagar</h3>
+              <p>Gestiona facturas pendientes, pagos y vencimientos.</p>
+            </div>
+            <ion-chip color="warning">{{ formatCurrency(vm.cxp.totalPorPagar) }}</ion-chip>
+          </article>
+
+          <div class="kpi-grid cxp-kpis">
+            <article class="card-premium kpi-card kpi-card--featured">
+              <span class="kpi-label">Total por pagar</span>
+              <strong class="kpi-value is-warning">{{ formatCurrency(vm.cxp.totalPorPagar) }}</strong>
+              <small>Compromiso acumulado pendiente de salida.</small>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Facturas pendientes</span>
+              <strong class="kpi-value is-warning">{{ vm.cxp.facturasPendientes }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Facturas vencidas</span>
+              <strong class="kpi-value is-danger">{{ vm.cxp.facturasVencidas }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Próximas a vencer</span>
+              <strong class="kpi-value">{{ vm.cxp.proximasAVencer }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Pagado este mes</span>
+              <strong class="kpi-value is-success">{{ formatCurrency(vm.cxp.pagadoEsteMes) }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Proveedor con mayor deuda</span>
+              <strong class="kpi-value">{{ vm.cxp.proveedorMayorDeuda }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">% pagado</span>
+              <strong class="kpi-value">{{ vm.cxp.porcentajePagado | number:'1.0-2' }}%</strong>
+            </article>
+          </div>
+        </section>
+
+        <section class="card-premium cxp-summary">
+          <div class="panel-head">
+            <div>
+              <h2>Resumen de cuentas por cobrar</h2>
+              <p>Supervisa cobros pendientes, vencimientos y recuperaciones del periodo.</p>
+            </div>
+            <ion-button fill="solid" color="success" routerLink="/admin/cuentas-por-cobrar">Gestionar</ion-button>
+          </div>
+
+          <article class="cxp-access-card cxp-access-card--success" routerLink="/admin/cuentas-por-cobrar">
+            <div class="cxp-access-icon"><ion-icon name="cash-outline"></ion-icon></div>
+            <div>
+              <h3>Cuentas por cobrar</h3>
+              <p>Gestiona balances de clientes, cobros y cuentas saldadas.</p>
+            </div>
+            <ion-chip color="success">{{ formatCurrency(vm.cxc.totalPorCobrar) }}</ion-chip>
+          </article>
+
+          <div class="kpi-grid cxp-kpis">
+            <article class="card-premium kpi-card kpi-card--featured">
+              <span class="kpi-label">Total por cobrar</span>
+              <strong class="kpi-value is-danger">{{ formatCurrency(vm.cxc.totalPorCobrar) }}</strong>
+              <small>Saldo total pendiente de recuperación.</small>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Cuentas pendientes</span>
+              <strong class="kpi-value is-warning">{{ vm.cxc.cuentasPendientes }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Cuentas vencidas</span>
+              <strong class="kpi-value is-danger">{{ vm.cxc.cuentasVencidas }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Próximas a vencer</span>
+              <strong class="kpi-value">{{ vm.cxc.proximasAVencer }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Cobrado este mes</span>
+              <strong class="kpi-value is-success">{{ formatCurrency(vm.cxc.cobradoEsteMes) }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">Cliente con mayor deuda</span>
+              <strong class="kpi-value">{{ vm.cxc.clienteMayorDeuda }}</strong>
+            </article>
+            <article class="card-premium kpi-card">
+              <span class="kpi-label">% cobrado</span>
+              <strong class="kpi-value">{{ vm.cxc.porcentajeCobrado | number:'1.0-2' }}%</strong>
+            </article>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <section class="section-block">
+      <div class="section-title">
+        <span class="section-kicker">Analítica visual</span>
+        <h2>Composición de ingresos y gastos</h2>
+        <p>Detecta concentración de egresos y aporte por artista con una lectura simple.</p>
+      </div>
+    <section class="charts-grid">
+      <article class="card-premium chart-card">
+        <header>
+          <h2>Gastos por categoria</h2>
+          <p>Distribucion de egresos.</p>
+        </header>
+        <div class="chart-wrap" *ngIf="vm.gastosCategoriaChart.labels.length; else emptyChartCategoria">
+          <app-finance-chart type="pie" palette="category-vivid" datasetLabel="Gastos" [labels]="vm.gastosCategoriaChart.labels" [data]="vm.gastosCategoriaChart.values"></app-finance-chart>
+        </div>
+      </article>
+
+      <article class="card-premium chart-card">
+        <header>
+          <h2>Ingresos por artista</h2>
+          <p>Contribucion por profesional.</p>
+        </header>
+        <div class="chart-wrap" *ngIf="vm.ingresosArtistaChart.labels.length; else emptyChartArtista">
+          <app-finance-chart type="bar" palette="artist-vivid" datasetLabel="Ingresos" [labels]="vm.ingresosArtistaChart.labels" [data]="vm.ingresosArtistaChart.values"></app-finance-chart>
+        </div>
+      </article>
+    </section>
+    </section>
+
+    <section class="section-block">
+      <div class="section-title">
+        <span class="section-kicker">Control operativo</span>
+        <h2>Movimientos recientes</h2>
+        <p>Revisa los últimos registros que impactan el flujo financiero.</p>
+      </div>
+    <section class="card-premium movimientos-panel">
+      <div class="panel-head">
+        <div>
+          <h2>Actividad reciente</h2>
+          <p>Últimos registros para control operativo y validación rápida.</p>
+        </div>
+        <div class="panel-actions">
+          <ion-button fill="outline" size="small" (click)="exportarExcelMovimientos()">Exportar Excel</ion-button>
+          <ion-button fill="outline" size="small" routerLink="/admin/finanzas/movimientos">Ver todos</ion-button>
+        </div>
+      </div>
+
+      <div class="desktop-table" *ngIf="vm.recientes.length; else emptyMovimientos">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Categoria</th>
+              <th>Descripcion</th>
+              <th class="is-right">Monto</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let mov of getRecientesPaginados(vm)">
+              <td>{{ mov.fecha | date: 'dd/MM/yyyy' }}</td>
+              <td><span [class]="getTipoBadgeClass(mov.tipo)">{{ getTipoLabel(mov.tipo) }}</span></td>
+              <td>{{ mov.categoria || 'Sin categoria' }}</td>
+              <td>{{ mov.descripcion || 'Sin descripcion' }}</td>
+              <td class="is-right">{{ formatCurrency(mov.monto) }}</td>
+              <td>
+                <ion-button *ngIf="puedeVerEvidencias(mov)" size="small" fill="clear" (click)="verEvidencias(mov)">Ver evidencias</ion-button>
+                <span *ngIf="!puedeVerEvidencias(mov)">—</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-pagination" *ngIf="vm.recientes.length">
+        <span>Mostrando {{ getRecientesPaginados(vm).length }} de {{ vm.recientes.length }}</span>
+        <div class="table-pagination__controls">
+          <ion-item lines="none">
+            <ion-label>Filas</ion-label>
+            <ion-select interface="popover" [value]="recientesPageSize" (ionChange)="onRecientesPageSizeChange($any($event.detail).value)">
+              <ion-select-option *ngFor="let size of recientesPageSizeOptions" [value]="size">{{ size }}</ion-select-option>
+            </ion-select>
+          </ion-item>
+          <ion-button size="small" fill="outline" [disabled]="recientesPage <= 1" (click)="goToRecientesPage(recientesPage - 1, vm)">Anterior</ion-button>
+          <span>Página {{ recientesPage }} de {{ getRecientesTotalPages(vm) }}</span>
+          <ion-button size="small" fill="outline" [disabled]="recientesPage >= getRecientesTotalPages(vm)" (click)="goToRecientesPage(recientesPage + 1, vm)">Siguiente</ion-button>
+        </div>
+      </div>
+
+      <div class="mobile-cards" *ngIf="vm.recientes.length">
+        <article class="mov-card" *ngFor="let mov of getRecientesPaginados(vm)">
+          <div class="mov-card__top">
+            <span [class]="getTipoBadgeClass(mov.tipo)">{{ getTipoLabel(mov.tipo) }}</span>
+            <strong>{{ formatCurrency(mov.monto) }}</strong>
+          </div>
+          <p>{{ mov.descripcion || 'Sin descripcion' }}</p>
+          <small>{{ mov.categoria || 'Sin categoria' }} · {{ mov.fecha | date: 'dd/MM/yyyy' }}</small>
+          <ion-button *ngIf="puedeVerEvidencias(mov)" size="small" fill="clear" (click)="verEvidencias(mov)">Ver evidencias</ion-button>
+        </article>
+      </div>
+    </section>
+    </section>
+  </div>
+</ion-content>
+
+<ng-template #emptyChartCategoria>
+  <div class="empty-state-inline">No hay datos de gastos por categoria para este periodo.</div>
+</ng-template>
+
+<ng-template #emptyChartArtista>
+  <div class="empty-state-inline">No hay ingresos asociados a artistas para este periodo.</div>
+</ng-template>
+
+<ng-template #emptyMovimientos>
+  <div class="empty-state-inline">Aun no hay movimientos registrados para este periodo.</div>
+</ng-template>
+
+<ng-template #emptyTurnos>
+  <div class="empty-state-inline">No hay turnos con los filtros actuales.</div>
+</ng-template>
+
+<ion-modal class="turno-modal" [isOpen]="turnoDetalleOpen" (didDismiss)="cerrarDetalleTurno()">
+  <ng-template>
+    <ion-content class="finanzas-content ion-padding">
+      <div class="finanzas-shell">
+        <section class="card-premium movimientos-panel" *ngIf="selectedTurno as t">
+          <div class="panel-head">
+            <div>
+              <h2>Detalle del turno</h2>
+              <p>Revisa el resumen operativo del turno seleccionado.</p>
+              <p>{{ t.numeroTurno }} · {{ t.cajaNombre }} · {{ t.usuarioNombre }}</p>
+            </div>
+            <ion-button fill="clear" (click)="cerrarDetalleTurno()">Cerrar detalle</ion-button>
+          </div>
+          <div class="turno-resumen-inline">
+            <span [class]="getTurnoEstadoClass(t.estado)">{{ getTurnoEstadoLabel(t.estado) }}</span>
+            <strong>{{ formatCurrency(t.totalVentas || 0) }}</strong>
+            <small>Facturas: {{ t.cantidadFacturas || 0 }}</small>
+          </div>
+          <div class="kpi-grid">
+            <article class="card-premium kpi-card"><span class="kpi-label">Estado</span><strong class="kpi-value">{{ getTurnoEstadoLabel(t.estado) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Apertura</span><strong class="kpi-value">{{ formatDate(t.fechaApertura) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Cierre</span><strong class="kpi-value">{{ formatDate(t.fechaCierre) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Diferencia</span><strong class="kpi-value" [class]="getDiferenciaClass(t.diferencia)">{{ formatCurrency(t.diferencia || 0) }}</strong><small>{{ getDiferenciaLabel(t.diferencia) }}</small></article>
+          </div>
+        </section>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>
+
+<ion-modal class="turno-modal" [isOpen]="turnoFacturasOpen" (didDismiss)="cerrarFacturasTurno()">
+  <ng-template>
+    <ion-content class="finanzas-content ion-padding">
+      <div class="finanzas-shell">
+        <section class="card-premium movimientos-panel">
+          <div class="panel-head">
+            <div>
+              <h2>Facturas del turno</h2>
+              <p>Consulta las facturas emitidas durante este turno.</p>
+              <p>{{ selectedTurno?.numeroTurno || '' }}</p>
+            </div>
+            <ion-button fill="clear" (click)="cerrarFacturasTurno()">Cerrar listado</ion-button>
+          </div>
+          <div class="desktop-table" *ngIf="turnoFacturasSeleccionadas.length; else emptyFacturasTurno">
+            <table>
+              <thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Forma pago</th><th>Total</th><th>Estado pago</th><th>Estado</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let f of turnoFacturasSeleccionadas">
+                  <td>{{ f.numero }}</td>
+                  <td>{{ f.clienteNombre }}</td>
+                  <td>{{ formatDate(f.fecha || f.creadoEn) }}</td>
+                  <td>{{ f.formaPago || '—' }}</td>
+                  <td><strong>{{ formatCurrency(f.total) }}</strong></td>
+                  <td><span [class]="getEstadoPagoFacturaClass(f.estadoPago)">{{ f.estadoPago || '—' }}</span></td>
+                  <td><span [class]="getEstadoFacturaClass(f.estado)">{{ f.estado }}</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <ng-template #emptyFacturasTurno>
+            <div class="empty-state-inline">No hay facturas asociadas a este turno.</div>
+          </ng-template>
+        </section>
+      </div>
+    </ion-content>
+  </ng-template>
+</ion-modal>

@@ -1,0 +1,32 @@
+<ion-app>
+  <section class="app-boot-overlay" *ngIf="showBootOverlay">
+    <article class="app-boot-card">
+      <div class="app-boot-logo-wrap">
+        <img src="./assets/icon/cuadrato.png" alt="CuadraTó" class="app-boot-logo" />
+      </div>
+
+      <div class="app-boot-brand" aria-live="polite">
+        <span class="app-boot-kicker">CuadraTó</span>
+        <span class="app-boot-stage">{{ bootStage }}</span>
+        <h1>Preparando tu negocio</h1>
+        <p>{{ bootMessage }}</p>
+      </div>
+
+      <div class="app-boot-alert" *ngIf="isOffline">
+        <ion-icon name="cloud-offline-outline"></ion-icon>
+        <span>Sin conexión. Usaremos la información disponible localmente.</span>
+      </div>
+
+      <div class="app-boot-progress" aria-hidden="true">
+        <div class="app-boot-bar"></div>
+      </div>
+
+      <div class="app-boot-skeleton" aria-hidden="true">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+    </article>
+  </section>
+  <ion-router-outlet [swipeGesture]="false"></ion-router-outlet>
+</ion-app>

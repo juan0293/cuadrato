@@ -1,0 +1,74 @@
+# Dependencies
+node_modules/
+functions/node_modules/
+
+# Angular / Ionic build output and caches
+www/
+dist/
+out-tsc/
+.angular/
+.ionic/
+coverage/
+
+# Firebase local state, credentials and generated output
+.firebase/
+.firebaserc
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+functions/lib/
+functions/.env
+functions/.env.*
+src/environments/firebase.config.ts
+src/environments/firebase.config.local.ts
+serviceAccount*.json
+*-firebase-adminsdk-*.json
+
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Capacitor native build output
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/captures/
+android/local.properties
+android/*.iml
+android/app/*.iml
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/App/App.xcworkspace/xcuserdata/
+ios/App/App.xcodeproj/xcuserdata/
+ios/App/App.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.swp
+*.swo
+.cache/
+.tmp/
+tmp/
+
+# Editors and operating systems
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/settings.json
+*.code-workspace

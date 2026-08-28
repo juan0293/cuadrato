@@ -1,0 +1,16 @@
+.decomisos-page {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+.shell { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.header p { margin: 4px 0 0; color: #aeb6c8; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; }
+.btn-primary { --background: linear-gradient(120deg, #3b82f6, #1d4ed8); --border-radius: 14px; text-transform: none; }
+.rows { display: grid; gap: 12px; }
+.row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; padding: 12px; border-radius: 14px; border: 1px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03); }
+.row h3 { margin: 0 0 4px; }
+.row p { margin: 0; color: #aeb6c8; }
+.meta { display: grid; gap: 4px; justify-items: end; color: #dbe3f3; }

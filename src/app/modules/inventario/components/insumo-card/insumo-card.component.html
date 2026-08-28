@@ -1,0 +1,11 @@
+<ion-card>
+  <ion-card-header>
+    <ion-card-title>{{ insumo.nombre }}</ion-card-title>
+    <ion-card-subtitle>{{ insumo.categoria }} · {{ insumo.unidadMedida }}</ion-card-subtitle>
+  </ion-card-header>
+  <ion-card-content>
+    <p>Stock: {{ insumo.stockActual }} / Min: {{ insumo.stockMinimo }}</p>
+    <app-stock-alert-chip [stockActual]="insumo.stockActual" [stockMinimo]="insumo.stockMinimo"></app-stock-alert-chip>
+    <ion-button fill="clear" size="small" (click)="edit.emit(insumo.id || '')">Editar</ion-button>
+  </ion-card-content>
+</ion-card>

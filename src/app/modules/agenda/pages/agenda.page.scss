@@ -1,0 +1,112 @@
+.agenda-page {
+  --background:
+    radial-gradient(1200px 520px at 8% -10%, rgba(56, 189, 248, 0.12), transparent 58%),
+    radial-gradient(900px 520px at 95% 0%, rgba(59, 130, 246, 0.16), transparent 52%),
+    linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%);
+}
+
+.shell { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.header h1 { margin: 0; }
+.header p { margin: 4px 0 0; color: #aeb6c8; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-primary { --background: linear-gradient(120deg, #3b82f6, #1d4ed8); --border-radius: 14px; text-transform: none; }
+.btn-outline { --border-color: rgba(56,189,248,.6); --color:#cbe7ff; }
+
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; }
+.hero { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
+.hero h2 { margin: 0; font-size: 1.08rem; }
+.hero p { margin: 6px 0 0; color: #aeb6c8; }
+
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.kpi-card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 14px; display: grid; gap: 8px; }
+.kpi-card span { color: #aeb6c8; font-size: .84rem; }
+.kpi-card strong { font-size: 1.02rem; }
+
+.day-nav { display: grid; gap: 10px; }
+.day-controls { display: flex; align-items: center; gap: 8px; }
+.day-segment ion-segment { overflow-x: auto; }
+
+.agenda-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(320px, .7fr); gap: 12px; }
+.timeline h3, .day-list h3 { margin: 0 0 10px; }
+.calendar-helper { margin: 0 0 12px; color: #aeb6c8; font-size: .86rem; }
+.day-nav h3 { margin: 0; }
+.day-nav { align-content: flex-start; }
+.timeline { min-height: 760px; }
+
+:host ::ng-deep .fc {
+  --fc-border-color: rgba(255, 255, 255, 0.12);
+  --fc-page-bg-color: rgba(255, 255, 255, 0.02);
+  --fc-neutral-bg-color: rgba(255, 255, 255, 0.06);
+  --fc-list-event-hover-bg-color: rgba(59, 130, 246, 0.18);
+  color: #dbe6ff;
+}
+
+:host ::ng-deep .fc .fc-toolbar-title {
+  font-size: 1rem;
+  color: #ffffff;
+}
+
+:host ::ng-deep .fc .fc-button {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  text-transform: none;
+}
+
+:host ::ng-deep .fc .fc-button:disabled {
+  background: rgba(29, 78, 216, 0.55);
+  border-color: rgba(29, 78, 216, 0.55);
+}
+
+:host ::ng-deep .fc .fc-timegrid-slot-label-cushion,
+:host ::ng-deep .fc .fc-col-header-cell-cushion {
+  color: #9fb2d4;
+}
+
+:host ::ng-deep .fc .fc-event {
+  border-radius: 10px;
+  padding: 2px 4px;
+}
+
+:host ::ng-deep .fc .fc-view-harness {
+  min-height: 640px !important;
+}
+
+.cita-list { display: grid; gap: 10px; }
+.cita-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: 10px; background: rgba(255,255,255,.03); }
+.cita-row strong { display: block; }
+.cita-row p { margin: 3px 0 0; color: #aeb6c8; font-size: .84rem; }
+.cita-row-actions { display: flex; align-items: center; gap: 6px; }
+
+.cart-empty-state {
+  border: 1px dashed rgba(148, 163, 184, 0.38);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 12px;
+}
+
+:host ::ng-deep .cart-empty-state .empty-state {
+  color: #aeb6c8;
+}
+
+:host ::ng-deep .cart-empty-state .empty-state h3 {
+  color: #f8fbff;
+}
+
+:host ::ng-deep .cart-empty-state .empty-state p {
+  color: #aeb6c8;
+}
+
+@media (max-width: 1024px) {
+  .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .agenda-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 640px) {
+  .kpis { grid-template-columns: 1fr; }
+  .hero { display: grid; gap: 8px; }
+  :host ::ng-deep .fc .fc-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

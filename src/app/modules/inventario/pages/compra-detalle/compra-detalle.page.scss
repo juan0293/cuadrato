@@ -1,0 +1,11 @@
+.compra-detalle-page { --background: linear-gradient(165deg, #05070d 0%, #0a1020 48%, #05070d 100%); }
+.shell { max-width: 1320px; margin: 0 auto; display: grid; gap: 16px; color: #fff; }
+.header { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.header p { margin: 4px 0 0; color: #aeb6c8; }
+.card { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 20px; backdrop-filter: blur(14px); padding: 16px; display: grid; gap: 12px; }
+.summary { display: flex; flex-wrap: wrap; gap: 10px; color: #dbe3f3; align-items: center; }
+.items { display: grid; gap: 10px; }
+.totals { margin-top: 10px; display: grid; gap: 4px; justify-items: end; color: #dbe3f3; }
+.btn-primary { --background: linear-gradient(120deg, #3b82f6, #1d4ed8); --border-radius: 14px; text-transform: none; }
+
+.actions { display: flex; gap: 8px; flex-wrap: wrap; }

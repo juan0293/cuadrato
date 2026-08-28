@@ -1,0 +1,56 @@
+{
+  "usuarios": [
+    {
+      "id": "admin_demo_uid",
+      "nombre": "Admin Demo",
+      "email": "admin@vargastattoo.com",
+      "rol": "admin",
+      "activo": true,
+      "fechaCreacion": "2026-01-01T10:00:00.000Z"
+    },
+    {
+      "id": "asistente_demo_uid",
+      "nombre": "Asistente Demo",
+      "email": "asistente@vargastattoo.com",
+      "rol": "asistente",
+      "activo": true,
+      "fechaCreacion": "2026-01-01T10:00:00.000Z"
+    },
+    {
+      "id": "artista_demo_uid",
+      "nombre": "Artista Demo",
+      "email": "artista@vargastattoo.com",
+      "rol": "artista",
+      "activo": true,
+      "fechaCreacion": "2026-01-01T10:00:00.000Z"
+    }
+  ],
+  "insumos": [
+    {
+      "id": "insumo_tinta_01",
+      "nombre": "Tinta Negra",
+      "categoria": "tintas",
+      "unidadMedida": "ml",
+      "stockActual": 120,
+      "stockMinimo": 30,
+      "costoUnitario": 8.5,
+      "activo": true,
+      "fechaCreacion": "2026-01-05T08:00:00.000Z"
+    }
+  ],
+  "citas": [
+    {
+      "id": "cita_demo_01",
+      "clienteNombre": "Juan Pérez",
+      "artistaId": "artista_demo_uid",
+      "artistaNombre": "Artista Demo",
+      "fecha": "2026-05-27",
+      "horaInicio": "10:00",
+      "horaFin": "12:00",
+      "descripcionTrabajo": "Brazo tradicional",
+      "estado": "confirmada",
+      "creadaPor": "admin_demo_uid",
+      "fechaCreacion": "2026-05-20T10:00:00.000Z"
+    }
+  ]
+}
