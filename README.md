@@ -2,7 +2,7 @@
 
 Aplicación interna para centralizar la operación de un estudio de tatuajes: agenda, inventario, finanzas, facturación y trabajo móvil del artista.
 
-Este repositorio contiene la edición single-tenant de Cuadrato, actualmente configurada como **Vargas TattooApp**.
+Este repositorio contiene la edición single-tenant de Cuadrato, actualmente configurada como **Anna Clothes**.
 
 ## Funcionalidades
 
