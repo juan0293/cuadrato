@@ -30,6 +30,7 @@ ion-button { min-height: 44px; text-transform: none; font-weight: 650; }
 .btn-danger-soft { --border-color: #f04438; --color: #d92d20; --border-radius: 8px; }
 .theme-toggle { --border-color: #98a2b3; --color: var(--pos-text); --border-radius: 8px; }
 .theme-toggle:focus-visible { outline: 3px solid rgba(21,94,239,.2); outline-offset: 2px; }
+
 .actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 
 /* Turno */

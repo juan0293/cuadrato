@@ -1,4 +1,4 @@
-<ion-content class="movimientos-fiscal-page">
+<ion-content class="movimientos-fiscal-page inventario-module-page">
   <div class="shell">
     <section class="header">
       <div>
@@ -43,42 +43,63 @@
 
     <section class="card filters">
       <div class="filters-header">
-        <h3>Filtros gerenciales</h3>
-        <p>Segmenta por tipo, fecha, responsable y búsqueda libre.</p>
-      </div>
-      <div class="filter-grid filter-grid-top">
-        <ion-searchbar
-          class="search-wide"
-          placeholder="Buscar por producto, referencia o motivo"
-          [value]="query"
-          (ionInput)="onSearch($any($event.detail).value)">
-        </ion-searchbar>
-
-        <ion-item>
-          <ion-label>Tipo</ion-label>
-          <ion-select [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option value="entrada">Entrada</ion-select-option>
-            <ion-select-option value="salida">Salida</ion-select-option>
-            <ion-select-option value="ajuste">Ajuste</ion-select-option>
-            <ion-select-option value="devolucion">Devolución</ion-select-option>
-          </ion-select>
-        </ion-item>
+        <div>
+          <span class="eyebrow">Explorar movimientos</span>
+          <h3>Filtros gerenciales</h3>
+          <p>Segmenta por tipo, fecha, responsable y búsqueda libre.</p>
+        </div>
+        <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters">
+          <ion-icon slot="start" name="refresh-outline" color="danger"></ion-icon>
+          Limpiar filtros
+        </ion-button>
       </div>
 
-      <div class="filter-grid filter-grid-bottom">
-        <ion-item>
-          <ion-label position="stacked">Fecha desde</ion-label>
-          <ion-input type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Fecha hasta</ion-label>
-          <ion-input type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Responsable</ion-label>
-          <ion-input [value]="filtroResponsable" placeholder="Ej. admin@empresa.com" (ionInput)="onResponsableChange($any($event.detail).value)"></ion-input>
-        </ion-item>
+      <div class="catalog-filter-grid movement-filter-grid">
+        <div class="catalog-filter-field catalog-search-field">
+          <span>Búsqueda general</span>
+          <ion-searchbar placeholder="Producto, referencia o motivo" [value]="query"
+            (ionInput)="onSearch($any($event.detail).value)" debounce="250"></ion-searchbar>
+        </div>
+
+        <div class="catalog-filter-field">
+          <span>Tipo de movimiento</span>
+          <ion-item>
+            <ion-select aria-label="Tipo de movimiento" [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todos">Todos los tipos</ion-select-option>
+              <ion-select-option value="entrada">Entrada</ion-select-option>
+              <ion-select-option value="salida">Salida</ion-select-option>
+              <ion-select-option value="ajuste">Ajuste</ion-select-option>
+              <ion-select-option value="devolucion">Devolución</ion-select-option>
+            </ion-select>
+          </ion-item>
+        </div>
+
+        <div class="catalog-filter-field">
+          <span>Fecha desde</span>
+          <ion-item>
+            <ion-input aria-label="Fecha desde" type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="catalog-filter-field">
+          <span>Fecha hasta</span>
+          <ion-item>
+            <ion-input aria-label="Fecha hasta" type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+        </div>
+
+        <div class="catalog-filter-field">
+          <span>Responsable</span>
+          <ion-item>
+            <ion-input aria-label="Responsable" [value]="filtroResponsable" placeholder="Nombre o correo"
+              (ionInput)="onResponsableChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+        </div>
+      </div>
+
+      <div class="filter-summary">
+        <ion-icon name="funnel-outline"></ion-icon>
+        <span>{{ movimientosFiltrados.length }} {{ movimientosFiltrados.length === 1 ? 'movimiento encontrado' : 'movimientos encontrados' }}</span>
       </div>
     </section>
 

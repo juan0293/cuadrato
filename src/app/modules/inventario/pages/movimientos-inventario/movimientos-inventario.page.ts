@@ -6,6 +6,7 @@ import { Chart, DoughnutController, ArcElement, Tooltip, Legend, CategoryScale, 
 import * as XLSX from 'xlsx';
 import { MovimientoInventario } from '../../models/movimiento-inventario.model';
 import { MovimientosInventarioService } from '../../services/movimientos-inventario.service';
+import { InventarioThemeService } from '../../services/inventario-theme.service';
 import { UsuariosService } from '../../../usuarios/services/usuarios.service';
 import { UsuarioModel } from '../../../usuarios/models/usuario.model';
 
@@ -69,6 +70,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     private readonly usuariosService: UsuariosService,
     private readonly actionSheetCtrl: ActionSheetController,
     private readonly alertCtrl: AlertController,
+    private readonly themeService: InventarioThemeService,
   ) {}
 
   ngOnInit(): void {
@@ -251,6 +253,16 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     return this.page < this.totalPages;
   }
 
+  get hasActiveFilters(): boolean {
+    return Boolean(
+      this.query.trim()
+      || this.filtroResponsable.trim()
+      || this.filtroFechaDesde
+      || this.filtroFechaHasta
+      || this.filtroTipo !== 'todos'
+    );
+  }
+
   prevPage(): void {
     if (!this.canGoPrev) return;
     this.page -= 1;
@@ -265,6 +277,15 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     const parsed = Number(value);
     this.pageSize = this.pageSizeOptions.includes(parsed) ? parsed : 10;
     this.page = 1;
+  }
+
+  clearFilters(): void {
+    this.query = '';
+    this.filtroTipo = 'todos';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.filtroResponsable = '';
+    this.applyFilters();
   }
 
   movimientoLabel(tipo?: string): string {
@@ -401,6 +422,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     const salida = this.salidasRegistradas;
     const ajuste = this.ajustesRealizados;
     const devolucion = this.movimientosFiltrados.filter((m) => this.getTipoGrupo(m) === 'devolucion').length;
+    const isDark = this.themeService.theme === 'dark';
     this.tipoChart = new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -408,7 +430,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
         datasets: [{
           data: [entrada, salida, ajuste, devolucion],
           backgroundColor: ['#34D399', '#F87171', '#FBBF24', '#38BDF8'],
-          borderColor: 'rgba(255,255,255,0.18)',
+          borderColor: isDark ? '#334155' : '#ffffff',
           borderWidth: 1.4,
           hoverOffset: 8,
         }],
@@ -417,7 +439,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: '#E5EDFF', boxWidth: 14 },
+            labels: { color: isDark ? '#E5EDFF' : '#344054', boxWidth: 14 },
           },
         },
       },
@@ -437,6 +459,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     }
     const labels = Array.from(group.keys()).slice(-10);
     const values = labels.map((label) => group.get(label) || 0);
+    const isDark = this.themeService.theme === 'dark';
+    const axisColor = isDark ? '#C9D7EE' : '#667085';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(16,24,40,0.08)';
 
     this.tendenciaChart = new Chart(canvas, {
       type: 'bar',
@@ -454,8 +479,8 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
       options: {
         maintainAspectRatio: false,
         scales: {
-          x: { ticks: { color: '#C9D7EE' }, grid: { color: 'rgba(255,255,255,0.08)' } },
-          y: { ticks: { color: '#C9D7EE' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+          x: { ticks: { color: axisColor }, grid: { color: gridColor } },
+          y: { ticks: { color: axisColor }, grid: { color: gridColor } },
         },
         plugins: {
           legend: { display: false },

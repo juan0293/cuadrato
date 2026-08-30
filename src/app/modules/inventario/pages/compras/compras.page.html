@@ -1,14 +1,18 @@
-<ion-content class="compras-page">
+<ion-content class="compras-page inventario-module-page">
   <div class="shell ion-padding">
     <section class="header">
-      <div class="header-copy">
-        <h1>Compras registradas</h1>
-        <p>Controla facturas de proveedores, impuestos y entradas de inventario.</p>
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="bag-handle-outline" aria-hidden="true"></ion-icon></span>
+        <div class="header-copy">
+          <span class="eyebrow">Inventario · Compras</span>
+          <h1>Compras registradas</h1>
+          <p>Controla facturas de proveedores, impuestos y entradas de inventario.</p>
+        </div>
       </div>
       <div class="header-actions">
         <ion-button class="btn-secondary" fill="outline" (click)="goToInventario()">
           <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
-          Volver
+          Volver a inventario
         </ion-button>
         <ion-button class="btn-outline header-action-desktop" (click)="exportarExcelCompras()">
           <ion-icon name="download-outline" slot="start"></ion-icon>
@@ -22,80 +26,72 @@
     </section>
 
     <section class="kpis">
-      <article class="kpi-card">
-        <span>Compras del mes</span>
-        <strong>{{ kpiComprasMes }}</strong>
-      </article>
-      <article class="kpi-card">
-        <span>Total comprado</span>
-        <strong>{{ formatMoney(kpiTotalComprado) }}</strong>
-      </article>
-      <article class="kpi-card">
-        <span>ITBIS acumulado</span>
-        <strong>{{ formatMoney(kpiItbis) }}</strong>
-      </article>
-      <article class="kpi-card">
-        <span>Cuentas por pagar</span>
-        <strong>{{ formatMoney(kpiCxp) }}</strong>
-      </article>
+      <article class="kpi-card kpi-card--primary"><ion-icon name="receipt-outline"></ion-icon><span>Compras del mes</span><strong>{{ kpiComprasMes }}</strong></article>
+      <article class="kpi-card"><ion-icon name="wallet-outline"></ion-icon><span>Total comprado</span><strong>{{ formatMoney(kpiTotalComprado) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="calculator-outline"></ion-icon><span>ITBIS acumulado</span><strong>{{ formatMoney(kpiItbis) }}</strong></article>
+      <article class="kpi-card kpi-card--warning"><ion-icon name="time-outline"></ion-icon><span>Cuentas por pagar</span><strong>{{ formatMoney(kpiCxp) }}</strong></article>
     </section>
 
     <section class="card filters">
       <div class="filters-header">
-        <h2>Filtros de compras</h2>
-        <p>Refina por proveedor, estado, condición y rango de fechas.</p>
+        <div><span class="eyebrow">Explorar compras</span><h2>Buscar y filtrar</h2><p>Refina por proveedor, estado, condición y rango de fechas.</p></div>
+        <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters">
+          <ion-icon slot="start" name="refresh-outline" color="danger"></ion-icon>Limpiar filtros
+        </ion-button>
       </div>
 
-      <div class="filter-block filter-block-search">
-        <span class="filter-label">Búsqueda general</span>
-        <ion-searchbar
-          mode="ios"
-          placeholder="Buscar por proveedor, RNC, NCF, factura o estado"
-          color="light"
-          [value]="query"
-          (ionInput)="onSearch($any($event.detail).value)">
-        </ion-searchbar>
-      </div>
-
-      <div class="filter-block">
-        <span class="filter-label">Filtros principales</span>
-        <div class="filter-grid filter-grid-top">
-          <ion-item>
-            <ion-label position="stacked">Fecha desde</ion-label>
-            <ion-input type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Fecha hasta</ion-label>
-            <ion-input type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
-          </ion-item>
-
+      <div class="catalog-filter-grid purchase-filter-grid">
+        <div class="catalog-filter-field catalog-search-field">
+          <span>Búsqueda general</span>
+          <ion-searchbar placeholder="Proveedor, RNC, NCF, factura o estado" [value]="query"
+            (ionInput)="onSearch($any($event.detail).value)" debounce="250"></ion-searchbar>
+        </div>
+        <div class="catalog-filter-field provider-filter-field">
           <app-searchable-select
             label="Proveedor"
-            placeholder="Filtrar por proveedor"
+            placeholder="Todos los proveedores"
             [items]="proveedores"
             displayKey="nombre"
             valueKey="id"
             [searchKeys]="['nombre','rnc','telefono','email']"
             [selectedId]="filtroProveedorId"
+            modalCssClass="premium-select-modal inventory-selector-modal inventory-provider-selector-modal"
+            modalIcon="people-outline"
+            modalEyebrow="Compras · Proveedores"
+            modalDescription="Selecciona un proveedor para filtrar el historial de compras."
+            searchPlaceholder="Buscar por nombre, RNC, teléfono o correo..."
+            descriptionKey="rnc"
+            [metaKeys]="['telefono','email']"
             (selected)="onProveedorFilterSelected($event)">
           </app-searchable-select>
         </div>
-
-        <div class="filter-grid filter-grid-bottom">
+        <div class="catalog-filter-field">
+          <span>Fecha desde</span>
           <ion-item>
-            <ion-label>Estado</ion-label>
-            <ion-select [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
+            <ion-input aria-label="Fecha desde" type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+        </div>
+        <div class="catalog-filter-field">
+          <span>Fecha hasta</span>
+          <ion-item>
+            <ion-input aria-label="Fecha hasta" type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
+          </ion-item>
+        </div>
+        <div class="catalog-filter-field">
+          <span>Estado</span>
+          <ion-item>
+            <ion-select aria-label="Estado de la compra" [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
               <ion-select-option value="todos">Todos</ion-select-option>
               <ion-select-option value="borrador">Borrador</ion-select-option>
               <ion-select-option value="confirmada">Confirmada</ion-select-option>
               <ion-select-option value="anulada">Anulada</ion-select-option>
             </ion-select>
           </ion-item>
-
+        </div>
+        <div class="catalog-filter-field">
+          <span>Condición</span>
           <ion-item>
-            <ion-label>Condición</ion-label>
-            <ion-select [value]="filtroCondicion" (ionChange)="onCondicionChange($any($event.detail).value)" interface="popover">
+            <ion-select aria-label="Condición de pago" [value]="filtroCondicion" (ionChange)="onCondicionChange($any($event.detail).value)" interface="popover">
               <ion-select-option value="todas">Todas</ion-select-option>
               <ion-select-option value="contado">Contado</ion-select-option>
               <ion-select-option value="credito">Crédito</ion-select-option>
@@ -109,13 +105,15 @@
           <ion-icon slot="start" name="ban-outline"></ion-icon>
           Ver anuladas
         </ion-button>
-        <ion-button class="btn-filter-ghost" fill="clear" size="small" (click)="clearProveedorFilter()" *ngIf="filtroProveedorId">
-          Limpiar proveedor
-        </ion-button>
+        <span>{{ comprasFiltradas.length }} resultado(s) con los filtros actuales</span>
       </div>
     </section>
 
-    <section class="card" *ngIf="!loading">
+    <section class="card purchase-results-card" *ngIf="!loading">
+      <header class="purchase-results-head">
+        <div><span class="eyebrow">Resultados</span><h2>Historial de compras</h2><p>{{ comprasFiltradas.length }} compra(s) encontrada(s)</p></div>
+        <ion-button class="btn-primary results-new-button" (click)="goToNew()"><ion-icon slot="start" name="add-outline"></ion-icon>Nueva compra</ion-button>
+      </header>
       <ng-container *ngIf="comprasFiltradas.length > 0; else emptyState">
         <div class="desktop-table">
           <table>
@@ -135,7 +133,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr *ngFor="let compra of pagedCompras">
+              <tr *ngFor="let compra of pagedCompras; trackBy: trackByCompra">
                 <td>{{ formatDate(compra.fechaEmision) }}</td>
                 <td>{{ compra.proveedorNombre }}</td>
                 <td>{{ compra.proveedorRnc || '-' }}</td>
@@ -155,7 +153,7 @@
                 <td class="num">{{ formatMoney(compra.totalItbis) }}</td>
                 <td class="num total">{{ formatMoney(compra.total) }}</td>
                 <td>
-                  <ion-button fill="clear" size="small" (click)="openActions(compra)">
+                  <ion-button class="row-menu-button" fill="clear" size="small" (click)="openActions(compra)" aria-label="Abrir acciones de la compra">
                     <ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon>
                   </ion-button>
                 </td>
@@ -178,27 +176,29 @@
         </div>
 
         <div class="mobile-cards">
-          <article class="compra-card" *ngFor="let compra of comprasFiltradas">
-            <header>
-              <h3>{{ compra.proveedorNombre }}</h3>
+          <article class="compra-card" *ngFor="let compra of pagedCompras; trackBy: trackByCompra">
+            <header class="compra-card-header">
+              <div class="compra-card-copy">
+                <span class="compra-card-overline">{{ compra.numeroFactura || 'Sin número de factura' }}</span>
+                <h3>{{ compra.proveedorNombre }}</h3>
+                <p>{{ compra.ncf || 'Sin comprobante fiscal' }}</p>
+              </div>
               <ion-chip [color]="compra.estado === 'confirmada' ? 'success' : compra.estado === 'anulada' ? 'medium' : 'warning'">
                 <ion-label>{{ compra.estado | titlecase }}</ion-label>
               </ion-chip>
             </header>
 
-            <p>{{ compra.ncf || compra.numeroFactura || 'Sin comprobante' }}</p>
-            <small>{{ formatDate(compra.fechaEmision, true) }}</small>
-
-            <div class="chips">
+            <div class="compra-card-chips">
               <ion-chip [color]="compra.condicionPago === 'credito' ? 'warning' : 'success'">
                 <ion-label>{{ compra.condicionPago | titlecase }}</ion-label>
               </ion-chip>
+              <ion-chip class="date-chip"><ion-icon name="calendar-outline"></ion-icon><ion-label>{{ formatDate(compra.fechaEmision, true) }}</ion-label></ion-chip>
             </div>
 
-            <div class="totals">
-              <span>Subtotal: {{ formatMoney(compra.subtotal) }}</span>
-              <span>ITBIS: {{ formatMoney(compra.totalItbis) }}</span>
-              <strong>Total: {{ formatMoney(compra.total) }}</strong>
+            <div class="compra-card-totals">
+              <span><small>Subtotal</small><strong>{{ formatMoney(compra.subtotal) }}</strong></span>
+              <span><small>ITBIS</small><strong>{{ formatMoney(compra.totalItbis) }}</strong></span>
+              <span class="total-cell"><small>Total</small><strong>{{ formatMoney(compra.total) }}</strong></span>
             </div>
 
             <div class="card-actions">

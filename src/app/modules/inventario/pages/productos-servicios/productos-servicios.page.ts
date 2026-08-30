@@ -75,6 +75,21 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
+  get hasActiveFilters(): boolean {
+    return Boolean(this.query.trim())
+      || this.filtroTipo !== 'todos'
+      || this.filtroEstado !== 'todos'
+      || this.filtroStock !== 'todos';
+  }
+
+  clearFilters(): void {
+    this.query = '';
+    this.filtroTipo = 'todos';
+    this.filtroEstado = 'todos';
+    this.filtroStock = 'todos';
+    this.applyFilters();
+  }
+
   goToNew(): void {
     this.router.navigateByUrl('/admin/inventario/productos-servicios/nuevo');
   }
@@ -100,7 +115,12 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
       { text: 'Eliminar', icon: 'trash-outline', role: 'destructive', handler: () => this.onDelete(item) },
       { text: 'Cerrar', icon: 'close-outline', role: 'cancel' },
     ];
-    const sheet = await this.actionSheetCtrl.create({ header: 'Acciones del catálogo', buttons });
+    const sheet = await this.actionSheetCtrl.create({
+      header: item.nombre || 'Acciones del catálogo',
+      subHeader: item.codigoInterno || 'Producto o servicio',
+      cssClass: 'inventory-actions-sheet',
+      buttons,
+    });
     await sheet.present();
   }
 
@@ -122,6 +142,7 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
     if (!item.id) return;
 
     const alert = await this.alertCtrl.create({
+      cssClass: 'inventory-confirm-alert',
       header: 'Eliminar registro',
       message: `Se eliminará ${item.nombre}. Esta acción no se puede deshacer.`,
       buttons: [

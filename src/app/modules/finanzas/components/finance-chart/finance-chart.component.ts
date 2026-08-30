@@ -1,4 +1,5 @@
-import { AfterViewInit, Component, ElementRef, Input, OnChanges, ViewChild } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { AfterViewInit, Component, ElementRef, HostListener, Inject, Input, OnChanges, ViewChild } from '@angular/core';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 
 Chart.register(...registerables);
@@ -19,6 +20,8 @@ export class FinanceChartComponent implements AfterViewInit, OnChanges {
   @ViewChild('canvasRef') canvasRef?: ElementRef<HTMLCanvasElement>;
   private chart?: Chart;
 
+  constructor(@Inject(DOCUMENT) private readonly document: Document) {}
+
   ngAfterViewInit(): void {
     this.renderChart();
   }
@@ -27,11 +30,19 @@ export class FinanceChartComponent implements AfterViewInit, OnChanges {
     this.renderChart();
   }
 
+  @HostListener('window:finanzas-theme-change')
+  onFinanceThemeChange(): void {
+    this.renderChart();
+  }
+
   private renderChart(): void {
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
     this.chart?.destroy();
+    const isDark = this.document.body.classList.contains('finanzas-dark-theme');
+    const textColor = isDark ? '#dbe6ff' : '#475467';
+    const gridColor = isDark ? 'rgba(148, 163, 184, .18)' : 'rgba(71, 84, 103, .12)';
 
     const config: ChartConfiguration = {
       type: this.type,
@@ -57,10 +68,14 @@ export class FinanceChartComponent implements AfterViewInit, OnChanges {
           legend: {
             display: true,
             labels: {
-              color: '#dbe6ff',
+              color: textColor,
             },
           },
         },
+        scales: this.type === 'bar' ? {
+          x: { ticks: { color: textColor }, grid: { color: gridColor } },
+          y: { ticks: { color: textColor }, grid: { color: gridColor } },
+        } : undefined,
       },
     };
 

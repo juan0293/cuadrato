@@ -1,12 +1,24 @@
-<ion-content class="compra-form-page">
+<ion-content class="compra-form-page inventario-module-page">
   <div class="shell ion-padding" [formGroup]="form">
     <section class="header">
-      <h1>Nueva compra</h1>
-      <p>Registra productos, costos y condiciones para actualizar inventario y cuentas por pagar.</p>
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="cart-outline" aria-hidden="true"></ion-icon></span>
+        <div>
+          <span class="eyebrow">Inventario · Compras</span>
+          <h1>Nueva compra</h1>
+          <p>Registra productos, costos y condiciones para actualizar inventario y cuentas por pagar.</p>
+        </div>
+      </div>
+      <ion-button class="btn-secondary" fill="outline" routerLink="/admin/inventario/compras">
+        <ion-icon slot="start" name="arrow-back-outline"></ion-icon>Volver a compras
+      </ion-button>
     </section>
 
     <section class="card">
-      <h2>Proveedor</h2>
+      <header class="form-section-head">
+        <span class="section-icon"><ion-icon name="business-outline"></ion-icon></span>
+        <div><span class="eyebrow">Abastecimiento</span><h2>Proveedor</h2><p>Selecciona quién suministra los productos de esta compra.</p></div>
+      </header>
       <div class="grid selects">
         <app-searchable-select
           label="Proveedor"
@@ -16,6 +28,13 @@
           valueKey="id"
           [searchKeys]="['nombre','rnc','telefono','email']"
           [selectedId]="form.controls.proveedorId.value"
+          modalCssClass="premium-select-modal inventory-selector-modal inventory-provider-selector-modal"
+          modalIcon="people-outline"
+          modalEyebrow="Compra · Proveedor"
+          modalDescription="Selecciona el proveedor responsable de esta factura de compra."
+          searchPlaceholder="Buscar por nombre, RNC, teléfono o correo..."
+          descriptionKey="rnc"
+          [metaKeys]="['telefono','email','condicionesPagoDefault']"
           manageLabel="Gestionar proveedores"
           (selected)="onProveedorSelected($event)"
           (manage)="goProveedores()">
@@ -29,7 +48,10 @@
     </section>
 
     <section class="card">
-      <h2>Datos de factura</h2>
+      <header class="form-section-head">
+        <span class="section-icon"><ion-icon name="document-text-outline"></ion-icon></span>
+        <div><span class="eyebrow">Comprobante</span><h2>Datos de factura</h2><p>Completa la referencia fiscal, fechas y condiciones de pago.</p></div>
+      </header>
       <div class="grid">
         <ion-item><ion-label position="stacked">Número de factura</ion-label><ion-input formControlName="numeroFactura"></ion-input></ion-item>
         <ion-item><ion-label position="stacked">NCF</ion-label><ion-input formControlName="ncf"></ion-input></ion-item>
@@ -41,8 +63,10 @@
     </section>
 
     <section class="card">
-      <h2>Productos y servicios</h2>
-      <p class="section-intro">Elige una referencia con contexto comercial claro para comprar mejor y evitar errores de proveedor, precio o inventario.</p>
+      <header class="form-section-head">
+        <span class="section-icon"><ion-icon name="cube-outline"></ion-icon></span>
+        <div><span class="eyebrow">Detalle de compra</span><h2>Productos y servicios</h2><p>Selecciona referencias y define cantidades, costos y utilidad comercial.</p></div>
+      </header>
       <div class="grid selects">
         <app-searchable-select
           label="Producto/Servicio"
@@ -60,6 +84,9 @@
           descriptionKey="selectorDescription"
           [metaKeys]="['selectorMeta1','selectorMeta2','selectorMeta3','selectorMeta4','selectorMeta5','selectorMeta6']"
           [selectedId]="form.controls.productoId.value"
+          modalCssClass="premium-select-modal inventory-selector-modal inventory-product-selector-modal"
+          modalIcon="cube-outline"
+          modalEyebrow="Compra · Catálogo"
           manageLabel="Gestionar productos"
           (selected)="onProductoSelected($event)"
           (manage)="goProductos()">
@@ -73,6 +100,13 @@
           valueKey="id"
           [searchKeys]="['nombre','porcentaje']"
           [selectedId]="form.controls.utilidadId.value"
+          modalCssClass="premium-select-modal inventory-selector-modal inventory-utility-selector-modal"
+          modalIcon="analytics-outline"
+          modalEyebrow="Compra · Rentabilidad"
+          modalDescription="Selecciona la utilidad comercial que se aplicará al cálculo del precio sugerido."
+          searchPlaceholder="Buscar utilidad por nombre o porcentaje..."
+          descriptionKey="descripcion"
+          [metaKeys]="['porcentaje']"
           (selected)="onUtilidadSelected($event)">
         </app-searchable-select>
       </div>
@@ -119,20 +153,48 @@
           </div>
         </div>
 
-        <ion-note color="light">Ya precargamos costo y utilidad de esta referencia para que completes la linea con menos friccion.</ion-note>
+        <div class="product-context-note" role="note">
+          <ion-icon name="checkmark-circle-outline" aria-hidden="true"></ion-icon>
+          <span>Precargamos el costo y la utilidad de esta referencia para completar la línea con menos pasos.</span>
+        </div>
       </section>
 
-      <div class="grid">
-        <ion-item><ion-label position="stacked">Cantidad</ion-label><ion-input type="number" formControlName="cantidad"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Precio compra</ion-label><ion-input type="number" formControlName="precioCompra"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Utilidad %</ion-label><ion-input type="number" formControlName="utilidadPorcentaje" readonly></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Precio venta sugerido</ion-label><ion-input [value]="formatMoney(precioVentaSugeridoLinea)" readonly></ion-input></ion-item>
-      </div>
+      <section class="line-entry-card">
+        <header class="line-entry-head">
+          <div>
+            <span class="line-entry-eyebrow">Detalle de la línea</span>
+            <h3>Información de compra y venta</h3>
+          </div>
+          <span class="line-entry-status" [class.is-ready]="selectedProducto">
+            {{ selectedProducto ? 'Producto seleccionado' : 'Selecciona un producto' }}
+          </span>
+        </header>
 
-      <ion-item><ion-label position="stacked">Descuento</ion-label><ion-input type="number" formControlName="descuento"></ion-input></ion-item>
-      <ion-note color="light">La utilidad en % se toma del catálogo y está bloqueada para consistencia comercial.</ion-note>
+        <div class="grid line-entry-grid">
+          <ion-item><ion-label position="stacked">Cantidad</ion-label><ion-input type="number" formControlName="cantidad"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Precio compra</ion-label><ion-input type="number" formControlName="precioCompra"></ion-input></ion-item>
+          <ion-item class="readonly-field"><ion-label position="stacked">Utilidad %</ion-label><ion-input type="number" formControlName="utilidadPorcentaje" readonly></ion-input></ion-item>
+          <ion-item class="readonly-field"><ion-label position="stacked">Precio venta sugerido</ion-label><ion-input [value]="formatMoney(precioVentaSugeridoLinea)" readonly></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Descuento</ion-label><ion-input type="number" formControlName="descuento"></ion-input></ion-item>
+        </div>
 
-      <ion-button class="btn-outline" (click)="addItem()">Agregar producto</ion-button>
+        <div class="locked-field-note" role="note">
+          <ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>
+          <span>La utilidad en % se toma del catálogo y está bloqueada para mantener la consistencia comercial.</span>
+        </div>
+
+        <div class="add-product-action">
+          <div>
+            <strong>{{ selectedProducto ? selectedProducto.nombre : 'Producto pendiente de selección' }}</strong>
+            <small>{{ selectedProducto ? 'La línea se agregará al detalle de la compra.' : 'Selecciona una referencia para habilitar esta acción.' }}</small>
+          </div>
+          <ion-button type="button" class="add-product-button" (click)="addItem()" [disabled]="!selectedProducto">
+            <ion-icon slot="start" name="add-circle-outline" aria-hidden="true"></ion-icon>
+            Agregar producto
+          </ion-button>
+        </div>
+      </section>
+
       <ion-note color="warning" *ngIf="warningProveedorMix">Producto asociado a otro proveedor. Recomendamos una compra por proveedor.</ion-note>
 
       <div class="table-wrap" *ngIf="items.length > 0">
@@ -188,7 +250,10 @@
       </div>
 
       <section class="edit-panel" *ngIf="editingItem">
-        <h3>Editar producto</h3>
+        <header class="form-section-head compact-head">
+          <span class="section-icon"><ion-icon name="create-outline"></ion-icon></span>
+          <div><span class="eyebrow">Línea seleccionada</span><h3>Editar producto</h3><p>Actualiza cantidades, costo, impuestos y rentabilidad.</p></div>
+        </header>
         <div class="grid">
           <ion-item><ion-label position="stacked">Cantidad</ion-label><ion-input type="number" [value]="editingItem.cantidad" (ionInput)="editingItem.cantidad = +($any($event.detail).value || 0); recalculateEditingItem()"></ion-input></ion-item>
           <ion-item><ion-label position="stacked">Precio compra</ion-label><ion-input type="number" [value]="editingItem.costoUnitario" (ionInput)="editingItem.costoUnitario = +($any($event.detail).value || 0); editingItem.precioCompra = editingItem.costoUnitario; recalculateEditingItem()"></ion-input></ion-item>
@@ -212,6 +277,13 @@
           valueKey="id"
           [searchKeys]="['nombre','porcentaje']"
           [selectedId]="editingItem.utilidadId"
+          modalCssClass="premium-select-modal inventory-selector-modal inventory-utility-selector-modal"
+          modalIcon="analytics-outline"
+          modalEyebrow="Compra · Rentabilidad"
+          modalDescription="Selecciona la utilidad comercial para actualizar esta línea."
+          searchPlaceholder="Buscar utilidad por nombre o porcentaje..."
+          descriptionKey="descripcion"
+          [metaKeys]="['porcentaje']"
           (selected)="onEditUtilidadSelected($event)">
         </app-searchable-select>
 
@@ -235,22 +307,32 @@
     </section>
 
     <section class="card">
-      <h2>Totales de compra</h2>
-      <div class="totals">
-        <span>Subtotal: {{ formatMoney(totals.subtotal) }}</span>
-        <span>Total descuento: {{ formatMoney(totals.totalDescuento) }}</span>
-        <span>Total ITBIS: {{ formatMoney(totals.totalItbis) }}</span>
-        <span>Total impuestos adicionales: {{ formatMoney(totals.totalImpuestosAdicionales) }}</span>
-        <strong>Total: {{ formatMoney(totals.total) }}</strong>
+      <header class="form-section-head">
+        <span class="section-icon"><ion-icon name="calculator-outline"></ion-icon></span>
+        <div><span class="eyebrow">Resumen</span><h2>Totales de compra</h2><p>Verifica los importes antes de confirmar la entrada.</p></div>
+      </header>
+      <div class="purchase-summary">
+        <div class="totals">
+          <span><small>Subtotal</small>{{ formatMoney(totals.subtotal) }}</span>
+          <span><small>Descuento</small>{{ formatMoney(totals.totalDescuento) }}</span>
+          <span><small>ITBIS</small>{{ formatMoney(totals.totalItbis) }}</span>
+          <span><small>Impuestos adicionales</small>{{ formatMoney(totals.totalImpuestosAdicionales) }}</span>
+          <strong><small>Total</small>{{ formatMoney(totals.total) }}</strong>
+        </div>
+        <ion-item class="inventory-toggle" lines="none">
+          <div><ion-label>Afecta inventario</ion-label><small>Actualiza las existencias al confirmar.</small></div>
+          <ion-toggle slot="end" formControlName="afectaInventario"></ion-toggle>
+        </ion-item>
       </div>
-      <ion-item><ion-label>Afecta inventario</ion-label><ion-toggle formControlName="afectaInventario"></ion-toggle></ion-item>
-      <ion-note color="warning" *ngIf="form.controls.condicionPago.value === 'credito'">Esta compra generará una cuenta por pagar.</ion-note>
+      <div class="credit-note" role="note" *ngIf="form.controls.condicionPago.value === 'credito'">
+        <ion-icon name="information-circle-outline"></ion-icon><span>Esta compra generará una cuenta por pagar.</span>
+      </div>
     </section>
 
-    <div class="actions">
-      <ion-button fill="outline" color="danger" routerLink="/admin/inventario/compras">Cancelar</ion-button>
+    <div class="actions form-actions">
+      <ion-button fill="outline" color="medium" routerLink="/admin/inventario/compras">Cancelar</ion-button>
       <!-- <ion-button class="btn-outline" (click)="saveCompra()">Guardar borrador</ion-button> -->
-      <ion-button class="btn-primary" (click)="confirmarCompra()">Confirmar compra</ion-button>
+      <ion-button class="btn-primary" (click)="confirmarCompra()"><ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>Confirmar compra</ion-button>
     </div>
   </div>
 </ion-content>

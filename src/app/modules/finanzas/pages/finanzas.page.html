@@ -1,38 +1,61 @@
-<ion-header class="ion-no-border finanzas-header">
-  <ion-toolbar class="finanzas-toolbar" mode="ios">
-    <div class="toolbar-inner">
-      <ion-title>Finanzas</ion-title>
-    </div>
-    <ion-buttons slot="end">
-        <ion-button routerLink="/admin/finanzas/movimientos/nuevo" fill="solid" color="primary">
-          <ion-icon slot="start" name="add"></ion-icon>
-          Movimiento</ion-button>
-      </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content [fullscreen]="true" class="finanzas-content">
+<ion-content [fullscreen]="true" class="finanzas-content finanzas-module-page"
+  [class.theme-light]="financeTheme === 'light'" [class.theme-dark]="financeTheme === 'dark'">
   <div class="finanzas-shell" *ngIf="vm$ | async as vm">
+    <header class="finance-page-header card-premium">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="pie-chart-outline" aria-hidden="true"></ion-icon></span>
+        <div>
+          <span class="hero-eyebrow">Control financiero</span>
+          <h1>Finanzas</h1>
+          <p>Visión general de ingresos, gastos, caja, cobranza y rentabilidad.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleFinanceTheme()"
+          [attr.aria-label]="financeTheme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'"
+          [attr.aria-pressed]="financeTheme === 'dark'">
+          <ion-icon slot="start" [name]="financeTheme === 'dark' ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+          {{ financeTheme === 'dark' ? 'Modo claro' : 'Modo oscuro' }}
+        </ion-button>
+        <ion-button class="btn-outline" fill="outline" routerLink="/admin/finanzas/movimientos">
+          <ion-icon slot="start" name="swap-vertical-outline"></ion-icon>Ver movimientos
+        </ion-button>
+        <ion-button class="btn-primary" routerLink="/admin/finanzas/movimientos/nuevo">
+          <ion-icon slot="start" name="add-outline"></ion-icon>Nuevo movimiento
+        </ion-button>
+      </div>
+    </header>
+
     <section class="finanzas-hero card-premium">
       <div class="hero-top">
         <div class="hero-copy">
-          <span class="hero-eyebrow">Centro financiero</span>
-          <h1>Dashboard financiero</h1>
-          <p>Monitorea caja, cobranza, pagos y rentabilidad con una lectura clara de la operación.</p>
+          <span class="hero-eyebrow">Resumen general</span>
+          <h2>Dashboard ejecutivo de finanzas</h2>
+          <p>Monitorea el resultado financiero y los compromisos del periodo seleccionado.</p>
         </div>
         <div class="hero-actions">
-          <ion-segment [value]="periodo" (ionChange)="changePeriodo($event.detail.value)">
-            <ion-segment-button value="diario"><ion-label>Diario</ion-label></ion-segment-button>
-            <ion-segment-button value="semanal"><ion-label>Semanal</ion-label></ion-segment-button>
-            <ion-segment-button value="mensual"><ion-label>Mensual</ion-label></ion-segment-button>
-            <ion-segment-button value="anual"><ion-label>Anual</ion-label></ion-segment-button>
-          </ion-segment>
-          <div class="hero-side-card">
-            <span class="hero-side-card__label">Vista activa</span>
-            <strong>{{ getPeriodoTitulo() | titlecase }}</strong>
-            <small>Actualiza los indicadores, gráficos y listados del tablero.</small>
+          <div class="dashboard-range" aria-label="Rango de fechas del dashboard">
+            <label class="dashboard-range__field">
+              <span>Desde</span>
+              <ion-item lines="none">
+                <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+                <ion-input aria-label="Fecha inicial del dashboard" type="date" [value]="fechaDesde"
+                  [max]="fechaHasta || undefined" (ionChange)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
+              </ion-item>
+            </label>
+            <label class="dashboard-range__field">
+              <span>Hasta</span>
+              <ion-item lines="none">
+                <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+                <ion-input aria-label="Fecha final del dashboard" type="date" [value]="fechaHasta"
+                  [min]="fechaDesde || undefined" (ionChange)="onFechaHastaChange($any($event.detail).value)"></ion-input>
+              </ion-item>
+            </label>
+            <ion-button class="current-month-button" fill="outline" (click)="mostrarMesActual()">
+              <ion-icon slot="start" name="today-outline"></ion-icon>Mes actual
+            </ion-button>
           </div>
-          <ion-button class="btn-movimientos" fill="outline" size="small" routerLink="/admin/finanzas/movimientos">Ver movimientos financieros</ion-button>
+          <span class="period-badge"><ion-icon name="calendar-outline"></ion-icon>{{ getRangoTitulo() }}</span>
         </div>
       </div>
 
@@ -61,43 +84,51 @@
         <h2>Indicadores clave del periodo</h2>
         <p>Una lectura rápida del rendimiento financiero y el ritmo operativo.</p>
       </div>
-    <section class="kpi-grid">
+    <section class="kpi-grid executive-kpis">
       <article class="card-premium kpi-card">
+        <ion-icon name="trending-up-outline"></ion-icon>
         <span class="kpi-label">Ingresos {{ getPeriodoTitulo() }}</span>
         <strong class="kpi-value is-success">{{ formatCurrency(vm.ingresos) }}</strong>
         <small>Ventas facturadas y otros ingresos manuales del periodo.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="trending-down-outline"></ion-icon>
         <span class="kpi-label">Gastos {{ getPeriodoTitulo() }}</span>
         <strong class="kpi-value is-danger">{{ formatCurrency(vm.gastos) }}</strong>
         <small>Total ejecutado en operaciones.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="scale-outline"></ion-icon>
         <span class="kpi-label">Balance neto</span>
         <strong class="kpi-value" [class.is-success]="vm.balance >= 0" [class.is-danger]="vm.balance < 0">{{ formatCurrency(vm.balance) }}</strong>
         <small>Resultado conciliado entre ventas reales y gastos registrados.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="analytics-outline"></ion-icon>
         <span class="kpi-label">Rentabilidad</span>
         <strong class="kpi-value">{{ vm.rentabilidad | number: '1.0-2' }}%</strong>
         <small>Margen estimado del periodo.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
         <span class="kpi-label">Movimientos</span>
         <strong class="kpi-value">{{ vm.totalMovimientos }}</strong>
         <small>Registros contabilizados.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="calculator-outline"></ion-icon>
         <span class="kpi-label">Promedio por movimiento</span>
         <strong class="kpi-value">{{ formatCurrency(vm.promedioMovimiento) }}</strong>
         <small>Ticket financiero promedio.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="pricetag-outline"></ion-icon>
         <span class="kpi-label">Categoria principal</span>
         <strong class="kpi-value">{{ vm.topCategoriaGasto }}</strong>
         <small>Mayor concentracion de gastos.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="time-outline"></ion-icon>
         <span class="kpi-label">Ultimo movimiento</span>
         <strong class="kpi-value">{{ vm.ultimoMovimiento?.descripcion || 'Sin datos' }}</strong>
         <small>{{ vm.ultimoMovimiento?.fecha ? (vm.ultimoMovimiento?.fecha | date: 'dd/MM/yyyy') : 'Aun no registrado' }}</small>
@@ -132,18 +163,17 @@
         </div>
       </ng-container>
 
+      <div class="turn-filter-head">
+        <div><span class="section-kicker">Consultar turnos</span><strong>{{ getTurnosFiltrados(vm).length }} resultado(s)</strong></div>
+        <ion-button class="clear-turn-filters" fill="clear" size="small" (click)="clearTurnoFilters()" [disabled]="!hasTurnoFilters">
+          <ion-icon slot="start" name="refresh-outline" color="danger"></ion-icon>Limpiar filtros
+        </ion-button>
+      </div>
       <div class="filtros-turnos">
-        <ion-searchbar placeholder="Buscar turno, caja o usuario…" [value]="turnoSearch" (ionInput)="onTurnoSearchChange($any($event.detail).value)"></ion-searchbar>
-        <ion-item>
-          <ion-label>Estado</ion-label>
-          <ion-select [value]="turnoEstado" (ionChange)="onTurnoEstadoChange($any($event.detail).value)">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option value="abierto">Abierto</ion-select-option>
-            <ion-select-option value="cerrado">Cerrado</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item><ion-label position="stacked">Desde</ion-label><ion-input type="date" [value]="turnoFechaDesde" (ionInput)="onTurnoFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Hasta</ion-label><ion-input type="date" [value]="turnoFechaHasta" (ionInput)="onTurnoFechaHastaChange($any($event.detail).value)"></ion-input></ion-item>
+        <div class="turn-filter-field turn-search-field"><span>Búsqueda general</span><ion-searchbar placeholder="Turno, caja o usuario" [value]="turnoSearch" (ionInput)="onTurnoSearchChange($any($event.detail).value)" debounce="250"></ion-searchbar></div>
+        <div class="turn-filter-field"><span>Estado</span><ion-item><ion-select aria-label="Estado del turno" [value]="turnoEstado" (ionChange)="onTurnoEstadoChange($any($event.detail).value)"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="abierto">Abierto</ion-select-option><ion-select-option value="cerrado">Cerrado</ion-select-option></ion-select></ion-item></div>
+        <div class="turn-filter-field"><span>Fecha desde</span><ion-item><ion-input aria-label="Fecha desde" type="date" [value]="turnoFechaDesde" (ionInput)="onTurnoFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item></div>
+        <div class="turn-filter-field"><span>Fecha hasta</span><ion-item><ion-input aria-label="Fecha hasta" type="date" [value]="turnoFechaHasta" (ionInput)="onTurnoFechaHastaChange($any($event.detail).value)"></ion-input></ion-item></div>
       </div>
 
       <div class="panel-actions turnos-actions" *ngIf="getTurnosFiltrados(vm).length">
@@ -366,7 +396,7 @@
         </div>
       </div>
 
-      <div class="desktop-table" *ngIf="vm.recientes.length; else emptyMovimientos">
+      <div class="desktop-table recent-movements-table" *ngIf="vm.recientes.length; else emptyMovimientos">
         <table>
           <thead>
             <tr>

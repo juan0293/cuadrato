@@ -17,23 +17,29 @@
     <ion-icon name="chevron-down-outline"></ion-icon>
   </button>
 
-  <ion-modal [isOpen]="isOpen" (didDismiss)="close()" cssClass="premium-select-modal">
+  <ion-modal [isOpen]="isOpen" (didDismiss)="close()" [cssClass]="modalCssClass">
     <ng-template>
       <ion-content class="premium-modal-content ion-padding">
         <div class="modal-shell">
           <section class="modal-card">
-            <header class="card-header">
-              <div>
-                <h2>{{ label }}</h2>
+            <header class="card-header selector-modal-header">
+              <span class="selector-modal-icon"><ion-icon [name]="modalIcon" aria-hidden="true"></ion-icon></span>
+              <div class="selector-modal-heading">
+                <span class="selector-modal-eyebrow">{{ modalEyebrow }}</span>
+                <h2>Seleccionar {{ label }}</h2>
                 <p>{{ modalDescription }}</p>
               </div>
-              <ion-button fill="clear" (click)="close()">Cerrar</ion-button>
+              <ion-button class="selector-modal-close" fill="clear" (click)="close()" aria-label="Cerrar selector">
+                <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+              </ion-button>
             </header>
 
-            <ion-searchbar class="premium-search" [placeholder]="searchPlaceholder" (ionInput)="onSearch($event)"></ion-searchbar>
+            <div class="selector-search-wrap">
+              <ion-searchbar class="premium-search" [placeholder]="searchPlaceholder" (ionInput)="onSearch($event)"></ion-searchbar>
+            </div>
 
-            <div class="results-summary" *ngIf="totalResults">
-              <span>{{ totalResults }} resultado(s)</span>
+            <div class="results-summary">
+              <span>{{ totalResults }} resultado(s) disponible(s)</span>
               <small *ngIf="hasMoreResults">Mostrando los primeros {{ visibleItems.length }}. Refina la búsqueda para ver menos resultados.</small>
             </div>
 
@@ -56,6 +62,11 @@
                 <app-empty-state [title]="emptyText" message=""></app-empty-state>
               </ng-template>
             </div>
+
+            <footer class="selector-modal-footer" *ngIf="manageLabel">
+              <span>¿No encuentras el registro que necesitas?</span>
+              <ion-button fill="outline" (click)="triggerManage()">{{ manageLabel }}</ion-button>
+            </footer>
           </section>
         </div>
       </ion-content>

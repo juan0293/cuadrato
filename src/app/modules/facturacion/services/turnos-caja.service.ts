@@ -13,7 +13,21 @@ export class TurnosCajaService {
   constructor(private readonly afs: AngularFirestore) {}
 
   list(): Observable<TurnoCaja[]> {
-    return this.afs.collection<TurnoCaja>(this.collectionPath).valueChanges({ idField: 'id' });
+    // Se usa el SDK directo para mantener la suscripción fuera de las APIs
+    // compat que pueden fallar con NG0203 al entrar a Finanzas por lazy loading.
+    return new Observable<TurnoCaja[]>((subscriber) => {
+      const unsubscribe = this.afs.firestore.collection(this.collectionPath).onSnapshot(
+        (snapshot) => {
+          subscriber.next(snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as TurnoCaja),
+          })));
+        },
+        (error) => subscriber.error(error),
+      );
+
+      return () => unsubscribe();
+    });
   }
 
   async getTurnoAbierto(usuarioId: string, cajaId?: string): Promise<TurnoCaja | null> {

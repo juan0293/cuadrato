@@ -1,15 +1,12 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>Movimientos de inventario</ion-title>
-    <ion-buttons slot="end">
-      <ion-button routerLink="/admin/inventario/movimientos/nuevo">Nuevo</ion-button>
-    </ion-buttons>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="ion-padding">
-  <ion-list *ngIf="movimientos$ | async as movimientos">
-    <app-movimiento-inventario-card *ngFor="let movimiento of movimientos" [movimiento]="movimiento"></app-movimiento-inventario-card>
-    <ion-text color="medium" *ngIf="movimientos.length === 0">No hay movimientos registrados.</ion-text>
-  </ion-list>
+<ion-content class="inventario-module-page">
+  <main class="shell">
+    <section class="header">
+      <div><h1>Movimientos de inventario</h1><p>Consulta las entradas y salidas registradas.</p></div>
+      <ion-button class="btn-primary" routerLink="/admin/inventario/movimientos/nuevo"><ion-icon slot="start" name="add-outline"></ion-icon>Nuevo movimiento</ion-button>
+    </section>
+    <section class="card inventory-list-card" *ngIf="movimientos$ | async as movimientos">
+      <app-movimiento-inventario-card *ngFor="let movimiento of movimientos" [movimiento]="movimiento"></app-movimiento-inventario-card>
+      <app-empty-state *ngIf="movimientos.length === 0" title="Sin movimientos" message="No hay movimientos registrados."></app-empty-state>
+    </section>
+  </main>
 </ion-content>

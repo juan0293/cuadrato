@@ -1,12 +1,13 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
-import { AlertController, LoadingController, ToastController } from '@ionic/angular';
+import { ActionSheetController, AlertController, LoadingController, ToastController } from '@ionic/angular';
 import { Subscription, firstValueFrom } from 'rxjs';
 import * as XLSX from 'xlsx';
 import { AuthService } from '../../../../core/services/auth.service';
 import { CobroCuentaPorCobrar, CuentaPorCobrar, EstadoCuentaPorCobrar } from '../../models/cuenta-por-cobrar.model';
 import { CuentasPorCobrarService } from '../../services/cuentas-por-cobrar.service';
 import { AgendaService } from '../../../agenda/services/agenda.service';
+import { InventarioThemeService } from '../../../inventario/services/inventario-theme.service';
 
 @Component({
   selector: 'app-cuentas-por-cobrar',
@@ -48,11 +49,26 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
     private readonly loadingCtrl: LoadingController,
     private readonly toastCtrl: ToastController,
     private readonly alertCtrl: AlertController,
+    private readonly actionSheetCtrl: ActionSheetController,
     private readonly fb: FormBuilder,
     private readonly agendaService: AgendaService,
+    private readonly themeService: InventarioThemeService,
   ) {}
 
+  get inventoryTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  get hasActiveFilters(): boolean {
+    return Boolean(this.searchTerm.trim() || this.filtroEstado !== 'todos' || this.fechaDesde || this.fechaHasta);
+  }
+
+  toggleInventoryTheme(): void {
+    this.themeService.toggle();
+  }
+
   ngOnInit(): void {
+    this.themeService.initialize();
     this.sub.add(this.service.listEnriquecida().subscribe({
       next: (items) => {
         this.cuentas = items || [];
@@ -79,8 +95,13 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
   }
 
   get cuentasVencidas(): number {
-    const now = new Date().getTime();
-    return this.cuentas.filter((c) => new Date(c.fechaVencimiento).getTime() < now && this.toNumber(c.balancePendiente) > 0 && c.estado !== 'anulada').length;
+    return this.cuentas.filter((c) => this.getEstadoCuenta(c) === 'vencida').length;
+  }
+
+  get totalVencido(): number {
+    return this.cuentas
+      .filter((c) => this.getEstadoCuenta(c) === 'vencida')
+      .reduce((total, cuenta) => total + this.toNumber(cuenta.balancePendiente), 0);
   }
 
   get totalPages(): number {
@@ -98,7 +119,7 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
     const to = this.fechaHasta ? new Date(`${this.fechaHasta}T23:59:59`).getTime() : undefined;
 
     this.cuentasFiltradas = this.cuentas.filter((c) => {
-      if (this.filtroEstado !== 'todos' && c.estado !== this.filtroEstado) return false;
+      if (this.filtroEstado !== 'todos' && this.getEstadoCuenta(c) !== this.filtroEstado) return false;
       const fecha = new Date(c.fechaVencimiento).getTime();
       if (from !== undefined && Number.isFinite(fecha) && fecha < from) return false;
       if (to !== undefined && Number.isFinite(fecha) && fecha > to) return false;
@@ -106,6 +127,14 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
       return !q || this.normalize(target).includes(q);
     });
     this.page = 1;
+  }
+
+  clearFiltros(): void {
+    this.searchTerm = '';
+    this.filtroEstado = 'todos';
+    this.fechaDesde = '';
+    this.fechaHasta = '';
+    this.aplicarFiltros();
   }
 
   goPrevPage(): void {
@@ -156,7 +185,12 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
   }
 
   async registrarCobro(): Promise<void> {
-    if (!this.cuentaSeleccionada || this.cobroForm.invalid || this.saving) return;
+    if (this.saving || !this.cuentaSeleccionada) return;
+    if (this.cobroForm.invalid) {
+      this.cobroForm.markAllAsTouched();
+      await this.toast('Completa los campos obligatorios del cobro.', 'danger');
+      return;
+    }
 
     const raw = this.cobroForm.getRawValue();
     const monto = this.toNumber(raw.monto);
@@ -190,8 +224,8 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
         monto,
         metodoCobro: raw.metodoCobro,
         fechaCobro: new Date(raw.fechaCobro).toISOString(),
-        referencia: raw.referencia || undefined,
-        nota: raw.nota || undefined,
+        ...(raw.referencia.trim() ? { referencia: raw.referencia.trim() } : {}),
+        ...(raw.nota.trim() ? { nota: raw.nota.trim() } : {}),
         creadoPor: user?.uid || 'sistema',
         fechaCreacion: new Date().toISOString(),
       });
@@ -218,6 +252,7 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
 
   async anular(cuenta: CuentaPorCobrar): Promise<void> {
     const alert = await this.alertCtrl.create({
+      cssClass: 'inventory-confirm-alert',
       header: 'Anular cuenta por cobrar',
       message: 'Esta acción no elimina el registro y dejará la cuenta fuera de pendientes.',
       buttons: [
@@ -233,6 +268,41 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
       ],
     });
     await alert.present();
+  }
+
+  async openMobileActions(cuenta: CuentaPorCobrar): Promise<void> {
+    const estado = this.getEstadoCuenta(cuenta);
+    const buttons: Array<{ text: string; icon: string; role?: string; handler?: () => void }> = [];
+
+    if (estado !== 'pagada' && estado !== 'anulada' && this.toNumber(cuenta.balancePendiente) > 0) {
+      buttons.push({ text: 'Registrar cobro', icon: 'cash-outline', handler: () => this.abrirCobro(cuenta) });
+    }
+    if (estado !== 'anulada') {
+      buttons.push({ text: 'Anular cuenta', icon: 'ban-outline', role: 'destructive', handler: () => this.anular(cuenta) });
+    }
+    buttons.push({ text: 'Cerrar', icon: 'close-outline', role: 'cancel' });
+
+    const sheet = await this.actionSheetCtrl.create({
+      cssClass: 'inventory-actions-sheet',
+      header: `Factura ${cuenta.numeroFactura}`,
+      buttons,
+    });
+    await sheet.present();
+  }
+
+  getEstadoCuenta(cuenta: CuentaPorCobrar): EstadoCuentaPorCobrar {
+    if (cuenta.estado === 'anulada') return 'anulada';
+    if (this.toNumber(cuenta.balancePendiente) <= 0 || cuenta.estado === 'pagada') return 'pagada';
+    const vencimiento = new Date(cuenta.fechaVencimiento);
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+    if (!Number.isNaN(vencimiento.getTime()) && vencimiento.getTime() < hoy.getTime()) return 'vencida';
+    if (this.toNumber(cuenta.montoPagado) > 0 || cuenta.estado === 'parcial') return 'parcial';
+    return 'pendiente';
+  }
+
+  getEstadoBadgeClass(cuenta: CuentaPorCobrar): string {
+    return `estado-badge estado-badge--${this.getEstadoCuenta(cuenta)}`;
   }
 
   formatCurrency(v: number): string {

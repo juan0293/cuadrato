@@ -34,6 +34,7 @@ export interface CuentaPorPagar {
   fechaVencimiento: unknown;
   estado: EstadoCuentaPorPagar;
   moneda: string;
+  nota?: string;
   creadoPor: string;
   fechaCreacion: unknown;
   fechaAnulacion?: string;

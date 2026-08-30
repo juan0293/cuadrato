@@ -1,170 +1,109 @@
-<ion-content class="cxp-page">
-  <div class="shell ion-padding">
-    <section class="header">
-      <div class="header-copy">
-        <h1>Cuentas por cobrar</h1>
-        <p>Controla balances pendientes, abonos y cobros de tus clientes.</p>
+<ion-content class="cxc-page inventario-module-page" [class.theme-light]="inventoryTheme === 'light'" [class.theme-dark]="inventoryTheme === 'dark'">
+  <div class="shell cxc-shell">
+    <header class="header cxc-page-header">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="cash-outline" aria-hidden="true"></ion-icon></span>
+        <div><span class="eyebrow">Finanzas · Clientes</span><h1>Cuentas por cobrar</h1><p>Controla balances pendientes, vencimientos y cobros de tus clientes.</p></div>
       </div>
       <div class="header-actions">
-        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas">
-          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
-          Volver a finanzas
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleInventoryTheme()" [attr.aria-label]="inventoryTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'" [attr.aria-pressed]="inventoryTheme === 'dark'">
+          <ion-icon slot="start" [name]="inventoryTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ inventoryTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
         </ion-button>
+        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas"><ion-icon name="arrow-back-outline" slot="start"></ion-icon>Volver a finanzas</ion-button>
+        <ion-button class="btn-primary" (click)="exportarExcel()" [disabled]="!cuentasFiltradas.length"><ion-icon name="download-outline" slot="start"></ion-icon>Exportar Excel</ion-button>
       </div>
-    </section>
+    </header>
 
-    <section class="kpis-grid" *ngIf="!loading">
-      <article class="kpi-card"><span>Total por cobrar</span><strong>{{ formatCurrency(totalPorCobrar) }}</strong></article>
-      <article class="kpi-card"><span>Cuentas pendientes</span><strong>{{ cuentasPendientes }}</strong></article>
-      <article class="kpi-card"><span>Cuentas vencidas</span><strong class="is-danger">{{ cuentasVencidas }}</strong></article>
-    </section>
-
-    <section class="card filtros-card">
-      <div class="section-head">
-        <h3>Filtros</h3>
-        <p>Busca por cliente, factura y rango de vencimiento.</p>
-      </div>
-      <div class="filtros-grid">
-        <ion-item>
-          <ion-label position="stacked">Buscar</ion-label>
-          <ion-input [value]="searchTerm" (ionInput)="searchTerm = $any($event.detail).value || ''; aplicarFiltros()" placeholder="Cliente o número de factura"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Estado</ion-label>
-          <ion-select [value]="filtroEstado" (ionChange)="filtroEstado = $any($event.detail).value; aplicarFiltros()">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option value="pendiente">Pendiente</ion-select-option>
-            <ion-select-option value="parcial">Parcial</ion-select-option>
-            <ion-select-option value="pagada">Pagada</ion-select-option>
-            <ion-select-option value="vencida">Vencida</ion-select-option>
-            <ion-select-option value="anulada">Anulada</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Desde</ion-label>
-          <ion-input type="date" [value]="fechaDesde" (ionInput)="fechaDesde = $any($event.detail).value || ''; aplicarFiltros()"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Hasta</ion-label>
-          <ion-input type="date" [value]="fechaHasta" (ionInput)="fechaHasta = $any($event.detail).value || ''; aplicarFiltros()"></ion-input>
-        </ion-item>
-      </div>
-    </section>
-
-    <section class="card" *ngIf="!loading">
-      <div class="section-head">
-        <h3>Listado de cuentas</h3>
-        <ion-button color="primary" slot="end" fill="outline" (click)="exportarExcel()">Exportar Excel</ion-button>
-      </div>
-      <div class="table-wrap" *ngIf="cuentasFiltradas.length; else emptyState">
-        <table>
-          <thead>
-            <tr>
-              <th>Cliente</th>
-              <th>Factura</th>
-              <th>Emisión</th>
-              <th>Vencimiento</th>
-              <th>Original</th>
-              <th>Pagado</th>
-              <th>Pendiente</th>
-              <th>Estado</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let cuenta of cuentasPaginadas">
-              <td>{{ cuenta.clienteNombre }}</td>
-              <td>{{ cuenta.numeroFactura }}</td>
-              <td>{{ formatDate(cuenta.fechaEmision) }}</td>
-              <td>{{ formatDate(cuenta.fechaVencimiento) }}</td>
-              <td>{{ formatCurrency(cuenta.montoOriginal) }}</td>
-              <td>{{ formatCurrency(cuenta.montoPagado) }}</td>
-              <td>{{ formatCurrency(cuenta.balancePendiente) }}</td>
-              <td>{{ cuenta.estado | titlecase }}</td>
-              <td class="acciones">
-                <ion-button size="small" fill="clear" (click)="abrirCobro(cuenta)">Cobrar</ion-button>
-                <ion-button size="small" fill="clear" color="danger" (click)="anular(cuenta)">Anular</ion-button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="table-pagination">
-          <ion-button size="small" fill="outline" (click)="goPrevPage()" [disabled]="page === 1">Anterior</ion-button>
-          <span>Página {{ page }} de {{ totalPages }}</span>
-          <ion-button size="small" fill="outline" (click)="goNextPage()" [disabled]="page === totalPages">Siguiente</ion-button>
+    <section class="card filtros-card cxc-filters-card">
+      <div class="cxc-filters-header">
+        <div><span class="eyebrow">Consulta de cartera</span><h2>Filtra las cuentas</h2><p>Encuentra rápidamente los cobros que requieren seguimiento.</p></div>
+        <div class="cxc-filter-actions">
+          <div class="cxc-result"><span>Resultados</span><strong>{{ cuentasFiltradas.length }} {{ cuentasFiltradas.length === 1 ? 'cuenta' : 'cuentas' }}</strong></div>
+          <ion-button class="clear-filters-button" fill="clear" (click)="clearFiltros()" [disabled]="!hasActiveFilters"><ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros</ion-button>
         </div>
       </div>
-
-      <div class="mobile-cards" *ngIf="cuentasFiltradas.length">
-        <article class="mobile-item" *ngFor="let cuenta of cuentasPaginadas">
-          <div class="mobile-top">
-            <h3>{{ cuenta.clienteNombre }}</h3>
-            <span>{{ cuenta.estado | titlecase }}</span>
-          </div>
-          <p>Factura: {{ cuenta.numeroFactura }} · Vence: {{ formatDate(cuenta.fechaVencimiento) }}</p>
-          <strong>{{ formatCurrency(cuenta.balancePendiente) }}</strong>
-          <div class="mobile-actions">
-            <ion-button size="small" fill="clear" (click)="abrirCobro(cuenta)">Cobrar</ion-button>
-            <ion-button size="small" fill="clear" color="danger" (click)="anular(cuenta)">Anular</ion-button>
-          </div>
-        </article>
-        <div class="table-pagination">
-          <ion-button size="small" fill="outline" (click)="goPrevPage()" [disabled]="page === 1">Anterior</ion-button>
-          <span>Página {{ page }} de {{ totalPages }}</span>
-          <ion-button size="small" fill="outline" (click)="goNextPage()" [disabled]="page === totalPages">Siguiente</ion-button>
-        </div>
+      <div class="cxc-filter-grid">
+        <div class="cxc-filter-field cxc-search-field"><span>Cliente o factura</span><ion-searchbar placeholder="Nombre del cliente o número de factura" [value]="searchTerm" (ionInput)="searchTerm = $any($event.detail).value || ''; aplicarFiltros()" debounce="250"></ion-searchbar></div>
+        <div class="cxc-filter-field"><span>Estado</span><ion-item lines="none"><ion-select aria-label="Estado de la cuenta" [value]="filtroEstado" (ionChange)="filtroEstado = $any($event.detail).value; aplicarFiltros()" interface="popover"><ion-select-option value="todos">Todos los estados</ion-select-option><ion-select-option value="pendiente">Pendiente</ion-select-option><ion-select-option value="parcial">Parcial</ion-select-option><ion-select-option value="pagada">Pagada</ion-select-option><ion-select-option value="vencida">Vencida</ion-select-option><ion-select-option value="anulada">Anulada</ion-select-option></ion-select></ion-item></div>
+        <div class="cxc-filter-field"><span>Vence desde</span><ion-item lines="none"><ion-input aria-label="Vencimiento desde" type="date" [value]="fechaDesde" [max]="fechaHasta || undefined" (ionChange)="fechaDesde = $any($event.detail).value || ''; aplicarFiltros()"></ion-input></ion-item></div>
+        <div class="cxc-filter-field"><span>Vence hasta</span><ion-item lines="none"><ion-input aria-label="Vencimiento hasta" type="date" [value]="fechaHasta" [min]="fechaDesde || undefined" (ionChange)="fechaHasta = $any($event.detail).value || ''; aplicarFiltros()"></ion-input></ion-item></div>
       </div>
     </section>
 
-    <ng-template #emptyState>
-      <app-empty-state title="Sin cuentas por cobrar" message="No encontramos registros con los filtros seleccionados."></app-empty-state>
-    </ng-template>
+    <section class="cxc-section" *ngIf="!loading">
+      <div class="cxc-section-title"><span class="eyebrow">Resumen ejecutivo</span><h2>Estado de la cartera</h2><p>Consulta el saldo pendiente y las cuentas que requieren atención.</p></div>
+      <div class="kpis-grid">
+        <article class="kpi-card"><ion-icon name="wallet-outline"></ion-icon><span>Total por cobrar</span><strong>{{ formatCurrency(totalPorCobrar) }}</strong></article>
+        <article class="kpi-card"><ion-icon name="alert-circle-outline"></ion-icon><span>Total vencido</span><strong class="is-danger">{{ formatCurrency(totalVencido) }}</strong></article>
+        <article class="kpi-card"><ion-icon name="document-text-outline"></ion-icon><span>Cuentas pendientes</span><strong>{{ cuentasPendientes }}</strong></article>
+        <article class="kpi-card"><ion-icon name="calendar-clear-outline"></ion-icon><span>Cuentas vencidas</span><strong class="is-danger">{{ cuentasVencidas }}</strong></article>
+      </div>
+    </section>
+
+    <section class="card cxc-loading-card" *ngIf="loading"><ion-spinner name="crescent"></ion-spinner><div><strong>Cargando cuentas</strong><span>Estamos preparando la cartera de clientes.</span></div></section>
+
+    <section class="cxc-section" *ngIf="!loading">
+      <div class="cxc-section-title cxc-list-title">
+        <div><span class="eyebrow">Control operativo</span><h2>Detalle de cuentas</h2><p>Revisa balances, fechas de vencimiento y acciones disponibles.</p></div>
+        <span class="cxc-page-size">{{ cuentasPaginadas.length }} en esta página</span>
+      </div>
+      <section class="card cxc-table-card">
+        <ng-container *ngIf="cuentasFiltradas.length; else emptyState">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Cliente</th><th>Factura</th><th>Emisión</th><th>Vencimiento</th><th>Original</th><th>Cobrado</th><th>Pendiente</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let cuenta of cuentasPaginadas">
+                  <td><div class="client-cell"><strong>{{ cuenta.clienteNombre }}</strong><small *ngIf="cuenta.clienteDocumento">{{ cuenta.clienteDocumento }}</small></div></td>
+                  <td>{{ cuenta.numeroFactura }}</td><td>{{ formatDate(cuenta.fechaEmision) }}</td><td>{{ formatDate(cuenta.fechaVencimiento) }}</td><td>{{ formatCurrency(cuenta.montoOriginal) }}</td><td>{{ formatCurrency(cuenta.montoPagado) }}</td><td><strong>{{ formatCurrency(cuenta.balancePendiente) }}</strong></td>
+                  <td><span [class]="getEstadoBadgeClass(cuenta)">{{ getEstadoCuenta(cuenta) | titlecase }}</span></td>
+                  <td class="acciones"><ion-button size="small" fill="clear" (click)="abrirCobro(cuenta)" [disabled]="getEstadoCuenta(cuenta) === 'pagada' || getEstadoCuenta(cuenta) === 'anulada'">Cobrar</ion-button><ion-button size="small" fill="clear" color="danger" (click)="anular(cuenta)" [disabled]="getEstadoCuenta(cuenta) === 'anulada'">Anular</ion-button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="mobile-cards">
+            <article class="mobile-item" *ngFor="let cuenta of cuentasPaginadas">
+              <div class="mobile-top"><div><h3>{{ cuenta.clienteNombre }}</h3><p>Factura {{ cuenta.numeroFactura }}</p></div><span [class]="getEstadoBadgeClass(cuenta)">{{ getEstadoCuenta(cuenta) | titlecase }}</span></div>
+              <div class="mobile-balance"><span>Balance pendiente</span><strong>{{ formatCurrency(cuenta.balancePendiente) }}</strong></div>
+              <p><ion-icon name="calendar-outline"></ion-icon> Vence {{ formatDate(cuenta.fechaVencimiento) }}</p>
+              <ion-button class="mobile-actions-trigger" size="small" fill="outline" (click)="openMobileActions(cuenta)"><ion-icon slot="start" name="ellipsis-horizontal-circle-outline"></ion-icon>Ver opciones</ion-button>
+            </article>
+          </div>
+          <div class="table-pagination"><ion-button size="small" fill="outline" (click)="goPrevPage()" [disabled]="page === 1"><ion-icon slot="start" name="chevron-back-outline"></ion-icon>Anterior</ion-button><span>Página <strong>{{ page }}</strong> de {{ totalPages }}</span><ion-button size="small" fill="outline" (click)="goNextPage()" [disabled]="page === totalPages">Siguiente<ion-icon slot="end" name="chevron-forward-outline"></ion-icon></ion-button></div>
+        </ng-container>
+      </section>
+    </section>
+
+    <ng-template #emptyState><app-empty-state title="Sin cuentas por cobrar" message="No encontramos registros con los filtros seleccionados."></app-empty-state></ng-template>
   </div>
 
-  <ion-modal [isOpen]="modalCobroOpen" (didDismiss)="cerrarCobro()" cssClass="premium-select-modal fin-categoria-modal small-modal">
+  <ion-modal [isOpen]="modalCobroOpen" (didDismiss)="cerrarCobro()" cssClass="premium-select-modal cxp-account-modal cxc-collection-modal">
     <ng-template>
-      <ion-content class="premium-modal-content ion-padding">
-        <div class="modal-shell">
-          <section class="modal-card">
-            <header class="card-header">
-              <div>
-                <h2>Registrar cobro</h2>
-                <p>Registra un abono para reducir el balance pendiente.</p>
+      <ion-content class="premium-modal-content cxp-modal-content">
+        <div class="modal-shell"><section class="modal-card">
+          <header class="cxp-modal-header">
+            <div class="cxp-modal-heading"><span class="cxp-modal-icon" aria-hidden="true"><ion-icon name="cash-outline"></ion-icon></span><div><span class="cxp-modal-eyebrow">Aplicar movimiento</span><h2>Registrar cobro</h2><p>Registra un abono para actualizar el balance pendiente del cliente.</p></div></div>
+            <ion-button class="cxp-modal-close" fill="clear" (click)="cerrarCobro()" aria-label="Cerrar registro de cobro"><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+          </header>
+          <form class="cxp-account-form" [formGroup]="cobroForm" (ngSubmit)="registrarCobro()">
+            <section class="cxp-form-section" *ngIf="cuentaSeleccionada as cuenta">
+              <div class="cxp-section-header"><span class="cxp-section-icon" aria-hidden="true"><ion-icon name="person-outline"></ion-icon></span><div><h3>Cuenta seleccionada</h3><p>Confirma el cliente y el balance antes de registrar el cobro.</p></div></div>
+              <div class="cxc-account-summary"><div><span>Cliente</span><strong>{{ cuenta.clienteNombre }}</strong></div><div><span>Factura</span><strong>{{ cuenta.numeroFactura }}</strong></div><div class="is-balance"><span>Balance pendiente</span><strong>{{ formatCurrency(cuenta.balancePendiente) }}</strong></div></div>
+            </section>
+            <section class="cxp-form-section">
+              <div class="cxp-section-header"><span class="cxp-section-icon" aria-hidden="true"><ion-icon name="receipt-outline"></ion-icon></span><div><h3>Información del cobro</h3><p>Completa el importe, método y fecha de la transacción.</p></div></div>
+              <div class="cxp-form-grid">
+                <label class="cxp-form-field"><span>Monto cobrado <em>*</em></span><ion-item lines="none"><ion-input type="number" min="0.01" step="0.01" inputmode="decimal" formControlName="monto" placeholder="0.00"></ion-input></ion-item><small class="field-error" *ngIf="cobroForm.controls.monto.touched && cobroForm.controls.monto.invalid">Ingresa un monto mayor a cero.</small></label>
+                <label class="cxp-form-field"><span>Método de cobro <em>*</em></span><ion-item lines="none"><ion-select formControlName="metodoCobro" interface="popover" aria-label="Método de cobro"><ion-select-option *ngFor="let metodo of metodosCobro" [value]="metodo">{{ metodo | titlecase }}</ion-select-option></ion-select></ion-item></label>
+                <label class="cxp-form-field"><span>Fecha de cobro <em>*</em></span><ion-item lines="none"><ion-input type="date" formControlName="fechaCobro"></ion-input></ion-item><small class="field-error" *ngIf="cobroForm.controls.fechaCobro.touched && cobroForm.controls.fechaCobro.invalid">Selecciona la fecha del cobro.</small></label>
+                <label class="cxp-form-field"><span>Referencia <small>Opcional</small></span><ion-item lines="none"><ion-input formControlName="referencia" placeholder="Ej. TRANS-001"></ion-input></ion-item></label>
+                <label class="cxp-form-field cxp-field-wide"><span>Nota <small>Opcional</small></span><ion-item class="cxp-textarea-item" lines="none"><ion-textarea formControlName="nota" rows="3" autoGrow="true" placeholder="Agrega un detalle útil para el seguimiento."></ion-textarea></ion-item></label>
               </div>
-              <ion-button fill="clear" (click)="cerrarCobro()">Cerrar</ion-button>
-            </header>
-
-            <form class="grid" [formGroup]="cobroForm">
-              <ion-item>
-                <ion-label position="stacked">Monto cobrado</ion-label>
-                <ion-input type="number" formControlName="monto"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Método de cobro</ion-label>
-                <ion-select formControlName="metodoCobro">
-                  <ion-select-option *ngFor="let metodo of metodosCobro" [value]="metodo">{{ metodo | titlecase }}</ion-select-option>
-                </ion-select>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Fecha de cobro</ion-label>
-                <ion-input type="date" formControlName="fechaCobro"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Referencia</ion-label>
-                <ion-input formControlName="referencia"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Nota</ion-label>
-                <ion-input formControlName="nota"></ion-input>
-              </ion-item>
-            </form>
-
-            <div class="actions">
-              <ion-button fill="clear" (click)="cerrarCobro()">Cancelar</ion-button>
-              <ion-button class="btn-primary" [disabled]="saving" (click)="registrarCobro()">Registrar cobro</ion-button>
-            </div>
-          </section>
-        </div>
+            </section>
+            <footer class="cxp-modal-actions"><p><span>*</span> Campos obligatorios</p><div><ion-button class="cxp-cancel-button" fill="outline" type="button" (click)="cerrarCobro()">Cancelar</ion-button><ion-button class="cxp-save-button" type="submit" [disabled]="saving"><ion-spinner *ngIf="saving" name="crescent"></ion-spinner><ion-icon *ngIf="!saving" slot="start" name="checkmark-circle-outline"></ion-icon>{{ saving ? 'Registrando…' : 'Registrar cobro' }}</ion-button></div></footer>
+          </form>
+        </section></div>
       </ion-content>
     </ng-template>
   </ion-modal>
