@@ -1,7 +1,6 @@
 import { Component } from '@angular/core';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { AngularFirestore } from '@angular/fire/compat/firestore';
-import { MenuController } from '@ionic/angular';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import { map, Observable } from 'rxjs';
 import { firstValueFrom } from 'rxjs';
@@ -13,6 +12,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { AuthFacadeService } from '../../auth/services/auth-facade.service';
 import { buildUserIdentityLabel } from '../../auth/helpers/auth.helper';
 import { Router } from '@angular/router';
+import { AdminShellThemeService } from '../../../core/services/admin-shell-theme.service';
 
 @Component({
   standalone: false,
@@ -32,10 +32,20 @@ export class PerfilPage {
     private readonly auth: AngularFireAuth,
     private readonly firestore: AngularFirestore,
     private readonly router: Router,
-    private readonly menuCtrl: MenuController,
     private readonly firestoreBase: FirestoreBaseService,
     private readonly toastService: ToastService,
-  ) {}
+    private readonly themeService: AdminShellThemeService,
+  ) {
+    this.themeService.initialize();
+  }
+
+  get shellTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleShellTheme(): void {
+    this.themeService.toggle();
+  }
 
   identityLabel(profile: Usuario | null): string {
     return buildUserIdentityLabel(profile);
@@ -43,10 +53,6 @@ export class PerfilPage {
 
   async logout(): Promise<void> {
     await this.authFacade.logout();
-  }
-
-  async openMenu(): Promise<void> {
-    await this.menuCtrl.open('admin-menu');
   }
 
   async goCompanyProfile(): Promise<void> {
@@ -62,6 +68,10 @@ export class PerfilPage {
       .slice(0, 2)
       .map((item) => item[0]?.toUpperCase() ?? '')
       .join('');
+  }
+
+  isProfileActive(profile: Usuario | null): boolean {
+    return profile?.status !== 'inactive' && profile?.activo !== false;
   }
 
   async onPhotoSelected(event: Event): Promise<void> {

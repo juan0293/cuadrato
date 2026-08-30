@@ -7,6 +7,7 @@ import { LoadingService } from '../../../core/services/loading.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { resolveHomeByRole } from '../../../core/helpers/auth.helper';
+import { AdminShellThemeService } from '../../../core/services/admin-shell-theme.service';
 
 @Component({
   standalone: false,
@@ -32,7 +33,18 @@ export class AuthPage implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly loadingService: LoadingService,
     private readonly toastService: ToastService,
-  ) {}
+    private readonly themeService: AdminShellThemeService,
+  ) {
+    this.themeService.initialize();
+  }
+
+  get shellTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleShellTheme(): void {
+    this.themeService.toggle();
+  }
 
   ngOnInit(): void {
     this.sub.add(

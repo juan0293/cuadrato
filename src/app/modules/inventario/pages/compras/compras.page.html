@@ -32,80 +32,66 @@
       <article class="kpi-card kpi-card--warning"><ion-icon name="time-outline"></ion-icon><span>Cuentas por pagar</span><strong>{{ formatMoney(kpiCxp) }}</strong></article>
     </section>
 
-    <section class="card filters">
+    <section class="card filters purchase-filters">
       <div class="filters-header">
-        <div><span class="eyebrow">Explorar compras</span><h2>Buscar y filtrar</h2><p>Refina por proveedor, estado, condición y rango de fechas.</p></div>
-        <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters">
-          <ion-icon slot="start" name="refresh-outline" color="danger"></ion-icon>Limpiar filtros
-        </ion-button>
+        <div><span class="section-kicker">Consulta de compras</span><h2>Filtra las compras</h2><p>Selecciona uno o varios criterios para obtener una vista más precisa.</p></div>
+        <div class="filters-status-actions">
+          <div class="filter-result"><span class="filter-status-label">Resultados</span><strong>{{ comprasFiltradas.length }} {{ comprasFiltradas.length === 1 ? 'compra' : 'compras' }}</strong></div>
+          <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters">
+            <ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros
+          </ion-button>
+        </div>
       </div>
 
       <div class="catalog-filter-grid purchase-filter-grid">
-        <div class="catalog-filter-field catalog-search-field">
-          <span>Búsqueda general</span>
-          <ion-searchbar placeholder="Proveedor, RNC, NCF, factura o estado" [value]="query"
-            (ionInput)="onSearch($any($event.detail).value)" debounce="250"></ion-searchbar>
-        </div>
-        <div class="catalog-filter-field provider-filter-field">
-          <app-searchable-select
-            label="Proveedor"
-            placeholder="Todos los proveedores"
-            [items]="proveedores"
-            displayKey="nombre"
-            valueKey="id"
-            [searchKeys]="['nombre','rnc','telefono','email']"
-            [selectedId]="filtroProveedorId"
-            modalCssClass="premium-select-modal inventory-selector-modal inventory-provider-selector-modal"
-            modalIcon="people-outline"
-            modalEyebrow="Compras · Proveedores"
-            modalDescription="Selecciona un proveedor para filtrar el historial de compras."
-            searchPlaceholder="Buscar por nombre, RNC, teléfono o correo..."
-            descriptionKey="rnc"
-            [metaKeys]="['telefono','email']"
-            (selected)="onProveedorFilterSelected($event)">
-          </app-searchable-select>
-        </div>
-        <div class="catalog-filter-field">
-          <span>Fecha desde</span>
-          <ion-item>
-            <ion-input aria-label="Fecha desde" type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
-          </ion-item>
-        </div>
-        <div class="catalog-filter-field">
-          <span>Fecha hasta</span>
-          <ion-item>
-            <ion-input aria-label="Fecha hasta" type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
-          </ion-item>
-        </div>
-        <div class="catalog-filter-field">
-          <span>Estado</span>
-          <ion-item>
-            <ion-select aria-label="Estado de la compra" [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
-              <ion-select-option value="todos">Todos</ion-select-option>
-              <ion-select-option value="borrador">Borrador</ion-select-option>
-              <ion-select-option value="confirmada">Confirmada</ion-select-option>
-              <ion-select-option value="anulada">Anulada</ion-select-option>
-            </ion-select>
-          </ion-item>
-        </div>
-        <div class="catalog-filter-field">
-          <span>Condición</span>
-          <ion-item>
-            <ion-select aria-label="Condición de pago" [value]="filtroCondicion" (ionChange)="onCondicionChange($any($event.detail).value)" interface="popover">
-              <ion-select-option value="todas">Todas</ion-select-option>
-              <ion-select-option value="contado">Contado</ion-select-option>
-              <ion-select-option value="credito">Crédito</ion-select-option>
-            </ion-select>
-          </ion-item>
-        </div>
+          <div class="catalog-filter-field catalog-search-field">
+            <span>Proveedor, factura o comprobante</span>
+            <ion-searchbar placeholder="Buscar por proveedor, RNC, NCF o factura" [value]="query"
+              (ionInput)="onSearch($any($event.detail).value)" debounce="250"></ion-searchbar>
+          </div>
+          <div class="catalog-filter-field provider-filter-field">
+            <app-searchable-select
+              label="Proveedor"
+              placeholder="Todos los proveedores"
+              [items]="proveedores"
+              displayKey="nombre"
+              valueKey="id"
+              [searchKeys]="['nombre','rnc','telefono','email']"
+              [selectedId]="filtroProveedorId"
+              modalCssClass="premium-select-modal inventory-selector-modal inventory-provider-selector-modal"
+              modalIcon="people-outline"
+              modalEyebrow="Compras · Proveedores"
+              modalDescription="Selecciona un proveedor para filtrar el historial de compras."
+              searchPlaceholder="Buscar por nombre, RNC, teléfono o correo..."
+              descriptionKey="rnc"
+              [metaKeys]="['telefono','email']"
+              (selected)="onProveedorFilterSelected($event)">
+            </app-searchable-select>
+          </div>
+          <div class="catalog-filter-field purchase-date-field">
+            <span>Emitida desde</span>
+            <ion-item lines="none"><ion-input aria-label="Fecha desde" type="date" [value]="filtroFechaDesde" [max]="filtroFechaHasta || undefined" (ionChange)="onFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item>
+          </div>
+          <div class="catalog-filter-field purchase-date-field">
+            <span>Emitida hasta</span>
+            <ion-item lines="none"><ion-input aria-label="Fecha hasta" type="date" [value]="filtroFechaHasta" [min]="filtroFechaDesde || undefined" (ionChange)="onFechaHastaChange($any($event.detail).value)"></ion-input></ion-item>
+          </div>
+          <div class="catalog-filter-field">
+            <span>Estado</span>
+            <ion-item lines="none"><ion-select aria-label="Estado de la compra" [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos los estados</ion-select-option><ion-select-option value="borrador">Borrador</ion-select-option><ion-select-option value="confirmada">Confirmada</ion-select-option><ion-select-option value="anulada">Anulada</ion-select-option></ion-select></ion-item>
+          </div>
+          <div class="catalog-filter-field">
+            <span>Condición de pago</span>
+            <ion-item lines="none"><ion-select aria-label="Condición de pago" [value]="filtroCondicion" (ionChange)="onCondicionChange($any($event.detail).value)" interface="popover"><ion-select-option value="todas">Todas las condiciones</ion-select-option><ion-select-option value="contado">Contado</ion-select-option><ion-select-option value="credito">Crédito</ion-select-option></ion-select></ion-item>
+          </div>
       </div>
 
-      <div class="filter-actions">
-        <ion-button class="btn-filter-secondary" fill="outline" size="small" (click)="verAnuladas()">
+      <div class="filter-feedback purchase-filter-feedback">
+        <div><ion-icon name="information-circle-outline"></ion-icon><span>Los indicadores y el historial se actualizan automáticamente.</span></div>
+        <ion-button class="btn-filter-secondary" fill="outline" size="small" (click)="verAnuladas()" [class.is-active]="filtroEstado === 'anulada'">
           <ion-icon slot="start" name="ban-outline"></ion-icon>
-          Ver anuladas
+          Solo anuladas
         </ion-button>
-        <span>{{ comprasFiltradas.length }} resultado(s) con los filtros actuales</span>
       </div>
     </section>
 

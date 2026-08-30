@@ -61,6 +61,14 @@ export class AdminLayoutPage {
       .join('');
   }
 
+  getRoleLabel(role?: AppRole): string {
+    const normalized = this.normalizeRole((role || 'artist') as AppRole);
+    if (normalized === 'superadmin') return 'Superadministrador';
+    if (normalized === 'admin') return 'Administrador';
+    if (normalized === 'assistant') return 'Asistente';
+    return 'Artista';
+  }
+
   canAccess(item: AdminMenuItem, role: AppRole): boolean {
     return item.roles.includes(role);
   }

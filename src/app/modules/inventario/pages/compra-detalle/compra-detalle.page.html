@@ -1,44 +1,100 @@
 <ion-content class="compra-detalle-page inventario-module-page">
-  <div class="shell ion-padding" *ngIf="compra$ | async as compra">
-    <section class="header">
-      <div>
-        <h1>Compra {{ compra.numeroFactura }}</h1>
-        <p>{{ compra.proveedorNombre }} · {{ compra.condicionPago | titlecase }}</p>
+  <div class="shell ion-padding" *ngIf="compra$ | async as compra; else loadingState">
+    <section class="header detail-header">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="receipt-outline" aria-hidden="true"></ion-icon></span>
+        <div class="header-copy">
+          <span class="eyebrow">Inventario · Compras</span>
+          <h1>Detalle de compra</h1>
+          <p>Factura {{ compra.numeroFactura || 'sin número' }} · {{ compra.proveedorNombre }}</p>
+        </div>
       </div>
-      <div class="actions">
-        <ion-button fill="outline" (click)="volverACompras()">
-          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
-          Volver a compras
-        </ion-button>
-        <ion-button fill="outline" [routerLink]="['/admin/inventario/ecf-preview', compra.id]">Ver e-CF draft</ion-button>
-        <ion-button
-          *ngIf="compra.estado === 'borrador'"
-          class="btn-primary"
-          (click)="confirmar()">
-          Confirmar compra
+      <div class="header-actions">
+        <ion-button class="btn-secondary" fill="outline" (click)="volverACompras()"><ion-icon slot="start" name="arrow-back-outline"></ion-icon>Volver a compras</ion-button>
+        <ion-button class="btn-outline" fill="outline" [routerLink]="['/admin/inventario/ecf-preview', compra.id]"><ion-icon slot="start" name="document-text-outline"></ion-icon>Vista previa e-CF</ion-button>
+        <ion-button *ngIf="compra.estado === 'borrador'" class="btn-primary" (click)="confirmar()" [disabled]="confirming">
+          <ion-spinner *ngIf="confirming" slot="start" name="crescent"></ion-spinner>
+          <ion-icon *ngIf="!confirming" slot="start" name="checkmark-circle-outline"></ion-icon>{{ confirming ? 'Confirmando...' : 'Confirmar compra' }}
         </ion-button>
       </div>
     </section>
 
-    <section class="card">
-      <div class="summary">
-        <ion-chip [color]="compra.estado === 'confirmada' ? 'success' : compra.estado === 'anulada' ? 'danger' : 'warning'">
-          <ion-label>{{ compra.estado | titlecase }}</ion-label>
-        </ion-chip>
-        <span>Afecta inventario: {{ compra.afectaInventario ? 'Sí' : 'No' }}</span>
-        <span>NCF: {{ compra.ncf || 'N/A' }}</span>
+    <section class="card purchase-overview">
+      <header class="section-head overview-head">
+        <div><span class="section-kicker">Resumen operativo</span><h2>{{ compra.proveedorNombre }}</h2><p>Información fiscal, condiciones y trazabilidad del documento.</p></div>
+        <span class="status-badge" [class.status-badge--confirmed]="compra.estado === 'confirmada'" [class.status-badge--voided]="compra.estado === 'anulada'" [class.status-badge--draft]="compra.estado === 'borrador'">
+          <ion-icon [name]="compra.estado === 'confirmada' ? 'checkmark-circle-outline' : compra.estado === 'anulada' ? 'ban-outline' : 'time-outline'"></ion-icon>{{ compra.estado | titlecase }}
+        </span>
+      </header>
+
+      <div class="metadata-grid">
+        <article class="metadata-item"><span class="metadata-icon"><ion-icon name="business-outline"></ion-icon></span><div><small>Proveedor</small><strong>{{ compra.proveedorNombre }}</strong><p>RNC: {{ compra.proveedorRnc || 'No registrado' }}</p></div></article>
+        <article class="metadata-item"><span class="metadata-icon"><ion-icon name="document-text-outline"></ion-icon></span><div><small>Comprobante</small><strong>{{ compra.ncf || 'Sin NCF' }}</strong><p>Factura: {{ compra.numeroFactura || 'Sin número' }}</p></div></article>
+        <article class="metadata-item"><span class="metadata-icon"><ion-icon name="calendar-outline"></ion-icon></span><div><small>Fecha de emisión</small><strong>{{ formatDate(compra.fechaEmision) }}</strong><p>{{ compra.fechaVencimiento ? 'Vence: ' + formatDate(compra.fechaVencimiento) : 'Sin vencimiento definido' }}</p></div></article>
+        <article class="metadata-item"><span class="metadata-icon"><ion-icon name="wallet-outline"></ion-icon></span><div><small>Condición de pago</small><strong>{{ compra.condicionPago | titlecase }}</strong><p>{{ compra.moneda }}<ng-container *ngIf="compra.tasaCambio"> · Tasa {{ compra.tasaCambio | number:'1.2-4' }}</ng-container></p></div></article>
       </div>
 
-      <div class="items">
-        <app-compra-item-row *ngFor="let item of compra.items" [item]="item"></app-compra-item-row>
+      <div class="inventory-impact" [class.inventory-impact--inactive]="!compra.afectaInventario">
+        <ion-icon [name]="compra.afectaInventario ? 'cube-outline' : 'remove-circle-outline'"></ion-icon>
+        <div><strong>{{ compra.afectaInventario ? 'Esta compra afecta el inventario' : 'Esta compra no afecta el inventario' }}</strong><span>{{ compra.afectaInventario ? (compra.inventarioAfectado ? 'La entrada de existencias ya fue aplicada.' : 'La entrada se aplicará al confirmar la compra.') : 'Los productos no modificarán las existencias disponibles.' }}</span></div>
+      </div>
+    </section>
+
+    <section class="kpis detail-kpis">
+      <article class="kpi-card kpi-card--primary"><ion-icon name="cash-outline"></ion-icon><span>Total de la compra</span><strong>{{ formatMoney(compra.total, compra.moneda) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="layers-outline"></ion-icon><span>Líneas registradas</span><strong>{{ compra.items.length }}</strong></article>
+      <article class="kpi-card"><ion-icon name="calculator-outline"></ion-icon><span>ITBIS</span><strong>{{ formatMoney(compra.totalItbis, compra.moneda) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="pricetag-outline"></ion-icon><span>Descuento</span><strong>{{ formatMoney(compra.totalDescuento, compra.moneda) }}</strong></article>
+    </section>
+
+    <section class="card items-card">
+      <header class="section-head items-head"><div><span class="section-kicker">Productos y servicios</span><h2>Detalle de partidas</h2><p>{{ compra.items.length }} {{ compra.items.length === 1 ? 'línea registrada' : 'líneas registradas' }} en esta compra.</p></div></header>
+
+      <div class="desktop-items-table">
+        <table>
+          <thead><tr><th>Producto o servicio</th><th>Tipo</th><th class="num">Cantidad</th><th class="num">Costo unitario</th><th class="num">ITBIS</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            <tr *ngFor="let item of compra.items; let index = index">
+              <td><div class="product-cell"><span>{{ index + 1 }}</span><div><strong>{{ item.nombre }}</strong><small>{{ item.codigoInterno || 'Sin código' }}<ng-container *ngIf="item.categoriaNombre"> · {{ item.categoriaNombre }}</ng-container></small></div></div></td>
+              <td><span class="type-badge">{{ item.tipoItem | titlecase }}</span></td>
+              <td class="num">{{ item.cantidad | number:'1.0-2' }}<small *ngIf="item.unidadMedidaCodigo"> {{ item.unidadMedidaCodigo }}</small></td>
+              <td class="num">{{ formatMoney(item.costoUnitario, compra.moneda) }}</td>
+              <td class="num">{{ formatMoney(item.montoItbis, compra.moneda) }}<small class="tax-rate">{{ item.tasaItbis }}%</small></td>
+              <td class="num line-total">{{ formatMoney(item.total, compra.moneda) }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <div class="totals">
-        <span>Subtotal: {{ compra.subtotal | currency:'USD':'symbol':'1.2-2' }}</span>
-        <span>ITBIS: {{ compra.totalItbis | currency:'USD':'symbol':'1.2-2' }}</span>
-        <span>Total impuestos adicionales: {{ compra.totalImpuestosAdicionales | currency:'USD':'symbol':'1.2-2' }}</span>
-        <strong>Total: {{ compra.total | currency:'USD':'symbol':'1.2-2' }}</strong>
+      <div class="mobile-items">
+        <article class="mobile-item-card" *ngFor="let item of compra.items; let index = index">
+          <header><span class="line-number">{{ index + 1 }}</span><div><h3>{{ item.nombre }}</h3><p>{{ item.codigoInterno || 'Sin código' }} · {{ item.tipoItem | titlecase }}</p></div><strong>{{ formatMoney(item.total, compra.moneda) }}</strong></header>
+          <div class="mobile-item-metrics">
+            <span><small>Cantidad</small><strong>{{ item.cantidad | number:'1.0-2' }} {{ item.unidadMedidaCodigo || '' }}</strong></span>
+            <span><small>Costo unitario</small><strong>{{ formatMoney(item.costoUnitario, compra.moneda) }}</strong></span>
+            <span><small>ITBIS {{ item.tasaItbis }}%</small><strong>{{ formatMoney(item.montoItbis, compra.moneda) }}</strong></span>
+          </div>
+        </article>
       </div>
+
+      <footer class="purchase-totals">
+        <div class="totals-note"><ion-icon name="information-circle-outline"></ion-icon><span>Los valores corresponden al documento registrado y se muestran en {{ compra.moneda }}.</span></div>
+        <dl>
+          <div><dt>Subtotal</dt><dd>{{ formatMoney(compra.subtotal, compra.moneda) }}</dd></div>
+          <div *ngIf="compra.totalDescuento > 0"><dt>Descuento</dt><dd>- {{ formatMoney(compra.totalDescuento, compra.moneda) }}</dd></div>
+          <div><dt>ITBIS</dt><dd>{{ formatMoney(compra.totalItbis, compra.moneda) }}</dd></div>
+          <div><dt>Impuestos adicionales</dt><dd>{{ formatMoney(compra.totalImpuestosAdicionales, compra.moneda) }}</dd></div>
+          <div class="grand-total"><dt>Total</dt><dd>{{ formatMoney(compra.total, compra.moneda) }}</dd></div>
+        </dl>
+      </footer>
     </section>
   </div>
+
+  <ng-template #loadingState>
+    <div class="shell ion-padding detail-loading">
+      <section class="header"><ion-skeleton-text animated class="skeleton-title"></ion-skeleton-text></section>
+      <section class="card"><app-skeleton-card></app-skeleton-card></section>
+      <section class="card"><app-skeleton-card></app-skeleton-card></section>
+    </div>
+  </ng-template>
 </ion-content>

@@ -13,10 +13,8 @@
 .filters-header p, .purchase-results-head p { margin: 4px 0 0; color: var(--inv-muted); font-size: 13px; }
 .clear-filters-button { --color: var(--inv-primary); margin: 0; }
 .clear-filters-button[disabled] { --color: var(--inv-muted); opacity: .55; }
-.purchase-filter-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.purchase-filter-grid .catalog-search-field, .provider-filter-field { grid-column: span 2; }
-.filter-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 2px; color: var(--inv-muted); font-size: 12px; }
 .btn-filter-secondary { --border-color: #fda29b; --color: #d92d20; --border-radius: 8px; margin: 0; }
+.btn-filter-secondary.is-active { --background: #fef3f2; }
 
 .purchase-results-card { display: grid; gap: 14px; }
 .purchase-results-head { align-items: center; padding-bottom: 13px; border-bottom: 1px solid var(--inv-border); }
@@ -56,11 +54,7 @@ th { font-size: 11px; letter-spacing: .03em; text-transform: uppercase; }
   .kpi-card--warning ion-icon { background: #352b14; color: #fedf89; }
   .kpi-card--warning strong { color: #fedf89; }
   .btn-filter-secondary { --border-color: #fda29b; --color: #fda29b; }
-}
-
-@media (max-width: 1100px) {
-  .purchase-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .purchase-filter-grid .catalog-search-field, .provider-filter-field { grid-column: span 2; }
+  .btn-filter-secondary.is-active { --background: #3b1d20; }
 }
 
 @media (max-width: 1024px) {
@@ -80,9 +74,6 @@ th { font-size: 11px; letter-spacing: .03em; text-transform: uppercase; }
   .header-action-desktop, .results-new-button { display: none; }
   .filters-header, .purchase-results-head { display: grid; grid-template-columns: 1fr; }
   .clear-filters-button { justify-self: start; }
-  .purchase-filter-grid { grid-template-columns: 1fr; }
-  .purchase-filter-grid .catalog-search-field, .provider-filter-field { grid-column: auto; }
-  .filter-actions { align-items: flex-start; flex-direction: column; }
   .mobile-compras-fab { display: block; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); right: 14px; }
   .mobile-compras-fab > ion-fab-button { --background: #155eef; --color: #fff; }
   .mobile-compras-fab ion-fab-list ion-fab-button[color='light'] { --background: var(--inv-surface); --color: var(--inv-text); }

@@ -25,6 +25,8 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
   filtroEstado: 'todos' | EstadoCuentaPorCobrar = 'todos';
   fechaDesde = '';
   fechaHasta = '';
+  soloVencidas = false;
+  soloProximas = false;
   page = 1;
   readonly pageSize = 10;
 
@@ -60,7 +62,7 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
   }
 
   get hasActiveFilters(): boolean {
-    return Boolean(this.searchTerm.trim() || this.filtroEstado !== 'todos' || this.fechaDesde || this.fechaHasta);
+    return Boolean(this.searchTerm.trim() || this.filtroEstado !== 'todos' || this.fechaDesde || this.fechaHasta || this.soloVencidas || this.soloProximas);
   }
 
   toggleInventoryTheme(): void {
@@ -123,6 +125,8 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
       const fecha = new Date(c.fechaVencimiento).getTime();
       if (from !== undefined && Number.isFinite(fecha) && fecha < from) return false;
       if (to !== undefined && Number.isFinite(fecha) && fecha > to) return false;
+      if (this.soloVencidas && this.getEstadoCuenta(c) !== 'vencida') return false;
+      if (this.soloProximas && !this.isDueSoon(c)) return false;
       const target = `${c.clienteNombre} ${c.numeroFactura}`;
       return !q || this.normalize(target).includes(q);
     });
@@ -134,6 +138,20 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
     this.filtroEstado = 'todos';
     this.fechaDesde = '';
     this.fechaHasta = '';
+    this.soloVencidas = false;
+    this.soloProximas = false;
+    this.aplicarFiltros();
+  }
+
+  toggleSoloVencidas(): void {
+    this.soloVencidas = !this.soloVencidas;
+    if (this.soloVencidas) this.soloProximas = false;
+    this.aplicarFiltros();
+  }
+
+  toggleSoloProximas(): void {
+    this.soloProximas = !this.soloProximas;
+    if (this.soloProximas) this.soloVencidas = false;
     this.aplicarFiltros();
   }
 
@@ -299,6 +317,15 @@ export class CuentasPorCobrarPage implements OnInit, OnDestroy {
     if (!Number.isNaN(vencimiento.getTime()) && vencimiento.getTime() < hoy.getTime()) return 'vencida';
     if (this.toNumber(cuenta.montoPagado) > 0 || cuenta.estado === 'parcial') return 'parcial';
     return 'pendiente';
+  }
+
+  isDueSoon(cuenta: CuentaPorCobrar): boolean {
+    if (cuenta.estado === 'anulada' || this.toNumber(cuenta.balancePendiente) <= 0) return false;
+    const vencimiento = new Date(cuenta.fechaVencimiento);
+    if (Number.isNaN(vencimiento.getTime())) return false;
+    const ahora = new Date();
+    const dias = (vencimiento.getTime() - ahora.getTime()) / (1000 * 60 * 60 * 24);
+    return dias >= 0 && dias <= 7;
   }
 
   getEstadoBadgeClass(cuenta: CuentaPorCobrar): string {

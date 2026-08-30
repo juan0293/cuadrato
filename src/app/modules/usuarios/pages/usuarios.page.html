@@ -1,211 +1,107 @@
-<ion-content class="users-saas-page">
-  <div class="users-shell ion-padding">
-    <section class="users-executive-header">
-      <div class="header-copy">
-        <h1>Gestión de usuarios</h1>
-        <p>Administra el acceso y roles del sistema</p>
+<ion-content class="users-page" [class.theme-light]="usersTheme === 'light'" [class.theme-dark]="usersTheme === 'dark'">
+  <div class="users-shell">
+    <header class="users-header">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="people-outline" aria-hidden="true"></ion-icon></span>
+        <div><span class="eyebrow">Administración · Accesos</span><h1>Gestión de usuarios</h1><p>Administra perfiles, roles y acceso operativo al sistema.</p></div>
       </div>
-
       <div class="header-actions">
-        <ion-button class="btn-secondary" fill="outline">Exportar</ion-button>
-        <ion-button class="btn-primary" (click)="openCreateModal()">Nuevo usuario</ion-button>
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleUsersTheme()" [attr.aria-label]="usersTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'" [attr.aria-pressed]="usersTheme === 'dark'">
+          <ion-icon slot="start" [name]="usersTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ usersTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
+        </ion-button>
+        <ion-button class="btn-primary" (click)="openCreateModal()"><ion-icon slot="start" name="person-add-outline"></ion-icon>Nuevo usuario</ion-button>
       </div>
+    </header>
+
+    <section class="users-summary" *ngIf="users$ | async as allUsers">
+      <article class="summary-card"><ion-icon name="people-outline"></ion-icon><span>Total de usuarios</span><strong>{{ allUsers.length }}</strong></article>
+      <article class="summary-card"><ion-icon name="checkmark-circle-outline"></ion-icon><span>Usuarios activos</span><strong class="is-success">{{ countActive(allUsers) }}</strong></article>
+      <article class="summary-card"><ion-icon name="shield-checkmark-outline"></ion-icon><span>Administradores</span><strong>{{ countAdmins(allUsers) }}</strong></article>
+      <article class="summary-card"><ion-icon name="color-palette-outline"></ion-icon><span>Artistas</span><strong>{{ countArtists(allUsers) }}</strong></article>
     </section>
 
-    <section class="users-table-card">
-      <div class="users-table-toolbar">
-        <ion-searchbar
-          placeholder="Buscar por nombre o correo"
-          (ionInput)="onSearch($event)"
-          debounce="250"
-          animated="true"
-        ></ion-searchbar>
-
-          <ion-segment [value]="roleFilter" (ionChange)="onRoleFilterChange($event.detail.value)">
-          <ion-segment-button *ngFor="let filter of roleFilters" [value]="filter">
-            <ion-label>{{ getRoleFilterLabel(filter) }}</ion-label>
-          </ion-segment-button>
-        </ion-segment>
-      </div>
-
-      <div class="users-table-wrap" *ngIf="filteredUsers$ | async as users">
-        <table class="users-table">
-        <thead>
-          <tr>
-            <th>Usuario</th>
-            <th>Rol</th>
-            <th>Estado</th>
-            <th>Fecha</th>
-            <th class="actions-col">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let user of users">
-            <td>
-              <div class="user-main-cell">
-                <span>{{ user.displayName || user.nombre }}</span>
-                <span>{{ user.email }}</span>
-              </div>
-            </td>
-            <td>
-              <span class="badge role-badge" [ngClass]="roleBadgeClass(user)">
-                {{ roleLabel((user.role || user.rol)!) }}
-              </span>
-            </td>
-            <td>
-              <span class="badge status-badge" [ngClass]="statusBadgeClass(user)">
-                {{ statusLabel(user) }}
-              </span>
-            </td>
-            <td class="date-cell">{{ formatUserDate(user) }}</td>
-            <td class="actions-col">
-              <ion-button fill="clear" class="row-action-btn" [id]="'user-actions-' + user.id" aria-label="Abrir acciones de usuario">
-                <ion-icon name="ellipsis-horizontal"></ion-icon>
-              </ion-button>
-              <ion-popover cssClass="user-actions-popover" [trigger]="'user-actions-' + user.id" triggerAction="click">
-                <ng-template>
-                  <div class="user-popover-menu">
-                    <button type="button" class="user-popover-action" (click)="openEdit(user)">
-                      <ion-icon name="create-outline"></ion-icon>
-                      <span>Editar</span>
-                    </button>
-                    <button type="button" class="user-popover-action" (click)="toggleStatus(user)">
-                      <ion-icon [name]="statusLabel(user) === 'Activo' ? 'pause-circle-outline' : 'checkmark-circle-outline'"></ion-icon>
-                      <span>{{ statusLabel(user) === 'Activo' ? 'Inactivar' : 'Activar' }}</span>
-                    </button>
-                    <button type="button" class="user-popover-action" (click)="openDetail(user)">
-                      <ion-icon name="eye-outline"></ion-icon>
-                      <span>Ver detalle</span>
-                    </button>
-                  </div>
-                </ng-template>
-              </ion-popover>
-            </td>
-          </tr>
-        </tbody>
-        </table>
-
-        <div class="users-mobile-list" *ngIf="users.length > 0">
-          <article class="user-mobile-card" *ngFor="let user of users">
-            <div class="user-mobile-top">
-              <div class="user-mobile-main">
-                <strong>{{ user.displayName || user.nombre }}</strong>
-                <span>{{ user.email }}</span>
-              </div>
-              <ion-button fill="clear" class="row-action-btn" [id]="'user-actions-mobile-' + user.id" aria-label="Abrir acciones de usuario">
-                <ion-icon name="ellipsis-horizontal"></ion-icon>
-              </ion-button>
-              <ion-popover cssClass="user-actions-popover" [trigger]="'user-actions-mobile-' + user.id" triggerAction="click">
-                <ng-template>
-                  <div class="user-popover-menu">
-                    <button type="button" class="user-popover-action" (click)="openEdit(user)">
-                      <ion-icon name="create-outline"></ion-icon>
-                      <span>Editar</span>
-                    </button>
-                    <button type="button" class="user-popover-action" (click)="toggleStatus(user)">
-                      <ion-icon [name]="statusLabel(user) === 'Activo' ? 'pause-circle-outline' : 'checkmark-circle-outline'"></ion-icon>
-                      <span>{{ statusLabel(user) === 'Activo' ? 'Inactivar' : 'Activar' }}</span>
-                    </button>
-                    <button type="button" class="user-popover-action" (click)="openDetail(user)">
-                      <ion-icon name="eye-outline"></ion-icon>
-                      <span>Ver detalle</span>
-                    </button>
-                  </div>
-                </ng-template>
-              </ion-popover>
-            </div>
-
-            <div class="user-mobile-badges">
-              <span class="badge role-badge" [ngClass]="roleBadgeClass(user)">
-                {{ roleLabel((user.role || user.rol)!) }}
-              </span>
-              <span class="badge status-badge" [ngClass]="statusBadgeClass(user)">
-                {{ statusLabel(user) }}
-              </span>
-            </div>
-
-            <small>{{ formatUserDate(user) }}</small>
-          </article>
+    <ng-container *ngIf="filteredUsers$ | async as users">
+      <section class="users-filter-card">
+        <div class="filter-header">
+          <div><span class="eyebrow">Directorio de usuarios</span><h2>Buscar y filtrar</h2><p>Encuentra una persona por nombre, correo o nivel de acceso.</p></div>
+          <div class="filter-tools">
+            <div class="result-count"><span>Resultados</span><strong>{{ users.length }} {{ users.length === 1 ? 'usuario' : 'usuarios' }}</strong></div>
+            <ion-button class="clear-filter-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters"><ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros</ion-button>
+          </div>
         </div>
+        <div class="users-filter-grid">
+          <label class="filter-field search-field"><span>Nombre o correo</span><ion-searchbar placeholder="Buscar por nombre o correo electrónico" [value]="searchTerm" (ionInput)="onSearch($event)" debounce="250"></ion-searchbar></label>
+          <label class="filter-field"><span>Rol del usuario</span><ion-item lines="none"><ion-select aria-label="Rol del usuario" [value]="roleFilter" (ionChange)="onRoleFilterChange($event.detail.value)" interface="popover"><ion-select-option *ngFor="let filter of roleFilters" [value]="filter">{{ getRoleFilterLabel(filter) }}</ion-select-option></ion-select></ion-item></label>
+        </div>
+      </section>
 
-        <app-empty-state
-          *ngIf="users.length === 0"
-          title="No hay usuarios disponibles"
-          message="Ajusta los filtros o crea un nuevo usuario para comenzar."
-        ></app-empty-state>
-      </div>
-    </section>
+      <section class="users-list-section">
+        <div class="section-title"><span class="eyebrow">Control de acceso</span><h2>Usuarios registrados</h2><p>Consulta el estado y administra los permisos disponibles.</p></div>
+        <section class="users-table-card">
+          <div class="users-table-wrap" *ngIf="users.length > 0; else emptyState">
+            <table class="users-table">
+              <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Fecha de creación</th><th class="actions-col">Acciones</th></tr></thead>
+              <tbody>
+                <tr *ngFor="let user of users">
+                  <td><div class="user-main-cell"><span class="user-avatar">{{ getInitials(user) }}</span><div><strong>{{ user.displayName || user.nombre }}</strong><span>{{ user.email }}</span></div></div></td>
+                  <td><span class="badge role-badge" [ngClass]="roleBadgeClass(user)">{{ roleLabel((user.role || user.rol)!) }}</span></td>
+                  <td><span class="badge status-badge" [ngClass]="statusBadgeClass(user)"><i></i>{{ statusLabel(user) }}</span></td>
+                  <td class="date-cell">{{ formatUserDate(user) }}</td>
+                  <td class="actions-col">
+                    <ion-button fill="clear" class="row-action-btn" [id]="'user-actions-' + user.id" aria-label="Abrir acciones de usuario"><ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon></ion-button>
+                    <ion-popover cssClass="user-actions-popover" [trigger]="'user-actions-' + user.id" triggerAction="click"><ng-template><div class="user-popover-menu"><button type="button" class="user-popover-action" (click)="openEdit(user)"><ion-icon name="create-outline"></ion-icon><span>Editar usuario</span></button><button type="button" class="user-popover-action" (click)="toggleStatus(user)"><ion-icon [name]="statusLabel(user) === 'Activo' ? 'pause-circle-outline' : 'checkmark-circle-outline'"></ion-icon><span>{{ statusLabel(user) === 'Activo' ? 'Inactivar usuario' : 'Activar usuario' }}</span></button><button type="button" class="user-popover-action" (click)="openDetail(user)"><ion-icon name="eye-outline"></ion-icon><span>Ver detalle</span></button></div></ng-template></ion-popover>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="users-mobile-list" *ngIf="users.length > 0">
+            <article class="user-mobile-card" *ngFor="let user of users">
+              <div class="user-mobile-top"><span class="user-avatar">{{ getInitials(user) }}</span><div class="user-mobile-main"><strong>{{ user.displayName || user.nombre }}</strong><span>{{ user.email }}</span></div><ion-button fill="clear" class="row-action-btn" [id]="'user-actions-mobile-' + user.id" aria-label="Abrir acciones de usuario"><ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon></ion-button></div>
+              <div class="user-mobile-meta"><div><small>Rol</small><span class="badge role-badge" [ngClass]="roleBadgeClass(user)">{{ roleLabel((user.role || user.rol)!) }}</span></div><div><small>Estado</small><span class="badge status-badge" [ngClass]="statusBadgeClass(user)"><i></i>{{ statusLabel(user) }}</span></div></div>
+              <p><ion-icon name="calendar-outline"></ion-icon> Creado {{ formatUserDate(user) }}</p>
+              <ion-popover cssClass="user-actions-popover" [trigger]="'user-actions-mobile-' + user.id" triggerAction="click"><ng-template><div class="user-popover-menu"><button type="button" class="user-popover-action" (click)="openEdit(user)"><ion-icon name="create-outline"></ion-icon><span>Editar usuario</span></button><button type="button" class="user-popover-action" (click)="toggleStatus(user)"><ion-icon [name]="statusLabel(user) === 'Activo' ? 'pause-circle-outline' : 'checkmark-circle-outline'"></ion-icon><span>{{ statusLabel(user) === 'Activo' ? 'Inactivar usuario' : 'Activar usuario' }}</span></button><button type="button" class="user-popover-action" (click)="openDetail(user)"><ion-icon name="eye-outline"></ion-icon><span>Ver detalle</span></button></div></ng-template></ion-popover>
+            </article>
+          </div>
+        </section>
+      </section>
+
+      <ng-template #emptyState><app-empty-state title="No encontramos usuarios" message="Ajusta los filtros o crea un nuevo usuario para comenzar."></app-empty-state></ng-template>
+    </ng-container>
   </div>
 
   <ion-modal cssClass="users-form-modal" [isOpen]="isModalOpen" (didDismiss)="closeModal()">
     <ng-template>
-      <ion-content class="modal-user-content ion-padding">
-        <div class="modal-shell">
-          <section class="modal-card">
-            <header class="modal-head">
-              <div>
-                <h2>{{ isViewMode ? 'Detalle de usuario' : (selectedUser ? 'Editar usuario' : 'Nuevo usuario') }}</h2>
-                <p>{{ isViewMode ? 'Consulta la información del usuario' : 'Define acceso, rol y estado operativo' }}</p>
+      <ion-content class="modal-user-content">
+        <div class="modal-shell"><section class="modal-card">
+          <header class="modal-head">
+            <div class="modal-heading"><span class="modal-icon"><ion-icon [name]="isViewMode ? 'eye-outline' : (selectedUser ? 'create-outline' : 'person-add-outline')"></ion-icon></span><div><span class="eyebrow">{{ isViewMode ? 'Consulta de acceso' : 'Administración de acceso' }}</span><h2>{{ isViewMode ? 'Detalle de usuario' : (selectedUser ? 'Editar usuario' : 'Nuevo usuario') }}</h2><p>{{ isViewMode ? 'Consulta la información registrada y sus permisos.' : 'Define la identidad, el rol y el estado operativo.' }}</p></div></div>
+            <ion-button fill="clear" class="modal-close-btn" (click)="closeModal()" aria-label="Cerrar formulario"><ion-icon slot="icon-only" name="close-outline"></ion-icon></ion-button>
+          </header>
+
+          <form class="user-form" [formGroup]="userForm" (ngSubmit)="saveUser()">
+            <section class="form-section">
+              <div class="form-section-head"><span class="section-icon"><ion-icon name="person-outline"></ion-icon></span><div><h3>Identificación</h3><p>Información utilizada para reconocer e ingresar al sistema.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field"><span>Nombre completo <em>*</em></span><ion-item lines="none"><ion-input formControlName="displayName" [readonly]="isViewMode" placeholder="Ej. María Rodríguez" autocomplete="name"></ion-input></ion-item><small class="field-error" *ngIf="userForm.controls.displayName.touched && userForm.controls.displayName.invalid">Ingresa al menos tres caracteres.</small></label>
+                <label class="form-field"><span>Correo electrónico <em>*</em></span><ion-item lines="none"><ion-input formControlName="email" type="email" [readonly]="isViewMode || !!selectedUser" placeholder="nombre@empresa.com" autocomplete="email"></ion-input></ion-item><small class="field-error" *ngIf="userForm.controls.email.touched && userForm.controls.email.invalid">Ingresa un correo válido.</small></label>
+                <label class="form-field" *ngIf="!selectedUser && !isViewMode"><span>Contraseña temporal <small>Opcional</small></span><ion-item lines="none"><ion-input formControlName="password" type="password" placeholder="Define una contraseña inicial" autocomplete="new-password"></ion-input></ion-item></label>
+                <label class="form-field"><span>Identificador de empresa <em>*</em></span><ion-item lines="none"><ion-input formControlName="companyId" [readonly]="isViewMode" placeholder="Company ID"></ion-input></ion-item><small class="field-error" *ngIf="userForm.controls.companyId.touched && userForm.controls.companyId.invalid">El identificador de empresa es obligatorio.</small></label>
               </div>
-              <ion-button fill="clear" class="modal-close-btn" (click)="closeModal()">Cerrar</ion-button>
-            </header>
+            </section>
 
-            <form [formGroup]="userForm" (ngSubmit)="saveUser()">
-              <section class="form-section">
-                <h3>Identificación</h3>
-                <div class="form-grid">
-                  <ion-item class="field-item">
-                    <ion-label position="stacked">Nombre</ion-label>
-                    <ion-input formControlName="displayName" [readonly]="isViewMode"></ion-input>
-                  </ion-item>
-
-                  <ion-item class="field-item">
-                    <ion-label position="stacked">Correo electrónico</ion-label>
-                    <ion-input formControlName="email" type="email" [readonly]="isViewMode || !!selectedUser"></ion-input>
-                  </ion-item>
-
-                  <ion-item class="field-item" *ngIf="!selectedUser && !isViewMode">
-                    <ion-label position="stacked">Contraseña temporal</ion-label>
-                    <ion-input formControlName="password" type="password" placeholder="Opcional"></ion-input>
-                  </ion-item>
-
-                  <ion-item class="field-item">
-                    <ion-label position="stacked">Company ID</ion-label>
-                    <ion-input formControlName="companyId" [readonly]="isViewMode"></ion-input>
-                  </ion-item>
-                </div>
-              </section>
-
-              <section class="form-section">
-                <h3>Acceso</h3>
-                <div class="form-grid">
-                  <ion-item class="field-item">
-                    <ion-label position="stacked">Rol</ion-label>
-                    <ion-select formControlName="role" [disabled]="isViewMode">
-                      <ion-select-option value="superadmin">Superadmin</ion-select-option>
-                      <ion-select-option value="admin">Admin</ion-select-option>
-                      <ion-select-option value="assistant">Assistant</ion-select-option>
-                      <ion-select-option value="artist">Artist</ion-select-option>
-                    </ion-select>
-                  </ion-item>
-
-                  <ion-item class="field-item">
-                    <ion-label position="stacked">Estado</ion-label>
-                    <ion-select formControlName="status" [disabled]="isViewMode">
-                      <ion-select-option value="active">Activo</ion-select-option>
-                      <ion-select-option value="inactive">Inactivo</ion-select-option>
-                    </ion-select>
-                  </ion-item>
-                </div>
-              </section>
-
-              <div class="modal-actions">
-                <ion-button fill="clear" class="btn-secondary" type="button" (click)="closeModal()">Cancelar</ion-button>
-                <ion-button *ngIf="!isViewMode" class="btn-primary" type="submit">Guardar cambios</ion-button>
+            <section class="form-section">
+              <div class="form-section-head"><span class="section-icon"><ion-icon name="shield-checkmark-outline"></ion-icon></span><div><h3>Acceso y permisos</h3><p>Configura qué puede hacer el usuario y si tendrá acceso inmediato.</p></div></div>
+              <div class="form-grid">
+                <label class="form-field"><span>Rol <em>*</em></span><ion-item lines="none"><ion-select formControlName="role" [disabled]="isViewMode" interface="popover"><ion-select-option value="superadmin">Superadministrador</ion-select-option><ion-select-option value="admin">Administrador</ion-select-option><ion-select-option value="assistant">Asistente</ion-select-option><ion-select-option value="artist">Artista</ion-select-option></ion-select></ion-item></label>
+                <label class="form-field"><span>Estado <em>*</em></span><ion-item lines="none"><ion-select formControlName="status" [disabled]="isViewMode" interface="popover"><ion-select-option value="active">Activo</ion-select-option><ion-select-option value="inactive">Inactivo</ion-select-option></ion-select></ion-item></label>
               </div>
-            </form>
-          </section>
-        </div>
+            </section>
+
+            <footer class="modal-actions"><p *ngIf="!isViewMode"><span>*</span> Campos obligatorios</p><div><ion-button fill="outline" class="btn-secondary" type="button" (click)="closeModal()">{{ isViewMode ? 'Cerrar' : 'Cancelar' }}</ion-button><ion-button *ngIf="!isViewMode" class="btn-primary" type="submit" [disabled]="saving"><ion-spinner *ngIf="saving" name="crescent"></ion-spinner><ion-icon *ngIf="!saving" slot="start" name="save-outline"></ion-icon>{{ saving ? 'Guardando…' : (selectedUser ? 'Guardar cambios' : 'Crear usuario') }}</ion-button></div></footer>
+          </form>
+        </section></div>
       </ion-content>
     </ng-template>
   </ion-modal>

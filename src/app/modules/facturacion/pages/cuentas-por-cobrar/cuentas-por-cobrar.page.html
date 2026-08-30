@@ -10,7 +10,7 @@
           <ion-icon slot="start" [name]="inventoryTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ inventoryTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
         </ion-button>
         <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas"><ion-icon name="arrow-back-outline" slot="start"></ion-icon>Volver a finanzas</ion-button>
-        <ion-button class="btn-primary" (click)="exportarExcel()" [disabled]="!cuentasFiltradas.length"><ion-icon name="download-outline" slot="start"></ion-icon>Exportar Excel</ion-button>
+        <ion-button class="btn-primary header-action-desktop" (click)="exportarExcel()" [disabled]="!cuentasFiltradas.length"><ion-icon name="download-outline" slot="start"></ion-icon>Exportar Excel</ion-button>
       </div>
     </header>
 
@@ -27,6 +27,11 @@
         <div class="cxc-filter-field"><span>Estado</span><ion-item lines="none"><ion-select aria-label="Estado de la cuenta" [value]="filtroEstado" (ionChange)="filtroEstado = $any($event.detail).value; aplicarFiltros()" interface="popover"><ion-select-option value="todos">Todos los estados</ion-select-option><ion-select-option value="pendiente">Pendiente</ion-select-option><ion-select-option value="parcial">Parcial</ion-select-option><ion-select-option value="pagada">Pagada</ion-select-option><ion-select-option value="vencida">Vencida</ion-select-option><ion-select-option value="anulada">Anulada</ion-select-option></ion-select></ion-item></div>
         <div class="cxc-filter-field"><span>Vence desde</span><ion-item lines="none"><ion-input aria-label="Vencimiento desde" type="date" [value]="fechaDesde" [max]="fechaHasta || undefined" (ionChange)="fechaDesde = $any($event.detail).value || ''; aplicarFiltros()"></ion-input></ion-item></div>
         <div class="cxc-filter-field"><span>Vence hasta</span><ion-item lines="none"><ion-input aria-label="Vencimiento hasta" type="date" [value]="fechaHasta" [min]="fechaDesde || undefined" (ionChange)="fechaHasta = $any($event.detail).value || ''; aplicarFiltros()"></ion-input></ion-item></div>
+      </div>
+      <div class="cxc-filter-shortcuts">
+        <span>Atajos:</span>
+        <ion-chip (click)="toggleSoloVencidas()" [class.active]="soloVencidas"><ion-icon name="alert-circle-outline"></ion-icon><ion-label>Solo vencidas</ion-label></ion-chip>
+        <ion-chip (click)="toggleSoloProximas()" [class.active]="soloProximas"><ion-icon name="time-outline"></ion-icon><ion-label>Próximas a vencer</ion-label></ion-chip>
       </div>
     </section>
 
@@ -77,6 +82,20 @@
 
     <ng-template #emptyState><app-empty-state title="Sin cuentas por cobrar" message="No encontramos registros con los filtros seleccionados."></app-empty-state></ng-template>
   </div>
+
+  <ion-fab vertical="bottom" horizontal="end" slot="fixed" class="mobile-cxc-fab">
+    <ion-fab-button aria-label="Acciones de cuentas por cobrar">
+      <ion-icon name="cash-outline"></ion-icon>
+    </ion-fab-button>
+    <ion-fab-list side="top">
+      <ion-fab-button color="light" routerLink="/admin/finanzas" aria-label="Volver a finanzas">
+        <ion-icon name="arrow-back-outline"></ion-icon>
+      </ion-fab-button>
+      <ion-fab-button color="primary" (click)="exportarExcel()" [disabled]="!cuentasFiltradas.length" aria-label="Exportar cuentas por cobrar">
+        <ion-icon name="download-outline"></ion-icon>
+      </ion-fab-button>
+    </ion-fab-list>
+  </ion-fab>
 
   <ion-modal [isOpen]="modalCobroOpen" (didDismiss)="cerrarCobro()" cssClass="premium-select-modal cxp-account-modal cxc-collection-modal">
     <ng-template>

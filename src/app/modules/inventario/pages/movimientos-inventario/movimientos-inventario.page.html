@@ -41,17 +41,13 @@
       <article class="kpi-card"><span>Último movimiento</span><strong>{{ ultimoMovimiento }}</strong></article>
     </section>
 
-    <section class="card filters">
+    <section class="card filters movement-filters">
       <div class="filters-header">
-        <div>
-          <span class="eyebrow">Explorar movimientos</span>
-          <h3>Filtros gerenciales</h3>
-          <p>Segmenta por tipo, fecha, responsable y búsqueda libre.</p>
+        <div><span class="section-kicker">Consulta de movimientos</span><h2>Filtra los movimientos</h2><p>Selecciona uno o varios criterios para obtener una vista más precisa.</p></div>
+        <div class="filters-status-actions">
+          <div class="filter-result"><span class="filter-status-label">Resultados</span><strong>{{ movimientosFiltrados.length }} {{ movimientosFiltrados.length === 1 ? 'movimiento' : 'movimientos' }}</strong></div>
+          <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters"><ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros</ion-button>
         </div>
-        <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters">
-          <ion-icon slot="start" name="refresh-outline" color="danger"></ion-icon>
-          Limpiar filtros
-        </ion-button>
       </div>
 
       <div class="catalog-filter-grid movement-filter-grid">
@@ -97,10 +93,7 @@
         </div>
       </div>
 
-      <div class="filter-summary">
-        <ion-icon name="funnel-outline"></ion-icon>
-        <span>{{ movimientosFiltrados.length }} {{ movimientosFiltrados.length === 1 ? 'movimiento encontrado' : 'movimientos encontrados' }}</span>
-      </div>
+      <div class="filter-feedback"><ion-icon name="information-circle-outline"></ion-icon><span>Los indicadores, gráficos y el historial se actualizan automáticamente.</span></div>
     </section>
 
     <section class="charts-grid">

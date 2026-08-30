@@ -11,6 +11,53 @@ body.inventario-light-theme {
   color-scheme: light;
 }
 
+/* Compra detalle: adaptación responsive compartida para mantener el componente bajo el presupuesto SCSS. */
+@media (max-width: 1100px) {
+  body:is(.inventario-light-theme, .inventario-dark-theme) .compra-detalle-page {
+    .metadata-grid, .detail-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+}
+
+@media (max-width: 760px) {
+  body:is(.inventario-light-theme, .inventario-dark-theme) .compra-detalle-page {
+    .detail-header { align-items: flex-start; }
+    .header-actions { width: 100%; }
+    .header-actions ion-button { flex: 1 1 180px; }
+    .desktop-items-table { display: none; }
+    .mobile-items { display: grid; gap: 9px; }
+    .mobile-item-card { display: grid; gap: 11px; padding: 12px; border: 1px solid var(--inv-border); border-radius: 10px; background: var(--inv-surface-soft); }
+    .mobile-item-card header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 9px; }
+    .mobile-item-card header div { min-width: 0; }
+    .mobile-item-card h3, .mobile-item-card p { overflow: hidden; margin: 0; text-overflow: ellipsis; white-space: nowrap; }
+    .mobile-item-card h3 { color: var(--inv-text); font-size: 14px; }
+    .mobile-item-card p { margin-top: 3px; color: var(--inv-muted); font-size: 11px; }
+    .mobile-item-card header > strong { color: var(--inv-primary); font-size: 13px; white-space: nowrap; }
+    .mobile-item-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+    .mobile-item-metrics span { display: grid; min-width: 0; gap: 3px; padding: 8px; border: 1px solid var(--inv-border); border-radius: 7px; background: var(--inv-surface); }
+    .mobile-item-metrics small { color: var(--inv-muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
+    .mobile-item-metrics strong { overflow: hidden; color: var(--inv-text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+    .purchase-totals { grid-template-columns: 1fr; gap: 16px; }
+  }
+}
+
+@media (max-width: 520px) {
+  body:is(.inventario-light-theme, .inventario-dark-theme) .compra-detalle-page {
+    .page-title { align-items: flex-start; }
+    .title-icon { width: 42px; height: 42px; font-size: 21px; }
+    .header-copy h1 { font-size: 21px; }
+    .header-actions { display: grid; grid-template-columns: 1fr; }
+    .header-actions ion-button { width: 100%; }
+    .overview-head { display: grid; }
+    .status-badge { justify-self: start; }
+    .metadata-grid, .detail-kpis { grid-template-columns: 1fr; }
+    .metadata-item { padding: 11px; }
+    .mobile-item-card header { grid-template-columns: auto minmax(0, 1fr); }
+    .mobile-item-card header > strong { grid-column: 2; }
+    .mobile-item-metrics { grid-template-columns: 1fr; }
+    .inventory-impact { align-items: flex-start; }
+  }
+}
+
 body.inventario-dark-theme {
   --inv-bg: #0b1220;
   --inv-surface: #121b2d;
@@ -483,23 +530,87 @@ body.inventario-dark-theme.inventario-dark-theme.inventario-dark-theme .compra-f
   .credit-note { border-color: #7a5b13; background: #352b14; color: #fedf89; }
 }
 
-body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .movimientos-fiscal-page {
-  .filters { display: grid; gap: 12px; }
-  .filters-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .filters-header h3 { margin: 0; }
-  .filters-header p { margin: 4px 0 0; color: var(--inv-muted); font-size: 13px; }
-  .clear-filters-button { --color: var(--inv-primary); margin: 0; }
-  .clear-filters-button[disabled] { --color: var(--inv-muted); opacity: .55; }
-  .movement-filter-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .movement-filter-grid .catalog-search-field { grid-column: span 2; }
-  .filter-summary { display: flex; align-items: center; gap: 7px; color: var(--inv-muted); font-size: 12px; }
-  .filter-summary ion-icon { color: var(--inv-primary); font-size: 16px; }
+body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .compras-page {
+  .purchase-filters { display: flex !important; width: 100%; flex-direction: column; align-items: stretch; gap: 18px; padding: 18px; }
+  .purchase-filters > .filters-header, .purchase-filters > .purchase-filter-grid { width: 100%; max-width: none; flex: 0 0 auto; }
+  .purchase-filters .filters-header { padding-bottom: 14px; border-bottom: 1px solid var(--inv-border); }
+  .purchase-filters .filters-header > div:first-child { display: grid; gap: 3px; }
+  .section-kicker { display: block; margin-bottom: 2px; color: var(--inv-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .filters-status-actions { display: flex; flex: none; align-items: center; gap: 10px; }
+  .filter-result { display: grid; min-width: 120px; gap: 2px; padding: 8px 12px; border: 1px solid var(--inv-border); border-radius: 8px; background: var(--inv-surface-soft); }
+  .filter-status-label { color: var(--inv-primary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .filter-result strong { color: var(--inv-text); font-size: 15px; }
+  .purchase-filter-grid { display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr)) !important; align-items: start; gap: 14px; padding: 0; border: 0; }
+  .purchase-filter-grid .catalog-filter-field { grid-column: span 3; align-content: start; gap: 7px; }
+  .purchase-filter-grid .catalog-search-field, .purchase-filter-grid .provider-filter-field { grid-column: span 6; }
+  .purchase-filter-grid .catalog-filter-field > span { min-height: 15px; }
+  .purchase-filter-grid .catalog-filter-field ion-item { --min-height: 58px; --padding-start: 14px; --inner-padding-end: 12px; width: 100%; height: auto; min-height: 58px; overflow: visible; }
+  .purchase-filter-grid .catalog-filter-field ion-select, .purchase-filter-grid .catalog-filter-field ion-input { width: 100%; max-width: none; min-height: 56px; }
+  .purchase-filter-grid .catalog-search-field ion-searchbar, .purchase-filter-grid .catalog-search-field ion-searchbar::part(container), .purchase-filter-grid .provider-filter-field .select-trigger { min-height: 58px; }
+  .provider-filter-field app-searchable-select { display: block; width: 100%; min-width: 0; }
+  .provider-filter-field .searchable-select { gap: 7px; }
+  .provider-filter-field .top-row { min-height: 15px; padding-left: 3px; }
+  .provider-filter-field .top-row ion-label { color: var(--inv-muted); font-size: 11px; font-weight: 750; letter-spacing: .05em; line-height: 15px; text-transform: uppercase; }
+  .provider-filter-field .select-trigger { border-radius: 9px; }
+  .purchase-filter-feedback { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; color: var(--inv-muted); font-size: 12px; }
+  .purchase-filter-feedback > div { display: flex; align-items: center; gap: 7px; }
+  .purchase-filter-feedback ion-icon { flex: none; color: var(--inv-primary); font-size: 17px; }
 }
 
-@media (max-width: 1024px) {
+@media (max-width: 1300px) {
+  body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .compras-page {
+    .purchase-filter-grid { grid-template-columns: repeat(12, minmax(0, 1fr)) !important; }
+  }
+}
+
+@media (max-width: 900px) {
+  body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .compras-page {
+    .purchase-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .purchase-filter-grid .catalog-filter-field, .purchase-filter-grid .catalog-search-field, .purchase-filter-grid .provider-filter-field { grid-column: auto; }
+  }
+}
+
+@media (max-width: 640px) {
+  body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .compras-page {
+    .purchase-filters { padding: 15px; }
+    .purchase-filter-grid { grid-template-columns: 1fr !important; }
+    .filters-status-actions { width: 100%; align-items: stretch; flex-direction: column; }
+    .filter-result { width: 100%; box-sizing: border-box; }
+    .filters-status-actions ion-button { width: 100%; }
+    .purchase-filter-feedback { align-items: stretch; flex-direction: column; }
+    .btn-filter-secondary { width: 100%; }
+  }
+}
+
+body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .movimientos-fiscal-page {
+  .movement-filters { display: flex !important; width: 100%; flex-direction: column; align-items: stretch; gap: 18px; padding: 18px; }
+  .movement-filters > .filters-header, .movement-filters > .movement-filter-grid { width: 100%; max-width: none; flex: 0 0 auto; }
+  .movement-filters .filters-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--inv-border); }
+  .movement-filters .filters-header > div:first-child { display: grid; gap: 3px; }
+  .movement-filters .filters-header h2 { margin: 0; color: var(--inv-text); font-size: 18px; }
+  .movement-filters .filters-header p { margin: 2px 0 0; color: var(--inv-muted); font-size: 13px; }
+  .movement-filters .section-kicker { display: block; margin-bottom: 2px; color: var(--inv-primary); font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+  .movement-filters .filters-status-actions { display: flex; flex: none; align-items: center; gap: 10px; }
+  .movement-filters .filter-result { display: grid; min-width: 120px; gap: 2px; padding: 8px 12px; border: 1px solid var(--inv-border); border-radius: 8px; background: var(--inv-surface-soft); }
+  .movement-filters .filter-status-label { color: var(--inv-primary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+  .movement-filters .filter-result strong { color: var(--inv-text); font-size: 15px; }
+  .clear-filters-button { --color: var(--inv-primary); margin: 0; }
+  .clear-filters-button[disabled] { --color: var(--inv-muted); opacity: .55; }
+  .movement-filter-grid { display: grid !important; grid-template-columns: repeat(12, minmax(0, 1fr)) !important; align-items: start; gap: 14px; padding: 0; border: 0; }
+  .movement-filter-grid .catalog-filter-field { grid-column: span 4; align-content: start; gap: 7px; }
+  .movement-filter-grid .catalog-filter-field:nth-child(-n + 2) { grid-column: span 6; }
+  .movement-filter-grid .catalog-filter-field > span { min-height: 15px; }
+  .movement-filter-grid .catalog-filter-field ion-item { --min-height: 58px; --padding-start: 14px; --inner-padding-end: 12px; width: 100%; height: auto; min-height: 58px; overflow: visible; }
+  .movement-filter-grid .catalog-filter-field ion-select, .movement-filter-grid .catalog-filter-field ion-input { width: 100%; max-width: none; min-height: 56px; }
+  .movement-filter-grid .catalog-search-field ion-searchbar, .movement-filter-grid .catalog-search-field ion-searchbar::part(container) { min-height: 58px; }
+  .movement-filters .filter-feedback { display: flex; width: 100%; align-items: center; gap: 7px; color: var(--inv-muted); font-size: 12px; }
+  .movement-filters .filter-feedback ion-icon { flex: none; color: var(--inv-primary); font-size: 17px; }
+}
+
+@media (max-width: 900px) {
   body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .movimientos-fiscal-page {
-    .movement-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .movement-filter-grid .catalog-search-field { grid-column: span 2; }
+    .movement-filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .movement-filter-grid .catalog-filter-field, .movement-filter-grid .catalog-filter-field:nth-child(-n + 2) { grid-column: auto; }
   }
 }
 
@@ -538,10 +649,12 @@ body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-th
   }
 
   body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .movimientos-fiscal-page {
-    .filters-header { display: grid; grid-template-columns: 1fr; }
-    .clear-filters-button { justify-self: start; }
-    .movement-filter-grid { grid-template-columns: 1fr; }
-    .movement-filter-grid .catalog-search-field { grid-column: auto; }
+    .movement-filters { padding: 15px; }
+    .movement-filters .filters-header { align-items: flex-start; flex-direction: column; }
+    .movement-filters .filters-status-actions { width: 100%; align-items: stretch; flex-direction: column; }
+    .movement-filters .filter-result { width: 100%; box-sizing: border-box; }
+    .movement-filters .filters-status-actions ion-button { width: 100%; }
+    .movement-filter-grid { grid-template-columns: 1fr !important; }
   }
 
   body:is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme):is(.inventario-light-theme, .inventario-dark-theme) .compra-form-page {

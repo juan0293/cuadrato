@@ -21,9 +21,6 @@ allprojects {
     repositories {
         google()
         mavenCentral()
-        // Requerido por usb-serial-for-android, dependencia transitiva del plugin
-        // @devlas/capacitor-thermal-printer 0.8.x.
-        maven { url 'https://jitpack.io' }
     }
 }
 

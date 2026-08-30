@@ -303,6 +303,11 @@ export class FacturacionPage implements OnInit, OnDestroy {
     return Number((this.montoPagado - this.total).toFixed(2));
   }
 
+  get cambioCobro(): number {
+    if (this.pagoDistribucion.credito > 0) return 0;
+    return Number(Math.max(0, this.pagoDistribucion.totalPagadoAhora - this.total).toFixed(2));
+  }
+
   get facturacionBloqueadaPorTurno(): boolean {
     return !this.turnoActivo || this.turnoActivo.estado !== 'abierto';
   }
@@ -851,7 +856,11 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
   onMontoPagadoInput(event: Event): void {
     const raw = String((event as CustomEvent).detail?.value ?? '');
-    this.cobroForm.patchValue({ montoPagado: this.parseMoneyInput(raw) }, { emitEvent: false });
+    const parsed = this.parseMoneyInput(raw);
+    this.cobroForm.patchValue({ montoPagado: parsed }, { emitEvent: false });
+    if (!this.esPagoMixtoConCredito) {
+      this.syncSimplePaymentWithFormaPago(parsed);
+    }
   }
 
   onMontoPagadoBlur(): void {
@@ -890,10 +899,6 @@ export class FacturacionPage implements OnInit, OnDestroy {
   async confirmarCobroYEmitir(imprimir = false): Promise<void> {
     if (this.isEmitting) return;
     const pago = this.pagoDistribucion;
-    if (pago.totalRegistrado > this.total) {
-      await this.toastService.error('El pago no puede superar el total de la factura.');
-      return;
-    }
     if (pago.credito <= 0 && pago.totalRegistrado < this.total) {
       await this.toastService.error('Sin crédito, el pago debe cubrir el total de la factura.');
       return;
@@ -902,7 +907,36 @@ export class FacturacionPage implements OnInit, OnDestroy {
       await this.toastService.error('La distribución con crédito debe cubrir exactamente el total.');
       return;
     }
-    await this.emitirFactura(pago.totalPagadoAhora, imprimir, pago);
+    const pagoAplicado = this.normalizePaymentAppliedToInvoice(pago);
+    await this.emitirFactura(pago.totalPagadoAhora, imprimir, pagoAplicado);
+  }
+
+  private normalizePaymentAppliedToInvoice(pago: {
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+    credito: number;
+    totalPagadoAhora: number;
+    totalRegistrado: number;
+    diferencia: number;
+  }): any {
+    const recibido = Number(pago.totalPagadoAhora || 0);
+    const maximoAplicable = Math.max(0, this.total - Number(pago.credito || 0));
+    const aplicado = Number(Math.min(recibido, maximoAplicable).toFixed(2));
+    const factor = recibido > 0 ? aplicado / recibido : 0;
+    const efectivo = Number((pago.efectivo * factor).toFixed(2));
+    const tarjeta = Number((pago.tarjeta * factor).toFixed(2));
+    const transferencia = Number(Math.max(0, aplicado - efectivo - tarjeta).toFixed(2));
+    const totalRegistrado = Number((aplicado + pago.credito).toFixed(2));
+    return {
+      ...pago,
+      efectivo,
+      tarjeta,
+      transferencia,
+      totalPagadoAhora: aplicado,
+      totalRegistrado,
+      diferencia: Number((this.total - totalRegistrado).toFixed(2)),
+    };
   }
 
   private formatNumberAmount(value: number): string {
@@ -1387,7 +1421,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
         totalCredito,
       },
       totalPagado: Number(pagos.totalPagadoAhora || paid || (mode === 'emitida' ? this.total : 0)),
-      montoPagado: Number(pagos.totalPagadoAhora || paid || (mode === 'emitida' ? this.total : 0)),
+      montoPagado: Number(paid || pagos.totalPagadoAhora || (mode === 'emitida' ? this.total : 0)),
       devuelta: mode === 'emitida' ? Math.max(0, change) : 0,
       cambio: mode === 'emitida' ? Math.max(0, change) : 0,
       fechaPago: mode === 'emitida' ? today : undefined,
