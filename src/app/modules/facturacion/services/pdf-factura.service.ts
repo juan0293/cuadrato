@@ -264,8 +264,183 @@ export class PdfFacturaService {
     };
   }
 
+  buildTicket58mmPdfDefinition(factura: Factura): TDocumentDefinitions {
+    const subtotal = this.toNumber(factura.subtotal);
+    const descuento = this.toNumber(factura.descuentoTotal);
+    const itbis = this.toNumber(factura.itbisTotal ?? factura.impuesto);
+    const total = this.toNumber(factura.total);
+    const items = (factura.items || []).flatMap((item) => [
+      { text: item.descripcion || '—', bold: true, fontSize: 7, margin: [0, 2, 0, 0] },
+      {
+        columns: [
+          { text: `${this.toNumber(item.cantidad)} x ${this.formatDOP(item.precioUnitario)}`, fontSize: 6.5 },
+          { text: this.formatDOP(this.getItemTotal(item)), fontSize: 6.5, bold: true, alignment: 'right' },
+        ],
+      },
+    ]);
+    const logoBlock: any[] = this.logoDataUrl
+      ? [{ image: this.logoDataUrl, width: 42, alignment: 'center', margin: [0, 0, 0, 4] }]
+      : [];
+
+    return {
+      pageSize: { width: 164.41, height: 'auto' }, // 58 mm
+      pageMargins: [8, 9, 8, 9],
+      content: [
+        ...logoBlock,
+        { text: this.branding.companyTitle, fontSize: 10, bold: true, alignment: 'center' },
+        { text: this.branding.ticketSubtitle || 'TICKET DE FACTURA', fontSize: 7, bold: true, alignment: 'center' },
+        { text: this.companyProfileService.buildContactLine(this.branding), fontSize: 5.8, alignment: 'center' },
+        { text: this.branding.direccion || '', fontSize: 5.8, alignment: 'center', margin: [0, 0, 0, 4] },
+        { text: '-'.repeat(38), fontSize: 6, alignment: 'center' },
+        { text: `Factura: ${factura.numero || '—'}`, fontSize: 6.5 },
+        { text: `NCF: ${factura.ncf || '—'}`, fontSize: 6.5 },
+        { text: `Fecha: ${this.formatDate(factura.fecha)}`, fontSize: 6.5 },
+        { text: `Cliente: ${factura.clienteNombre || 'Consumidor final'}`, fontSize: 6.5 },
+        { text: '-'.repeat(38), fontSize: 6, alignment: 'center' },
+        ...items,
+        { text: '-'.repeat(38), fontSize: 6, alignment: 'center', margin: [0, 2, 0, 1] },
+        { columns: [{ text: 'Subtotal', fontSize: 6.5 }, { text: this.formatDOP(subtotal), fontSize: 6.5, alignment: 'right' }] },
+        { columns: [{ text: 'Descuento', fontSize: 6.5 }, { text: this.formatDOP(descuento), fontSize: 6.5, alignment: 'right' }] },
+        { columns: [{ text: 'ITBIS', fontSize: 6.5 }, { text: this.formatDOP(itbis), fontSize: 6.5, alignment: 'right' }] },
+        { columns: [{ text: 'TOTAL', fontSize: 9, bold: true }, { text: this.formatDOP(total), fontSize: 9, bold: true, alignment: 'right' }], margin: [0, 2, 0, 3] },
+        { text: `Pago: ${(factura.formaPago || 'efectivo').toUpperCase()}`, fontSize: 6.5 },
+        { text: '¡Gracias por su compra!', fontSize: 7, bold: true, alignment: 'center', margin: [0, 6, 0, 4] },
+      ],
+      defaultStyle: { fontSize: 7 },
+    };
+  }
+
+  buildFacturaCorporativaPdfDefinition(factura: Factura): TDocumentDefinitions {
+    const subtotal = this.toNumber(factura.subtotal);
+    const itbis = this.toNumber(factura.itbisTotal ?? factura.impuesto);
+    const descuento = this.toNumber(factura.descuentoTotal);
+    const total = this.toNumber(factura.total);
+    const tableBody: any[] = [
+      [
+        { text: 'Descripción', style: 'corporateTableHeader' },
+        { text: 'Cant.', style: 'corporateTableHeader', alignment: 'center' },
+        { text: 'Precio', style: 'corporateTableHeader', alignment: 'right' },
+        { text: 'ITBIS', style: 'corporateTableHeader', alignment: 'right' },
+        { text: 'Total', style: 'corporateTableHeader', alignment: 'right' },
+      ],
+      ...(factura.items || []).map((item) => [
+        { text: item.descripcion || '—' },
+        { text: String(this.toNumber(item.cantidad)), alignment: 'center' },
+        { text: this.formatDOP(item.precioUnitario), alignment: 'right', noWrap: true },
+        { text: this.formatDOP(this.getItemItbisAmount(item)), alignment: 'right', noWrap: true },
+        { text: this.formatDOP(this.getItemTotal(item)), alignment: 'right', bold: true, noWrap: true },
+      ]),
+    ];
+    const logoBlock: any[] = this.logoDataUrl ? [{ image: this.logoDataUrl, width: 82 }] : [];
+
+    return {
+      pageSize: 'LETTER',
+      pageOrientation: 'portrait',
+      pageMargins: [38, 42, 38, 44],
+      content: [
+        {
+          columns: [
+            { stack: logoBlock, width: 95 },
+            {
+              stack: [
+                { text: this.branding.companyTitle, style: 'corporateCompany' },
+                { text: this.branding.direccion || '', style: 'corporateMeta' },
+                { text: this.companyProfileService.buildContactLine(this.branding), style: 'corporateMeta' },
+              ],
+              alignment: 'right',
+            },
+          ],
+          margin: [0, 0, 0, 22],
+        },
+        {
+          columns: [
+            {
+              stack: [
+                { text: 'FACTURAR A', style: 'corporateLabel' },
+                { text: factura.clienteNombre || 'Consumidor final', bold: true, margin: [0, 3, 0, 2] },
+                { text: factura.clienteRncCedula ? `RNC/Cédula: ${factura.clienteRncCedula}` : '', style: 'corporateMeta' },
+                { text: factura.clienteTelefono || '', style: 'corporateMeta' },
+              ],
+            },
+            {
+              width: 210,
+              table: {
+                widths: [75, '*'],
+                body: [
+                  [{ text: 'FACTURA', style: 'corporateLabel' }, { text: factura.numero || factura.numeroFactura || '—', bold: true }],
+                  [{ text: 'NCF', style: 'corporateLabel' }, factura.ncf || '—'],
+                  [{ text: 'FECHA', style: 'corporateLabel' }, this.formatDate(factura.fecha)],
+                  [{ text: 'PAGO', style: 'corporateLabel' }, (factura.formaPago || 'efectivo').toUpperCase()],
+                ],
+              },
+              layout: 'noBorders',
+            },
+          ],
+          margin: [0, 0, 0, 22],
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ['*', 40, 68, 62, 72],
+            body: tableBody,
+          },
+          layout: {
+            hLineWidth: (index: number) => index === 0 ? 0 : .5,
+            vLineWidth: () => 0,
+            hLineColor: () => '#d7dee8',
+            paddingLeft: () => 6,
+            paddingRight: () => 6,
+            paddingTop: () => 7,
+            paddingBottom: () => 7,
+            fillColor: (rowIndex: number) => rowIndex === 0 ? '#0f172a' : null,
+          },
+          margin: [0, 0, 0, 16],
+        },
+        {
+          columns: [
+            {
+              stack: [
+                { text: 'Gracias por su compra.', bold: true, color: '#334155' },
+                { text: 'Documento generado por Cuadrato POS.', style: 'corporateMeta', margin: [0, 4, 0, 0] },
+              ],
+            },
+            {
+              width: 220,
+              table: {
+                widths: ['*', 88],
+                body: [
+                  ['Subtotal', { text: this.formatDOP(subtotal), alignment: 'right' }],
+                  ['Descuento', { text: this.formatDOP(descuento), alignment: 'right' }],
+                  ['ITBIS', { text: this.formatDOP(itbis), alignment: 'right' }],
+                  [{ text: 'TOTAL', bold: true, fontSize: 12 }, { text: this.formatDOP(total), bold: true, fontSize: 12, alignment: 'right' }],
+                ],
+              },
+              layout: 'lightHorizontalLines',
+            },
+          ],
+        },
+      ],
+      footer: (currentPage: number, pageCount: number) => ({
+        columns: [
+          { text: factura.numero || '', alignment: 'left' },
+          { text: `Página ${currentPage} de ${pageCount}`, alignment: 'right' },
+        ],
+        margin: [38, 10, 38, 0],
+        fontSize: 8,
+        color: '#64748b',
+      }),
+      defaultStyle: { fontSize: 9, color: '#1f2937' },
+      styles: {
+        corporateCompany: { fontSize: 18, bold: true, color: '#0f172a' },
+        corporateMeta: { fontSize: 8, color: '#64748b' },
+        corporateLabel: { fontSize: 8, bold: true, color: '#64748b' },
+        corporateTableHeader: { fontSize: 8, bold: true, color: '#ffffff' },
+      },
+    };
+  }
+
   buildFacturaPdfDefinition(factura: Factura): TDocumentDefinitions {
-    return this.buildTicket80mmPdfDefinition(factura);
+    return this.buildFacturaCorporativaPdfDefinition(factura);
   }
 
   generarFacturaPdf(factura: Factura): void {
@@ -280,12 +455,23 @@ export class PdfFacturaService {
     });
   }
 
+  imprimirTicket58mm(factura: Factura): void {
+    this.configurarPdfMake();
+    void this.ensureLogoLoaded().finally(() => {
+      pdfMake.createPdf(this.buildTicket58mmPdfDefinition(factura)).print();
+    });
+  }
+
   imprimirFacturaPdf(factura: Factura): void {
     this.configurarPdfMake();
     void this.ensureLogoLoaded().finally(() => {
       const docDefinition = this.buildFacturaPdfDefinition(factura);
       pdfMake.createPdf(docDefinition).print();
     });
+  }
+
+  imprimirFacturaCorporativa(factura: Factura): void {
+    this.imprimirFacturaPdf(factura);
   }
 
   abrirPreview(factura: Factura): void {

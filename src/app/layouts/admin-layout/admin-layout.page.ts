@@ -34,7 +34,7 @@ export class AdminLayoutPage {
 
   readonly menuItems: AdminMenuItem[] = [
     { label: 'Dashboard', icon: 'grid-outline', route: '/admin/dashboard', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
-    { label: 'Agenda', icon: 'calendar-outline', route: '/admin/agenda', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
+    // { label: 'Agenda', icon: 'calendar-outline', route: '/admin/agenda', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
     { label: 'Facturación', icon: 'receipt-outline', route: '/admin/facturacion', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
     { label: 'Inventario', icon: 'cube-outline', route: '/admin/inventario', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
     { label: 'Compras', icon: 'cart-outline', route: '/admin/inventario/compras', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
@@ -59,6 +59,14 @@ export class AdminLayoutPage {
       .slice(0, 2)
       .map((part) => part[0]?.toUpperCase() ?? '')
       .join('');
+  }
+
+  getRoleLabel(role?: AppRole): string {
+    const normalized = this.normalizeRole((role || 'artist') as AppRole);
+    if (normalized === 'superadmin') return 'Superadministrador';
+    if (normalized === 'admin') return 'Administrador';
+    if (normalized === 'assistant') return 'Asistente';
+    return 'Artista';
   }
 
   canAccess(item: AdminMenuItem, role: AppRole): boolean {

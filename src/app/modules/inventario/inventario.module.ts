@@ -31,6 +31,7 @@ import { CategoriasProductosPage } from './pages/categorias-productos/categorias
 import { UnidadesMedidaPage } from './pages/unidades-medida/unidades-medida.page';
 import { UtilidadesPage } from './pages/utilidades/utilidades.page';
 import { ProveedoresPage } from './pages/proveedores/proveedores.page';
+import { InventarioThemeService } from './services/inventario-theme.service';
 
 @NgModule({
   declarations: [
@@ -64,4 +65,8 @@ import { ProveedoresPage } from './pages/proveedores/proveedores.page';
   ],
   imports: [CommonModule, ReactiveFormsModule, IonicModule, SharedModule, InventarioRoutingModule],
 })
-export class InventarioModule {}
+export class InventarioModule {
+  constructor(themeService: InventarioThemeService) {
+    themeService.initialize();
+  }
+}

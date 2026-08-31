@@ -1,0 +1,77 @@
+diff --git a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt
+index 14f9f02..3af0ae1 100644
+--- a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt
++++ b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt
+@@ -1,7 +1,9 @@
+ package app.devlas.plugins.thermalprinter
+ 
+ import android.annotation.SuppressLint
++import android.bluetooth.BluetoothDevice
+ import android.bluetooth.BluetoothManager
++import android.bluetooth.BluetoothSocket
+ import android.content.Context
+ import com.getcapacitor.JSArray
+ import com.getcapacitor.JSObject
+@@ -67,8 +69,7 @@ class BluetoothTransport(private val context: Context) {
+         )
+         try {
+             a.cancelDiscovery()
+-            device.createRfcommSocketToServiceRecord(SPP_UUID).use { socket ->
+-                socket.connect()
++            connectCompatible(device).use { socket ->
+                 val out = socket.outputStream
+                 val input = socket.inputStream
+ 
+@@ -100,8 +101,7 @@ class BluetoothTransport(private val context: Context) {
+         }
+         try {
+             a.cancelDiscovery() // discovery activo degrada la conexión SPP
+-            device.createRfcommSocketToServiceRecord(SPP_UUID).use { socket ->
+-                socket.connect()
++            connectCompatible(device).use { socket ->
+                 val out = socket.outputStream
+                 var offset = 0
+                 while (offset < bytes.size) {
+@@ -120,4 +120,42 @@ class BluetoothTransport(private val context: Context) {
+             throw PrinterException("connect_failed", "No se pudo imprimir en $address: ${e.message}")
+         }
+     }
++
++    /**
++     * Varias térmicas económicas publican un SDP incompleto o sólo el servicio
++     * PnP aunque internamente escuchen ESC/POS por RFCOMM. Android permite
++     * intentar primero SPP inseguro (el enlace ya fue emparejado), luego SPP
++     * seguro y, como último recurso, el canal RFCOMM 1 usado por estos módulos.
++     */
++    @SuppressLint("MissingPermission", "DiscouragedPrivateApi")
++    private fun connectCompatible(device: BluetoothDevice): BluetoothSocket {
++        val factories: List<() -> BluetoothSocket> = listOf(
++            { device.createInsecureRfcommSocketToServiceRecord(SPP_UUID) },
++            { device.createRfcommSocketToServiceRecord(SPP_UUID) },
++            {
++                val method = device.javaClass.getMethod(
++                    "createRfcommSocket",
++                    Int::class.javaPrimitiveType,
++                )
++                method.invoke(device, 1) as BluetoothSocket
++            },
++        )
++        var lastError: Throwable? = null
++        for (factory in factories) {
++            val socket = try {
++                factory()
++            } catch (error: Throwable) {
++                lastError = error
++                continue
++            }
++            try {
++                socket.connect()
++                return socket
++            } catch (error: Throwable) {
++                lastError = error
++                runCatching { socket.close() }
++            }
++        }
++        throw IOException("No fue posible abrir SPP/RFCOMM compatible", lastError)
++    }
+ }

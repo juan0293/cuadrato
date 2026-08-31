@@ -60,6 +60,21 @@ export class FacturacionService {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Factura) }));
   }
 
+  async getFacturasPorRangoYEstado(
+    estado: 'emitida' | 'borrador',
+    fechaDesdeIso: string,
+    fechaHastaIso: string,
+  ): Promise<Factura[]> {
+    const snapshot = await this.afs.firestore.collection(this.collectionPath)
+      .where('estado', '==', estado)
+      .where('creadoEn', '>=', fechaDesdeIso)
+      .where('creadoEn', '<=', fechaHastaIso)
+      .orderBy('creadoEn', 'desc')
+      .get();
+
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Factura) }));
+  }
+
   getFacturasEmitidasHoy(): Promise<Factura[]> {
     return this.getFacturasDelDiaPorEstado('emitida');
   }

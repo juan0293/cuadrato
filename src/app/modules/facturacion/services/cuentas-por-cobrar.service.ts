@@ -27,7 +27,7 @@ export class CuentasPorCobrarService {
             montoOriginal,
             montoPagado,
             balancePendiente,
-            estado: balancePendiente <= 0 ? 'pagada' : (item.estado === 'anulada' ? 'anulada' : (montoPagado > 0 ? 'parcial' : 'pendiente')),
+            estado: item.estado === 'anulada' ? 'anulada' : (balancePendiente <= 0 ? 'pagada' : (montoPagado > 0 ? 'parcial' : 'pendiente')),
           } as CuentaPorCobrar;
         }).sort((a, b) => String(b.fechaCreacion || '').localeCompare(String(a.fechaCreacion || ''))),
       ),

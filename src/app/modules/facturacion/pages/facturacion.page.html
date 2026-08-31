@@ -31,6 +31,9 @@
             <ion-icon slot="start" [name]="posTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>
             {{ posTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
           </ion-button>
+          <ion-button class="btn-secondary" fill="outline" (click)="openPrinterSettings()">
+            <ion-icon slot="start" name="print-outline"></ion-icon>Configurar impresión
+          </ion-button>
         </div>
         <div class="turno-callout" role="status" aria-live="polite">
           <ion-icon name="alert-circle-outline" aria-hidden="true"></ion-icon>
@@ -55,16 +58,20 @@
           <div><dt>Ventas del turno</dt><dd>{{ formatCurrency(turnoTotales.totalVentas) }}</dd></div>
         </dl>
         <div class="turno-actions">
-          <ion-button class="theme-toggle" fill="outline" (click)="togglePosTheme()"
+          <ion-button class="btn-secondary"  size="small"  fill="outline" (click)="openPrinterSettings()"
+            [title]="printerConfigurationLabel">
+            <ion-icon slot="start" name="print-outline" aria-hidden="true"></ion-icon>Impresora
+          </ion-button>
+          <ion-button class="theme-toggle" size="small" fill="outline" (click)="togglePosTheme()"
             [attr.aria-label]="posTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'"
             [attr.aria-pressed]="posTheme === 'dark'">
             <ion-icon slot="start" [name]="posTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>
             {{ posTheme === 'light' ? 'Oscuro' : 'Claro' }}
           </ion-button>
-          <ion-button class="btn-secondary" fill="outline" (click)="abrirModalFacturas('emitida')" [disabled]="facturasModalLoading">
+          <ion-button class="btn-secondary"  size="small"  fill="outline" (click)="abrirModalFacturas('emitida')" [disabled]="facturasModalLoading">
             <ion-icon slot="start" name="receipt-outline" aria-hidden="true"></ion-icon>Ver facturas
           </ion-button>
-          <ion-button class="btn-danger-soft" fill="outline" (click)="abrirModalCierreTurno()" [disabled]="turnoActionLoading">Cerrar turno</ion-button>
+          <ion-button class="btn-danger-soft"  size="small"  fill="outline" (click)="abrirModalCierreTurno()" [disabled]="turnoActionLoading">Cerrar turno</ion-button>
         </div>
       </header>
 
@@ -90,7 +97,7 @@
             <ion-item><ion-label position="stacked">Categoría</ion-label><ion-select formControlName="categoria" interface="popover"><ion-select-option value="todas">Todas</ion-select-option><ion-select-option *ngFor="let categoria of categoriasDisponibles" [value]="categoria">{{ categoria }}</ion-select-option></ion-select></ion-item>
           </form>
 
-          <ion-segment class="availability-filter" [value]="catalogStockFilter" (ionChange)="setCatalogStockFilter($any($event).detail.value)" aria-label="Disponibilidad">
+          <ion-segment mode="ios" class="availability-filter" [value]="catalogStockFilter" (ionChange)="setCatalogStockFilter($any($event).detail.value)" aria-label="Disponibilidad">
             <ion-segment-button value="todos"><ion-label>Todos</ion-label></ion-segment-button>
             <ion-segment-button value="disponibles"><ion-label>Disponibles</ion-label></ion-segment-button>
           </ion-segment>
@@ -134,11 +141,11 @@
               <span><small>Cliente seleccionado</small><strong>{{ selectedCliente?.nombreCompleto || 'Consumidor final' }}</strong><em>Buscar o cambiar cliente</em></span>
               <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
             </button>
-            <button type="button" class="cliente-picker cliente-picker--wide" (click)="openCitaSelectorModal()">
+            <!-- <button type="button" class="cliente-picker cliente-picker--wide" (click)="openCitaSelectorModal()">
               <span class="cliente-picker__icon"><ion-icon name="calendar-outline"></ion-icon></span>
               <span><small>Factura vinculada</small><strong>{{ selectedCita ? (selectedCita.clienteNombre || 'Cita seleccionada') : 'Sin factura vinculada' }}</strong><em>{{ selectedCita ? formatCitaFecha(selectedCita) : 'Buscar cita' }}</em></span>
               <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
-            </button>
+            </button> -->
             <ion-item><ion-label position="stacked">Tipo de comprobante</ion-label><ion-select formControlName="tipoComprobante" interface="popover"><ion-select-option value="B01">B01 Crédito Fiscal</ion-select-option><ion-select-option value="B02">B02 Consumo</ion-select-option><ion-select-option value="B14">B14 Régimen Especial</ion-select-option><ion-select-option value="B15">B15 Gubernamental</ion-select-option></ion-select></ion-item>
             <ion-item><ion-label position="stacked">Forma de pago</ion-label><ion-select formControlName="formaPago" interface="popover"><ion-select-option value="efectivo">Efectivo</ion-select-option><ion-select-option value="tarjeta">Tarjeta</ion-select-option><ion-select-option value="transferencia">Transferencia</ion-select-option><ion-select-option value="mixto">Mixto</ion-select-option><ion-select-option value="credito">Crédito</ion-select-option></ion-select></ion-item>
             <ion-item class="discount-field"><ion-label position="stacked">Descuento</ion-label><ion-input formControlName="descuentoGlobal" type="number" min="0" inputmode="decimal"></ion-input></ion-item>
@@ -196,9 +203,29 @@
                 </div>
               </header>
 
+              <form class="facturas-date-filters" (ngSubmit)="cargarFacturasHoyPorEstado()">
+                <ion-item>
+                  <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
+                  <ion-label position="stacked">Desde</ion-label>
+                  <ion-input type="date" name="facturasFechaDesde" [(ngModel)]="facturasFechaDesde" required></ion-input>
+                </ion-item>
+                <ion-item>
+                  <ion-icon name="calendar-outline" slot="start" aria-hidden="true"></ion-icon>
+                  <ion-label position="stacked">Hasta</ion-label>
+                  <ion-input type="date" name="facturasFechaHasta" [(ngModel)]="facturasFechaHasta" required></ion-input>
+                </ion-item>
+                <div class="facturas-filter-actions">
+                  <ion-button type="button" fill="clear" (click)="restablecerFiltroFacturas()"
+                    [disabled]="facturasModalLoading">Hoy</ion-button>
+                  <ion-button type="submit" class="btn-primary" [disabled]="facturasModalLoading || !facturasFechaDesde || !facturasFechaHasta">
+                    <ion-icon name="filter-outline" slot="start"></ion-icon>Aplicar filtro
+                  </ion-button>
+                </div>
+              </form>
+
               <div *ngIf="facturasModalLoading" class="modal-loading">
                 <ion-spinner name="crescent"></ion-spinner>
-                <span>Cargando facturas del día...</span>
+                <span>Cargando facturas...</span>
               </div>
 
               <ng-container *ngIf="!facturasModalLoading">
@@ -251,7 +278,7 @@
                 <div class="mobile-cards" *ngIf="facturasDelDia.length > 0">
                   <article class="mobile-card" *ngFor="let f of facturasModalPaginadas">
                     <strong>{{ f.numero }} · {{ formatCurrency(f.total) }}</strong>
-                    <p>{{ (f.creadoEn || f.fecha) | date:'hh:mm a' }} · {{ f.clienteNombre }}</p>
+                    <p>{{ (f.creadoEn || f.fecha) | date:'dd/MM/yyyy hh:mm a' }} · {{ f.clienteNombre }}</p>
                     <ion-chip [color]="estadoColor(f.estado)"><ion-label>{{ f.estado }}</ion-label></ion-chip>
                     <div class="actions">
                       <ion-button fill="outline" size="small" (click)="openFacturaActions(f)">Acciones</ion-button>
@@ -263,8 +290,8 @@
               </ng-container>
 
               <ng-template #emptyFacturas>
-                <app-empty-state title="Sin facturas para hoy"
-                  message="No hay registros del estado seleccionado en la fecha actual."></app-empty-state>
+                <app-empty-state title="Sin facturas en este período"
+                  message="No hay registros del estado seleccionado dentro del rango indicado."></app-empty-state>
               </ng-template>
 
               <ion-popover [isOpen]="facturasActionsPopoverOpen" [event]="facturasActionsEvent"
@@ -290,35 +317,42 @@
       </ng-template>
     </ion-modal>
 
-    <ion-modal [isOpen]="quickClienteModalOpen" (didDismiss)="closeQuickClienteModal()"
-      cssClass="quick-client-modal quick-cliente-compact">
+    <ion-modal [isOpen]="quickClienteModalOpen" [keepContentsMounted]="true"
+      (didDismiss)="closeQuickClienteModal()"
+      cssClass="quick-client-modal selector-modal nuevo-cliente-modal">
       <ng-template>
         <ion-content class="quick-client-content ion-padding">
           <div class="quick-client-shell">
             <section class="quick-client-card modal-card-client quick-create-client">
-              <div class="quick-create-hero">
-                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
-                <div class="quick-create-icon"><ion-icon name="person-add-outline"></ion-icon></div>
-                <h2>Nuevo cliente</h2>
-                <p>Registra un cliente para continuar la venta.</p>
-              </div>
+              <header class="selector-modal-header">
+                <div class="selector-modal-heading">
+                  <div class="quick-create-icon"><ion-icon name="person-add-outline"></ion-icon></div>
+                  <div><span>Factura actual</span><h2>Nuevo cliente</h2><p>Registra un cliente para continuar la venta.</p></div>
+                </div>
+                <ion-button type="button" fill="clear" (click)="closeQuickClienteModal()" aria-label="Cerrar nuevo cliente">
+                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                </ion-button>
+              </header>
 
               <form [formGroup]="quickClienteForm" (ngSubmit)="saveQuickCliente()" class="quick-create-form">
-                <article class="quick-create-resumen">
-                  <h4>Resumen rápido</h4>
-                  <p><span>Cliente:</span> <strong>{{ quickClienteForm.value.nombreCompleto || 'Sin nombre' }}</strong>
-                  </p>
-                  <p><span>Teléfono:</span> <strong>{{ quickClienteForm.value.telefono || 'Sin teléfono' }}</strong></p>
-                </article>
-
                 <article class="quick-create-fields">
-                  <h4>Información del cliente</h4>
+                  <div class="client-form-heading">
+                    <div>
+                      <h4>Información del cliente</h4>
+                      <p>Completa los datos principales. Los demás campos son opcionales.</p>
+                    </div>
+                    <span><strong>*</strong> Campos requeridos</span>
+                  </div>
+
                   <div class="quick-form-grid quick-form-grid--single">
-                    <div class="field-wrap">
-                      <ion-item>
+                    <div class="field-wrap client-form-field">
+                      <label class="client-field-label" for="quick-client-name">
+                        Nombre completo <span class="required-soft">*</span>
+                      </label>
+                      <ion-item class="client-input-item" lines="none">
                         <ion-icon name="person-outline" slot="start"></ion-icon>
-                        <ion-label position="stacked">Nombre completo <span class="required-soft">*</span></ion-label>
-                        <ion-input formControlName="nombreCompleto"></ion-input>
+                        <ion-input id="quick-client-name" formControlName="nombreCompleto" autocomplete="name"
+                          placeholder="Ej. María Pérez" aria-label="Nombre completo"></ion-input>
                       </ion-item>
                       <small class="field-error"
                         *ngIf="quickClienteForm.controls.nombreCompleto.touched && quickClienteForm.controls.nombreCompleto.invalid">
@@ -326,11 +360,14 @@
                       </small>
                     </div>
 
-                    <div class="field-wrap">
-                      <ion-item>
+                    <div class="field-wrap client-form-field">
+                      <label class="client-field-label" for="quick-client-phone">
+                        Teléfono <span class="required-soft">*</span>
+                      </label>
+                      <ion-item class="client-input-item" lines="none">
                         <ion-icon name="call-outline" slot="start"></ion-icon>
-                        <ion-label position="stacked">Teléfono <span class="required-soft">*</span></ion-label>
-                        <ion-input formControlName="telefono"></ion-input>
+                        <ion-input id="quick-client-phone" formControlName="telefono" type="tel" inputmode="tel"
+                          autocomplete="tel" placeholder="Ej. 809-000-0000" aria-label="Teléfono"></ion-input>
                       </ion-item>
                       <small class="field-error"
                         *ngIf="quickClienteForm.controls.telefono.touched && quickClienteForm.controls.telefono.invalid">
@@ -338,17 +375,62 @@
                       </small>
                     </div>
 
-                    <ion-item>
-                      <ion-icon name="mail-outline" slot="start"></ion-icon>
-                      <ion-label position="stacked">Correo electrónico</ion-label>
-                      <ion-input formControlName="correo" type="email"></ion-input>
-                    </ion-item>
+                    <div class="client-form-field">
+                      <label class="client-field-label" for="quick-client-email">
+                        Correo electrónico <span class="optional-label">Opcional</span>
+                      </label>
+                      <ion-item class="client-input-item" lines="none">
+                        <ion-icon name="mail-outline" slot="start"></ion-icon>
+                        <ion-input id="quick-client-email" formControlName="correo" type="email"
+                          inputmode="email" autocomplete="email" placeholder="nombre@correo.com"
+                          aria-label="Correo electrónico"></ion-input>
+                      </ion-item>
+                    </div>
 
-                    <ion-item>
-                      <ion-icon name="card-outline" slot="start"></ion-icon>
-                      <ion-label position="stacked">Documento</ion-label>
-                      <ion-input formControlName="rncCedula"></ion-input>
-                    </ion-item>
+                    <div class="client-form-field">
+                      <label class="client-field-label" for="quick-client-document">
+                        Documento / cédula <span class="optional-label">Opcional</span>
+                      </label>
+                      <ion-item class="client-input-item" lines="none">
+                        <ion-icon name="card-outline" slot="start"></ion-icon>
+                        <ion-input id="quick-client-document" formControlName="rncCedula"
+                          placeholder="Cédula o documento de identidad" aria-label="Documento o cédula"></ion-input>
+                      </ion-item>
+                    </div>
+
+                    <div class="client-form-field">
+                      <label class="client-field-label" for="quick-client-birthdate">
+                        Fecha de nacimiento <span class="optional-label">Opcional</span>
+                      </label>
+                      <ion-item class="client-input-item" lines="none">
+                        <ion-icon name="calendar-outline" slot="start"></ion-icon>
+                        <ion-input id="quick-client-birthdate" type="date" formControlName="fechaNacimiento"
+                          aria-label="Fecha de nacimiento"></ion-input>
+                      </ion-item>
+                    </div>
+
+                    <div class="client-form-field">
+                      <label class="client-field-label" for="quick-client-address">
+                        Dirección <span class="optional-label">Opcional</span>
+                      </label>
+                      <ion-item class="client-input-item client-input-item--textarea" lines="none">
+                        <ion-icon name="location-outline" slot="start"></ion-icon>
+                        <ion-textarea id="quick-client-address" formControlName="direccion" autoGrow="true" rows="2"
+                          autocomplete="street-address" placeholder="Calle, sector y ciudad"
+                          aria-label="Dirección"></ion-textarea>
+                      </ion-item>
+                    </div>
+
+                    <div class="client-form-field">
+                      <label class="client-field-label" for="quick-client-rnc">
+                        RNC <span class="optional-label">Opcional</span>
+                      </label>
+                      <ion-item class="client-input-item" lines="none">
+                        <ion-icon name="business-outline" slot="start"></ion-icon>
+                        <ion-input id="quick-client-rnc" formControlName="rnc" inputmode="numeric" maxlength="9"
+                          placeholder="9 dígitos" aria-label="RNC"></ion-input>
+                      </ion-item>
+                    </div>
                   </div>
                 </article>
 
@@ -358,9 +440,9 @@
                     <strong>Cliente existente encontrado.</strong>
                     <p>{{ existing.nombreCompleto }} · {{ existing.telefono || 'Sin teléfono' }}</p>
                   </div>
-                  <ion-button fill="outline" size="small" (click)="selectClienteFromModal(existing)">Ver
+                  <ion-button type="button" fill="outline" size="small" (click)="selectClienteFromModal(existing)">Ver
                     cliente</ion-button>
-                  <ion-button class="btn-primary" size="small"
+                  <ion-button type="button" class="btn-primary" size="small"
                     (click)="seleccionarClienteExistenteDesdeQuick()">Seleccionar cliente</ion-button>
                 </article>
 
@@ -375,20 +457,23 @@
       </ng-template>
     </ion-modal>
 
-    <ion-modal [isOpen]="clienteSelectorModalOpen" (didDismiss)="closeClienteSelectorModal()"
-      cssClass="quick-client-modal">
+    <ion-modal [isOpen]="clienteSelectorModalOpen" (didDismiss)="onClienteSelectorModalDidDismiss()"
+      cssClass="quick-client-modal selector-modal cliente-selector-modal">
       <ng-template>
         <ion-content class="quick-client-content ion-padding">
           <div class="quick-client-shell">
             <section class="quick-client-card modal-card-client">
-              <div class="quick-create-hero">
-                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
-                <div class="quick-create-icon"><ion-icon name="people-outline"></ion-icon></div>
-                <h2>Seleccionar cliente</h2>
-                <p>Busca por nombre, cédula/RNC, teléfono o correo.</p>
-              </div>
+              <header class="selector-modal-header">
+                <div class="selector-modal-heading">
+                  <div class="quick-create-icon"><ion-icon name="people-outline"></ion-icon></div>
+                  <div><span>Factura actual</span><h2>Seleccionar cliente</h2><p>Busca por nombre, cédula/RNC, teléfono o correo.</p></div>
+                </div>
+                <ion-button fill="clear" (click)="closeClienteSelectorModal()" aria-label="Cerrar selección de cliente">
+                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                </ion-button>
+              </header>
 
-              <ion-searchbar placeholder="Nombre, cédula/RNC, teléfono o correo" color="dark"
+              <ion-searchbar class="selector-search" placeholder="Nombre, cédula/RNC, teléfono o correo"
                 [value]="clienteSearchTerm" (ionInput)="onClienteSearch($event)">
               </ion-searchbar>
 
@@ -396,7 +481,7 @@
                 <button type="button" class="cliente-item" *ngFor="let c of clientesFiltrados"
                   (click)="selectClienteFromModal(c)">
                   <strong>{{ c.nombreCompleto }}</strong>
-                  <p>{{ c.rncCedula || 'Sin cédula/RNC' }} · {{ c.telefono || 'Sin teléfono' }}</p>
+                  <p>{{ c.rnc || c.rncCedula || 'Sin cédula/RNC' }} · {{ c.telefono || 'Sin teléfono' }}</p>
                   <small>{{ c.correo || 'Sin correo' }}</small>
                 </button>
               </div>
@@ -418,19 +503,22 @@
       </ng-template>
     </ion-modal>
 
-    <ion-modal [isOpen]="citaSelectorModalOpen" (didDismiss)="closeCitaSelectorModal()" cssClass="quick-client-modal">
+    <ion-modal [isOpen]="citaSelectorModalOpen" (didDismiss)="closeCitaSelectorModal()" cssClass="quick-client-modal selector-modal cita-selector-modal">
       <ng-template>
         <ion-content class="quick-client-content ion-padding">
           <div class="quick-client-shell">
             <section class="quick-client-card modal-card-cita">
-              <div class="quick-create-hero">
-                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
-                <div class="quick-create-icon"><ion-icon name="calendar-outline"></ion-icon></div>
-                <h2>Seleccionar cita</h2>
-                <p>Busca por cliente o servicio y filtra por rango de fecha.</p>
-              </div>
+              <header class="selector-modal-header">
+                <div class="selector-modal-heading">
+                  <div class="quick-create-icon"><ion-icon name="calendar-outline"></ion-icon></div>
+                  <div><span>Factura vinculada</span><h2>Seleccionar cita</h2><p>Busca por cliente o servicio y filtra por rango de fecha.</p></div>
+                </div>
+                <ion-button fill="clear" (click)="closeCitaSelectorModal()" aria-label="Cerrar selección de cita">
+                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                </ion-button>
+              </header>
 
-              <ion-searchbar placeholder="Buscar por cliente, servicio o artista" color="dark" [value]="citaSearchTerm"
+              <ion-searchbar class="selector-search" placeholder="Buscar por cliente, servicio o artista" [value]="citaSearchTerm"
                 (ionInput)="onCitaSearch($event)">
               </ion-searchbar>
 
@@ -447,8 +535,7 @@
               </div>
 
               <div class="cliente-list" *ngIf="citasFiltradas.length > 0; else emptyCitas">
-                <button type="button" class="cliente-item" *ngFor="let c of citasFiltradas"
-                  (click)="selectCitaFromModal(c.id || '')" [disabled]="!c.id">
+                <article class="cliente-item cita-selector-item" *ngFor="let c of citasFiltradas">
                   <strong>{{ c.clienteNombre || 'Cliente' }}</strong>
                   <p>{{ formatCitaFecha(c) }} · {{ c.servicioNombre || 'Servicio' }}</p>
                   <small>{{ c.clienteTelefono || 'Sin teléfono' }} · {{ c.artistaNombre || 'Sin artista' }}</small>
@@ -486,7 +573,7 @@
                       Facturar total
                     </ion-button>
                   </div>
-                </button>
+                </article>
               </div>
 
               <ng-template #emptyCitas>
@@ -536,7 +623,7 @@
 
               <form [formGroup]="cobroForm" (ngSubmit)="confirmarCobroYEmitir(false)">
                 <div class="cobro-highlight cobro-input-highlight">
-                  <span>Monto pagado</span>
+                  <span>Monto recibido</span>
                   <div class="cobro-money-input-row">
                     <strong>RD$</strong>
                     <ion-input inputmode="decimal" [value]="montoPagadoDisplay" (ionInput)="onMontoPagadoInput($event)"
@@ -573,18 +660,19 @@
                 <div class="cobro-resumen">
                   <span>Total factura</span>
                   <strong>{{ formatCurrency(total) }}</strong>
-                  <span>Pagado ahora</span>
+                  <span>Monto recibido</span>
                   <strong>{{ formatCurrency(pagoDistribucion.totalPagadoAhora) }}</strong>
                   <span>Saldo a crédito</span>
                   <strong>{{ formatCurrency(pagoDistribucion.credito) }}</strong>
                   <span>Pendiente por cobrar</span>
                   <strong>{{ formatCurrency(pagoDistribucion.diferencia > 0 ? pagoDistribucion.diferencia : 0)
                     }}</strong>
+                  <ng-container *ngIf="cambioCobro > 0">
+                    <span class="cobro-change-label">Cambio a devolver</span>
+                    <strong class="cobro-change-value">{{ formatCurrency(cambioCobro) }}</strong>
+                  </ng-container>
                 </div>
 
-                <ion-text color="danger" *ngIf="pagoDistribucion.totalRegistrado > total">
-                  <p class="cobro-alert">El pago no puede superar el total de la factura.</p>
-                </ion-text>
                 <ion-text color="danger"
                   *ngIf="pagoDistribucion.credito <= 0 && pagoDistribucion.totalRegistrado < total">
                   <p class="cobro-alert">Sin crédito, el pago debe cubrir el total de la factura.</p>
@@ -594,12 +682,12 @@
                   <!-- <ion-button type="button" fill="outline" (click)="closeCobroModal()"
                     [disabled]="isEmitting">Cancelar</ion-button> -->
                   <ion-button type="submit" class="btn-primary"
-                    [disabled]="isEmitting || pagoDistribucion.totalRegistrado > total">
+                    [disabled]="isEmitting">
                     {{ pagoDistribucion.credito > 0 ? 'Emitir factura y crear cuenta por cobrar' : 'Emitir factura' }}
                     <ion-icon name="receipt-outline" slot="start"></ion-icon>
                   </ion-button>
                   <ion-button type="button" class="btn-outline" (click)="confirmarCobroYEmitir(true)"
-                    [disabled]="isEmitting || pagoDistribucion.totalRegistrado > total">Emitir e imprimir
+                    [disabled]="isEmitting">Emitir e imprimir
                     <ion-icon name="print-outline" slot="start"></ion-icon>
                   </ion-button>
                 </div>
@@ -610,17 +698,21 @@
       </ng-template>
     </ion-modal>
 
-    <ion-modal [isOpen]="showCierreTurnoModal" (didDismiss)="cerrarModalCierreTurno()" cssClass="quick-client-modal">
+    <ion-modal [isOpen]="showCierreTurnoModal" [keepContentsMounted]="true"
+      (didDismiss)="cerrarModalCierreTurno()" cssClass="quick-client-modal selector-modal cierre-turno-modal">
       <ng-template>
         <ion-content class="quick-client-content ion-padding">
           <div class="quick-client-shell">
             <section class="quick-client-card modal-card-cobro">
-              <div class="quick-create-hero cierre-turno-header">
-                <ion-chip class="quick-create-chip"><ion-label>Registro rápido</ion-label></ion-chip>
-                <div class="quick-create-icon"><ion-icon name="lock-closed-outline"></ion-icon></div>
-                <h2>Cierre de turno</h2>
-                <p>Valida el efectivo contado antes de finalizar la jornada.</p>
-              </div>
+              <header class="selector-modal-header cierre-turno-header">
+                <div class="selector-modal-heading">
+                  <div class="quick-create-icon"><ion-icon name="lock-closed-outline"></ion-icon></div>
+                  <div><span>Conciliación de caja</span><h2>Cierre de turno</h2><p>Valida el efectivo contado antes de finalizar la jornada.</p></div>
+                </div>
+                <ion-button type="button" fill="clear" (click)="cerrarModalCierreTurno()" aria-label="Cerrar conciliación de turno">
+                  <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+                </ion-button>
+              </header>
 
               <div class="cierre-turno-kpis">
                 <article class="kpi-card kpi-card--primary">
@@ -684,10 +776,10 @@
                 </div>
                 <div class="actions quick-create-footer">
                   <ion-button type="button" fill="outline" (click)="cerrarModalCierreTurno()"
-                    [disabled]="turnoActionLoading">Cerrar</ion-button>
-                  <ion-button type="button" fill="outline" (click)="cerrarModalCierreTurno()"
                     [disabled]="turnoActionLoading">Cancelar</ion-button>
-                  <ion-button type="submit" color="warning" [disabled]="turnoActionLoading">Cerrar turno</ion-button>
+                  <ion-button type="submit" class="close-shift-button" [disabled]="turnoActionLoading">
+                    <ion-icon name="lock-closed-outline" slot="start"></ion-icon>Cerrar turno
+                  </ion-button>
                 </div>
               </form>
             </section>
@@ -696,4 +788,10 @@
       </ng-template>
     </ion-modal>
   </ng-template>
+
+  <ion-modal [isOpen]="printerSettingsModalOpen" (didDismiss)="closePrinterSettings()" cssClass="printer-settings-modal">
+    <ng-template>
+      <app-printer-settings (closed)="closePrinterSettings()" (saved)="onPrinterConfigurationSaved($event)"></app-printer-settings>
+    </ng-template>
+  </ion-modal>
 </ion-content>

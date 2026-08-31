@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { AppRole } from '../../../core/models/app-role.model';
+import { AdminShellThemeService } from '../../../core/services/admin-shell-theme.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CompanyProfileService } from '../../../core/services/company-profile.service';
 
@@ -24,9 +25,7 @@ export class DashboardPage {
     map((profile) => this.normalizeRole((profile?.rol || profile?.role || 'artista') as AppRole)),
   );
 
-  readonly logoPath$: Observable<string | null> = this.companyProfileService.watchCurrentProfile().pipe(
-    map((profile) => profile.logoUrl?.trim() || null),
-  );
+  readonly companyProfile$ = this.companyProfileService.watchCurrentProfile();
 
   readonly quickActions: QuickAction[] = [
     {
@@ -36,13 +35,13 @@ export class DashboardPage {
       route: '/admin/dashboard',
       roles: ['superadmin', 'admin', 'assistant', 'artist'],
     },
-    {
-      title: 'Agenda',
-      description: 'Control de citas y planificación.',
-      icon: 'calendar-outline',
-      route: '/admin/agenda',
-      roles: ['superadmin', 'admin', 'assistant', 'artist'],
-    },
+    // {
+    //   title: 'Agenda',
+    //   description: 'Control de citas y planificación.',
+    //   icon: 'calendar-outline',
+    //   route: '/admin/agenda',
+    //   roles: ['superadmin', 'admin', 'assistant', 'artist'],
+    // },
        {
       title: 'Facturación',
       description: 'Ventas, tickets y comprobantes.',
@@ -97,7 +96,23 @@ export class DashboardPage {
   constructor(
     private readonly authService: AuthService,
     private readonly companyProfileService: CompanyProfileService,
-  ) {}
+    private readonly themeService: AdminShellThemeService,
+  ) {
+    this.themeService.initialize();
+  }
+
+  get shellTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleShellTheme(): void {
+    this.themeService.toggle();
+  }
+
+  getCompanyInitials(companyTitle?: string): string {
+    const words = String(companyTitle || 'Empresa').trim().split(/\s+/).filter(Boolean);
+    return words.slice(0, 2).map((word) => word[0]?.toUpperCase() || '').join('') || 'EM';
+  }
 
   canAccess(item: QuickAction, role: AppRole): boolean {
     return item.roles.includes(role);

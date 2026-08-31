@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
 import { ProductoServicio } from '../models/producto-servicio.model';
 import { ProductosServiciosService } from '../services/productos-servicios.service';
+import { InventarioThemeService } from '../services/inventario-theme.service';
 
 interface InventarioQuickAction {
   label: string;
@@ -49,9 +50,11 @@ export class InventarioPage implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private readonly productosServiciosService: ProductosServiciosService,
     private readonly router: Router,
+    private readonly themeService: InventarioThemeService,
   ) {}
 
   ngOnInit(): void {
+    this.themeService.initialize();
     this.sub = this.productosServiciosService.getProductosServicios().subscribe({
       next: (items) => {
         this.items = items || [];
@@ -139,6 +142,15 @@ export class InventarioPage implements OnInit, AfterViewInit, OnDestroy {
     this.router.navigateByUrl(route);
   }
 
+  get inventoryTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleInventoryTheme(): void {
+    this.themeService.toggle();
+    this.refreshChartsIfReady();
+  }
+
   formatMoney(value: unknown): string {
     return new Intl.NumberFormat('es-DO', {
       style: 'currency',
@@ -158,6 +170,7 @@ export class InventarioPage implements OnInit, AfterViewInit, OnDestroy {
     if (!canvas) return;
     this.tipoChart?.destroy();
 
+    const isDark = this.inventoryTheme === 'dark';
     this.tipoChart = new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -166,7 +179,7 @@ export class InventarioPage implements OnInit, AfterViewInit, OnDestroy {
           {
             data: [this.chartProductosCount, this.chartServiciosCount],
             backgroundColor: ['#3B82F6', '#38BDF8'],
-            borderColor: ['rgba(255,255,255,0.16)', 'rgba(255,255,255,0.16)'],
+            borderColor: isDark ? ['#334155', '#334155'] : ['#ffffff', '#ffffff'],
             borderWidth: 1.4,
             hoverOffset: 8,
           },
@@ -177,7 +190,7 @@ export class InventarioPage implements OnInit, AfterViewInit, OnDestroy {
         plugins: {
           legend: {
             labels: {
-              color: '#E5EDFF',
+              color: isDark ? '#E5EDFF' : '#344054',
               boxWidth: 14,
             },
           },

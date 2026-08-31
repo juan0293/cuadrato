@@ -1,77 +1,61 @@
-<ion-header class="ion-no-border dashboard-header">
-  <ion-toolbar class="dashboard-toolbar"mode="ios">
-    <div class="toolbar-inner">
-      <ion-title>Dashboard</ion-title>
-    </div>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content class="dashboard-page">
-  <div class="shell ion-padding">
-    <section class="command-center card">
-      <div class="command-hero">
-        <div class="command-logo" *ngIf="logoPath$ | async as logoPath; else logoFallback">
-          <img [src]="logoPath" alt="Logo" />
+<ion-content class="dashboard-page" [class.theme-light]="shellTheme === 'light'" [class.theme-dark]="shellTheme === 'dark'">
+  <div class="dashboard-shell" *ngIf="companyProfile$ | async as company">
+    <header class="page-header">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="grid-outline"></ion-icon></span>
+        <div>
+          <span class="eyebrow">Inicio · Operación</span>
+          <h1>Panel principal</h1>
+          <p>Consulta y gestiona los módulos esenciales de tu empresa.</p>
         </div>
-        <ng-template #logoFallback>
-          <div class="command-logo command-logo--fallback">
-            <span>VT</span>
-            <small>Vargas TattooApp</small>
-          </div>
-        </ng-template>
+      </div>
+      <ion-button class="theme-toggle" fill="outline" (click)="toggleShellTheme()" [attr.aria-label]="shellTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'" [attr.aria-pressed]="shellTheme === 'dark'">
+        <ion-icon slot="start" [name]="shellTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>
+        {{ shellTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
+      </ion-button>
+    </header>
 
-        <h1 class="command-title">Centro de mando</h1>
-        <p class="command-subtitle">Gestiona tus operaciones desde un solo lugar.</p>
+    <section class="company-overview">
+      <div class="company-logo" [class.company-logo--fallback]="!company.logoUrl">
+        <img *ngIf="company.logoUrl; else logoFallback" [src]="company.logoUrl" [alt]="'Logo de ' + company.companyTitle" />
+        <ng-template #logoFallback><span>{{ getCompanyInitials(company.companyTitle) }}</span></ng-template>
+      </div>
+      <div class="company-copy">
+        <span class="eyebrow">Centro de gestión</span>
+        <h2>Bienvenido a {{ company.companyTitle }}</h2>
+        <p>Todo lo necesario para mantener la operación organizada desde un solo lugar.</p>
+        <div class="overview-badges">
+          <span><ion-icon name="shield-checkmark-outline"></ion-icon>Acceso según tu rol</span>
+          <span><ion-icon name="sync-outline"></ion-icon>Información centralizada</span>
+        </div>
       </div>
     </section>
 
-    <section class="quick-actions-card card">
+    <section class="modules-card">
       <div class="section-head">
-        <h2>Centro de mando</h2>
-        <p>Accede rápidamente a los módulos principales de gestión.</p>
+        <div class="section-title">
+          <span class="section-icon"><ion-icon name="apps-outline"></ion-icon></span>
+          <div><span class="eyebrow">Accesos directos</span><h2>Módulos de gestión</h2><p>Selecciona una opción para continuar con tu trabajo.</p></div>
+        </div>
+        <span class="module-count">{{ quickActions.length }} módulos</span>
       </div>
 
       <div class="quick-actions-grid" *ngIf="normalizedRole$ | async as currentRole">
         <ng-container *ngFor="let item of quickActions">
-          <a
-            class="quick-action-item"
-            *ngIf="canAccess(item, currentRole); else blockedQuickAction"
-            [routerLink]="item.route"
-            routerLinkActive="menu-item-active"
-          >
-            <div class="quick-action-icon">
-              <ion-icon [name]="item.icon"></ion-icon>
-            </div>
-            <h3 class="quick-action-title">{{ item.title }}</h3>
-            <p class="quick-action-description">{{ item.description }}</p>
+          <a class="quick-action-item" *ngIf="canAccess(item, currentRole); else blockedQuickAction" [routerLink]="item.route">
+            <span class="quick-action-icon"><ion-icon [name]="item.icon"></ion-icon></span>
+            <div><h3>{{ item.title }}</h3><p>{{ item.description }}</p></div>
+            <ion-icon class="action-arrow" name="arrow-forward-outline"></ion-icon>
           </a>
 
           <ng-template #blockedQuickAction>
             <div class="quick-action-item quick-action-item--locked" aria-disabled="true">
-              <div class="quick-action-icon">
-                <ion-icon [name]="item.icon"></ion-icon>
-              </div>
-              <h3 class="quick-action-title">{{ item.title }}</h3>
-              <p class="quick-action-description">{{ item.description }}</p>
-              <span class="quick-action-lock">
-                <ion-icon name="lock-closed-outline"></ion-icon>
-                Acceso bloqueado
-              </span>
+              <span class="quick-action-icon"><ion-icon [name]="item.icon"></ion-icon></span>
+              <div><h3>{{ item.title }}</h3><p>{{ item.description }}</p><small><ion-icon name="lock-closed-outline"></ion-icon>Sin acceso para tu rol</small></div>
             </div>
           </ng-template>
         </ng-container>
       </div>
     </section>
-
-    <!-- <section class="card">
-      <ion-list class="menu-list" lines="none">
-        <ion-menu-toggle autoHide="true">
-          <ion-item *ngFor="let item of quickActions" [routerLink]="item.route" routerLinkActive="menu-item-active">
-            <ion-icon slot="start" [name]="item.icon"></ion-icon>
-            <ion-label>{{ item.title }}</ion-label>
-          </ion-item>
-        </ion-menu-toggle>
-      </ion-list>
-    </section> -->
   </div>
 </ion-content>

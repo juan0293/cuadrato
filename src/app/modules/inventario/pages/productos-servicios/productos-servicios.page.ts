@@ -20,8 +20,10 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
 
   query = '';
   filtroTipo: 'todos' | 'producto' | 'servicio' = 'todos';
+  filtroCategoria = 'todas';
   filtroEstado: 'todos' | 'activo' | 'inactivo' = 'todos';
   filtroStock: 'todos' | 'normal' | 'bajo' = 'todos';
+  categoriasDisponibles: string[] = [];
   page = 1;
   pageSize = 10;
   readonly pageSizeOptions = [10, 20, 50];
@@ -40,6 +42,9 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
     this.sub = this.productosServiciosService.getProductosServicios().subscribe({
       next: (items) => {
         this.items = [...items].sort((a, b) => String(a.nombre || '').localeCompare(String(b.nombre || '')));
+        this.categoriasDisponibles = Array.from(new Set(
+          this.items.map((item) => String(item.categoriaNombre || '').trim()).filter(Boolean),
+        )).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
         this.applyFilters();
         this.loading = false;
       },
@@ -65,6 +70,11 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
     this.applyFilters();
   }
 
+  onCategoriaChange(value: string): void {
+    this.filtroCategoria = value || 'todas';
+    this.applyFilters();
+  }
+
   onEstadoChange(value: 'todos' | 'activo' | 'inactivo'): void {
     this.filtroEstado = value;
     this.applyFilters();
@@ -72,6 +82,23 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
 
   onStockChange(value: 'todos' | 'normal' | 'bajo'): void {
     this.filtroStock = value;
+    this.applyFilters();
+  }
+
+  get hasActiveFilters(): boolean {
+    return Boolean(this.query.trim())
+      || this.filtroTipo !== 'todos'
+      || this.filtroCategoria !== 'todas'
+      || this.filtroEstado !== 'todos'
+      || this.filtroStock !== 'todos';
+  }
+
+  clearFilters(): void {
+    this.query = '';
+    this.filtroTipo = 'todos';
+    this.filtroCategoria = 'todas';
+    this.filtroEstado = 'todos';
+    this.filtroStock = 'todos';
     this.applyFilters();
   }
 
@@ -100,7 +127,12 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
       { text: 'Eliminar', icon: 'trash-outline', role: 'destructive', handler: () => this.onDelete(item) },
       { text: 'Cerrar', icon: 'close-outline', role: 'cancel' },
     ];
-    const sheet = await this.actionSheetCtrl.create({ header: 'Acciones del catálogo', buttons });
+    const sheet = await this.actionSheetCtrl.create({
+      header: item.nombre || 'Acciones del catálogo',
+      subHeader: item.codigoInterno || 'Producto o servicio',
+      cssClass: 'inventory-actions-sheet',
+      buttons,
+    });
     await sheet.present();
   }
 
@@ -122,6 +154,7 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
     if (!item.id) return;
 
     const alert = await this.alertCtrl.create({
+      cssClass: 'inventory-confirm-alert',
       header: 'Eliminar registro',
       message: `Se eliminará ${item.nombre}. Esta acción no se puede deshacer.`,
       buttons: [
@@ -176,13 +209,17 @@ export class ProductosServiciosPage implements OnInit, OnDestroy {
         item.unidadMedidaCodigo,
       ].some((value) => String(value || '').toLowerCase().includes(q));
       const matchTipo = this.filtroTipo === 'todos' || this.filtroTipo === type;
+      const categoriaNombre = String(item.categoriaNombre || '').trim();
+      const matchCategoria = this.filtroCategoria === 'todas'
+        || (this.filtroCategoria === 'sin_categoria' && !categoriaNombre)
+        || this.filtroCategoria === categoriaNombre;
       const matchEstado = this.filtroEstado === 'todos'
         || (this.filtroEstado === 'activo' && active)
         || (this.filtroEstado === 'inactivo' && !active);
       const matchStock = this.filtroStock === 'todos'
         || (this.filtroStock === 'bajo' && stockLow)
         || (this.filtroStock === 'normal' && !stockLow);
-      return matchText && matchTipo && matchEstado && matchStock;
+      return matchText && matchTipo && matchCategoria && matchEstado && matchStock;
     });
     this.page = 1;
   }

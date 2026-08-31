@@ -1,0 +1,173 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>Configuración de impresión</ion-title>
+    <ion-buttons slot="end">
+      <ion-button (click)="closed.emit()" aria-label="Cerrar configuración">
+        <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+  <div class="printer-settings" *ngIf="!loading; else loadingSettings">
+    <form [formGroup]="form" (ngSubmit)="save()">
+      <section class="settings-card">
+        <div class="setting-toggle">
+          <div><strong>Impresión habilitada</strong><small>Permite imprimir comprobantes desde esta caja.</small></div>
+          <ion-toggle formControlName="enabled" aria-label="Activar impresión"></ion-toggle>
+        </div>
+        <div class="setting-toggle">
+          <div><strong>Imprimir después de emitir</strong><small>Usa automáticamente esta configuración.</small></div>
+          <ion-toggle formControlName="autoPrintAfterInvoice" aria-label="Impresión automática"></ion-toggle>
+        </div>
+      </section>
+
+      <section class="settings-card">
+        <h2>Formato del comprobante</h2>
+        <ion-segment formControlName="format" mode="ios">
+          <ion-segment-button value="ticket58"><ion-label>58 mm</ion-label></ion-segment-button>
+          <ion-segment-button value="ticket80"><ion-label>80 mm</ion-label></ion-segment-button>
+          <ion-segment-button value="letter"><ion-label>8.5×11</ion-label></ion-segment-button>
+        </ion-segment>
+        <p class="hint" *ngIf="isLetter">La factura corporativa usa el diálogo de impresión del sistema.</p>
+      </section>
+
+      <section class="settings-card" *ngIf="!isLetter">
+        <h2>Conexión</h2>
+        <ion-item>
+          <ion-label position="stacked">Tipo de conexión</ion-label>
+          <ion-select formControlName="transport" interface="popover">
+            <ng-container *ngIf="isNative; else webTransports">
+              <ion-select-option value="bluetooth">Bluetooth</ion-select-option>
+              <ion-select-option value="usb">Cable USB / OTG</ion-select-option>
+              <ion-select-option value="tcp">Red local</ion-select-option>
+            </ng-container>
+            <ng-template #webTransports>
+              <ion-select-option value="qz-printer">QZ Tray · impresora USB/sistema</ion-select-option>
+              <ion-select-option value="webusb">USB directo · sin QZ Tray</ion-select-option>
+              <ion-select-option value="qz">QZ Tray · puerto serial avanzado</ion-select-option>
+              <ion-select-option value="webserial">Bluetooth/USB serial web</ion-select-option>
+              <ion-select-option value="browser">Controlador del sistema</ion-select-option>
+            </ng-template>
+          </ion-select>
+        </ion-item>
+
+        <p class="hint" *ngIf="form.controls.transport.value === 'bluetooth'">
+          Empareja primero la 2C-P58-C desde los ajustes Bluetooth de Android.
+        </p>
+        <p class="hint" *ngIf="form.controls.transport.value === 'webserial'">
+          Disponible en Chrome/Edge de escritorio. Empareja primero la 2C-P58-C con la computadora y luego autoriza su puerto aquí.
+        </p>
+        <p class="hint" *ngIf="form.controls.transport.value === 'qz'">
+          Modo avanzado. Envía datos directamente a /dev/cu.2C-P58-C o al puerto COM; algunos adaptadores Bluetooth aceptan los datos pero no los imprimen.
+        </p>
+        <p class="hint" *ngIf="form.controls.transport.value === 'qz-printer'">
+          Conecta la impresora con un cable USB de datos, instálala como impresora del sistema y mantenla encendida. QZ Tray enviará ESC/POS directamente a esa cola.
+        </p>
+        <p class="hint" *ngIf="form.controls.transport.value === 'webusb'">
+          Chrome solicitará autorización una sola vez y después imprimirá directamente en la Caysn Thermal Printer USB (VID 4B43 / PID 3538), sin avisos de QZ Tray.
+        </p>
+        <p class="hint" *ngIf="form.controls.transport.value === 'browser'">
+          Requiere instalar el driver de la 2C-P58-C. El navegador mostrará el diálogo de impresión en cada factura.
+        </p>
+        <p class="hint hint--warning" *ngIf="!isNative && form.controls.transport.value === 'webserial' && !webSerialPrinterService.supported">
+          Web Serial no está disponible en este navegador. Abre la PWA en Chrome o Edge actualizado desde una computadora.
+        </p>
+        <p class="hint hint--warning" *ngIf="!isNative && form.controls.transport.value === 'webusb' && !webUsbPrinterService.supported">
+          WebUSB no está disponible en este navegador. Usa Chrome o Edge de escritorio mediante HTTPS o localhost.
+        </p>
+
+        <div class="network-fields" *ngIf="form.controls.transport.value === 'tcp'">
+          <ion-item>
+            <ion-label position="stacked">Dirección IP</ion-label>
+            <ion-input formControlName="networkHost" inputmode="decimal" placeholder="192.168.1.50"></ion-input>
+          </ion-item>
+          <ion-item>
+            <ion-label position="stacked">Puerto</ion-label>
+            <ion-input formControlName="networkPort" type="number"></ion-input>
+          </ion-item>
+        </div>
+
+        <ion-button *ngIf="form.controls.transport.value !== 'browser'" type="button" fill="outline" expand="block"
+          (click)="searchPrinters('bluetooth-spp')" [disabled]="searching || !canSearch">
+          <ion-spinner *ngIf="searching" name="crescent" slot="start"></ion-spinner>
+          <ion-icon *ngIf="!searching" name="search-outline" slot="start"></ion-icon>
+          {{ searchButtonLabel }}
+        </ion-button>
+
+        <ion-button *ngIf="!isNative && form.controls.transport.value === 'webserial'" type="button"
+          fill="clear" expand="block" (click)="searchPrinters('usb-com')" [disabled]="searching || !canSearch">
+          Seleccionar puerto USB/COM mapeado
+        </ion-button>
+
+        <ion-item *ngIf="printers.length">
+          <ion-label position="stacked">Impresora encontrada</ion-label>
+          <ion-select [value]="selectedPrinterId" (ionChange)="selectPrinter($any($event).detail.value)" interface="action-sheet">
+            <ion-select-option *ngFor="let printer of printers" [value]="printer.id">{{ printer.name }}</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item *ngIf="form.controls.printerName.value">
+          <ion-label position="stacked">Selección actual</ion-label>
+          <ion-input formControlName="printerName" readonly="true"></ion-input>
+        </ion-item>
+
+        <p class="hint hint--warning"
+          *ngIf="form.controls.transport.value === 'webserial' && form.controls.printerName.value && !webSerialIdentityAvailable">
+          Chrome no reveló el nombre del dispositivo. En Windows selecciona el puerto COM saliente de la 2C-P58-C, no el puerto entrante.
+        </p>
+
+        <ion-item *ngIf="form.controls.transport.value === 'webserial'">
+          <ion-label position="stacked">Velocidad serial</ion-label>
+          <ion-select formControlName="webSerialBaudRate" interface="popover">
+            <ion-select-option [value]="9600">9600 baudios</ion-select-option>
+            <ion-select-option [value]="19200">19200 baudios</ion-select-option>
+            <ion-select-option [value]="38400">38400 baudios</ion-select-option>
+            <ion-select-option [value]="115200">115200 baudios</ion-select-option>
+          </ion-select>
+        </ion-item>
+
+        <ion-item *ngIf="form.controls.transport.value === 'webserial'">
+          <ion-label position="stacked">Control de flujo</ion-label>
+          <ion-select formControlName="webSerialFlowControl" interface="popover">
+            <ion-select-option value="none">Ninguno (recomendado para Bluetooth)</ion-select-option>
+            <ion-select-option value="hardware">Hardware RTS/CTS</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </section>
+
+      <section class="settings-card options-grid" *ngIf="!isLetter">
+        <ion-item>
+          <ion-label position="stacked">Copias</ion-label>
+          <ion-input formControlName="copies" type="number" min="1" max="5"></ion-input>
+        </ion-item>
+        <div class="setting-toggle">
+          <div><strong>Cortar papel</strong><small>Déjalo apagado para corte manual.</small></div>
+          <ion-toggle formControlName="cutPaper"></ion-toggle>
+        </div>
+      </section>
+
+      <div class="feedback" *ngIf="feedback" [class.feedback--success]="feedbackType === 'success'"
+        [class.feedback--error]="feedbackType === 'error'" role="status">
+        {{ feedback }}
+      </div>
+
+      <div class="settings-actions">
+        <ion-button type="button" fill="outline" (click)="testPrint()" [disabled]="testing || isLetter">
+          <ion-spinner *ngIf="testing" name="crescent" slot="start"></ion-spinner>
+          <ion-icon *ngIf="!testing" name="print-outline" slot="start"></ion-icon>
+          Imprimir prueba
+        </ion-button>
+        <ion-button type="submit" [disabled]="saving">
+          <ion-spinner *ngIf="saving" name="crescent" slot="start"></ion-spinner>
+          Guardar configuración
+        </ion-button>
+      </div>
+    </form>
+  </div>
+
+  <ng-template #loadingSettings>
+    <div class="loading-settings"><ion-spinner name="crescent"></ion-spinner><p>Cargando configuración…</p></div>
+  </ng-template>
+</ion-content>

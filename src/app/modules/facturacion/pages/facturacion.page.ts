@@ -20,6 +20,9 @@ import { TurnoCaja, TurnoTotales } from '../models/turno-caja.model';
 import { PdfFacturaService } from '../services/pdf-factura.service';
 import { FacturacionService } from '../services/facturacion.service';
 import { TurnosCajaService } from '../services/turnos-caja.service';
+import { PrinterConfiguration } from '../models/printer-configuration.model';
+import { InvoicePrintingService } from '../services/invoice-printing.service';
+import { PrinterConfigurationService } from '../services/printer-configuration.service';
 
 interface PosCartItem extends FacturaItem {
   key: string;
@@ -47,6 +50,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   catalogStockFilter: 'todos' | 'disponibles' = 'todos';
   posTheme: 'light' | 'dark' = 'light';
   quickClienteModalOpen = false;
+  private openQuickClienteAfterSelectorDismiss = false;
   clienteSelectorModalOpen = false;
   citaSelectorModalOpen = false;
   cobroModalOpen = false;
@@ -54,6 +58,8 @@ export class FacturacionPage implements OnInit, OnDestroy {
   facturasModalOpen = false;
   facturasModalLoading = false;
   facturasModalEstado: 'emitida' | 'borrador' = 'emitida';
+  facturasFechaDesde = '';
+  facturasFechaHasta = '';
   facturasDelDia: Factura[] = [];
   facturasModalPage = 1;
   readonly facturasModalPageSize = 8;
@@ -77,6 +83,8 @@ export class FacturacionPage implements OnInit, OnDestroy {
     cantidadFacturas: 0,
   };
   showCierreTurnoModal = false;
+  printerSettingsModalOpen = false;
+  printerConfiguration?: PrinterConfiguration;
 
   readonly aperturaTurnoForm = this.fb.nonNullable.group({
     cajaId: ['principal', [Validators.required]],
@@ -110,6 +118,9 @@ export class FacturacionPage implements OnInit, OnDestroy {
     telefono: ['', [Validators.required, Validators.minLength(7)]],
     correo: ['', [Validators.email]],
     rncCedula: [''],
+    fechaNacimiento: [''],
+    direccion: [''],
+    rnc: [''],
   });
 
   readonly cobroForm = this.fb.nonNullable.group({
@@ -144,11 +155,17 @@ export class FacturacionPage implements OnInit, OnDestroy {
     private readonly alertCtrl: AlertController,
     private readonly turnosCajaService: TurnosCajaService,
     private readonly loadingCtrl: LoadingController,
+    private readonly invoicePrintingService: InvoicePrintingService,
+    private readonly printerConfigurationService: PrinterConfigurationService,
     @Inject(DOCUMENT) private readonly document: Document,
   ) {}
 
   ngOnInit(): void {
     this.initializePosTheme();
+    void this.printerConfigurationService.load();
+    this.sub.add(this.printerConfigurationService.configuration$.subscribe((configuration) => {
+      this.printerConfiguration = configuration;
+    }));
     this.sub.add(
       combineLatest([
         this.productosService.getProductosServicios(),
@@ -178,6 +195,55 @@ export class FacturacionPage implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.sub.unsubscribe();
     this.document.body.classList.remove('facturacion-light-theme', 'facturacion-dark-theme');
+  }
+
+  get printerConfigurationLabel(): string {
+    return this.printerConfigurationService.describe(this.printerConfiguration);
+  }
+
+  openPrinterSettings(): void {
+    this.printerSettingsModalOpen = true;
+  }
+
+  closePrinterSettings(): void {
+    this.printerSettingsModalOpen = false;
+  }
+
+  async onPrinterConfigurationSaved(configuration: PrinterConfiguration): Promise<void> {
+    this.printerConfiguration = configuration;
+    await this.toastService.success('Configuración de impresión guardada en esta caja.');
+  }
+
+  async imprimirFacturaConfigurada(factura: Factura): Promise<void> {
+    try {
+      await this.invoicePrintingService.print(factura);
+      await this.toastService.success('Comprobante enviado a impresión.');
+    } catch (error) {
+      await this.presentPrintFailure(factura, error);
+    }
+  }
+
+  private async tryPrintIssuedInvoice(factura: Factura): Promise<boolean> {
+    try {
+      await this.invoicePrintingService.print(factura);
+      return true;
+    } catch (error) {
+      await this.presentPrintFailure(factura, error);
+      return false;
+    }
+  }
+
+  private async presentPrintFailure(factura: Factura, error: unknown): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Factura emitida, impresión pendiente',
+      message: `${this.invoicePrintingService.getFriendlyError(error)} La venta ya fue registrada; reintentar no creará otra factura.`,
+      buttons: [
+        { text: 'Cerrar', role: 'cancel' },
+        { text: 'Configurar', handler: () => this.openPrinterSettings() },
+        { text: 'Reintentar', handler: () => void this.imprimirFacturaConfigurada(factura) },
+      ],
+    });
+    await alert.present();
   }
 
   togglePosTheme(): void {
@@ -235,6 +301,11 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
   get devueltaCobro(): number {
     return Number((this.montoPagado - this.total).toFixed(2));
+  }
+
+  get cambioCobro(): number {
+    if (this.pagoDistribucion.credito > 0) return 0;
+    return Number(Math.max(0, this.pagoDistribucion.totalPagadoAhora - this.total).toFixed(2));
   }
 
   get facturacionBloqueadaPorTurno(): boolean {
@@ -303,11 +374,15 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   get facturasModalTitle(): string {
-    return this.facturasModalEstado === 'emitida' ? 'Facturas emitidas de hoy' : 'Borradores de hoy';
+    return this.facturasModalEstado === 'emitida' ? 'Facturas emitidas' : 'Borradores';
   }
 
   get facturasModalDateLabel(): string {
-    return new Intl.DateTimeFormat('es-DO', { dateStyle: 'full' }).format(new Date());
+    if (!this.facturasFechaDesde || !this.facturasFechaHasta) return 'Selecciona un rango de fechas';
+    const formatter = new Intl.DateTimeFormat('es-DO', { dateStyle: 'medium' });
+    const desde = formatter.format(new Date(`${this.facturasFechaDesde}T00:00:00`));
+    const hasta = formatter.format(new Date(`${this.facturasFechaHasta}T00:00:00`));
+    return this.facturasFechaDesde === this.facturasFechaHasta ? desde : `${desde} – ${hasta}`;
   }
 
   get facturasModalTotalPages(): number {
@@ -426,7 +501,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
     this.clientesFiltrados = this.clientes.filter((cliente) => {
       const nombre = this.normalizeText((cliente as any).nombreCompleto || (cliente as any).nombre || '');
-      const cedula = this.normalizeText((cliente as any).rncCedula || (cliente as any).cedula || '');
+      const cedula = this.normalizeText((cliente as any).rnc || (cliente as any).rncCedula || (cliente as any).cedula || '');
       const telefono = this.normalizeText((cliente as any).telefono || (cliente as any).numero || '');
       const correo = this.normalizeText((cliente as any).correo || '');
 
@@ -600,18 +675,34 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   openQuickClienteModal(): void {
-    this.clienteSelectorModalOpen = false;
-    this.quickClienteModalOpen = true;
     this.quickClienteForm.reset({
       nombreCompleto: '',
       telefono: '',
       correo: '',
       rncCedula: '',
+      fechaNacimiento: '',
+      direccion: '',
+      rnc: '',
     });
+
+    if (this.clienteSelectorModalOpen) {
+      this.openQuickClienteAfterSelectorDismiss = true;
+      this.clienteSelectorModalOpen = false;
+      return;
+    }
+
+    this.quickClienteModalOpen = true;
   }
 
   closeQuickClienteModal(): void {
     this.quickClienteModalOpen = false;
+  }
+
+  onClienteSelectorModalDidDismiss(): void {
+    this.clienteSelectorModalOpen = false;
+    if (!this.openQuickClienteAfterSelectorDismiss) return;
+    this.openQuickClienteAfterSelectorDismiss = false;
+    this.quickClienteModalOpen = true;
   }
 
   get quickTelefonoExistente(): Cliente | undefined {
@@ -637,13 +728,24 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
     const raw = this.quickClienteForm.getRawValue();
     const doc = String(raw.rncCedula || '').replace(/\D/g, '');
+    const rnc = String(raw.rnc || '').replace(/\D/g, '');
     if (doc && doc.length !== 9 && doc.length !== 11) {
       await this.toastService.error('RNC/Cédula inválido. Debe tener 9 o 11 dígitos.');
       return;
     }
 
+    if (rnc && rnc.length !== 9) {
+      await this.toastService.error('El RNC debe tener 9 dígitos.');
+      return;
+    }
+
     if (raw.rncCedula?.trim() && await this.clientesService.existsClienteRncCedula(raw.rncCedula.trim())) {
       await this.toastService.error('Ya existe un cliente con esa cédula/RNC.');
+      return;
+    }
+
+    if (raw.rnc?.trim() && await this.clientesService.existsClienteRncCedula(raw.rnc.trim())) {
+      await this.toastService.error('Ya existe un cliente con ese RNC.');
       return;
     }
 
@@ -659,6 +761,9 @@ export class FacturacionPage implements OnInit, OnDestroy {
         telefono: raw.telefono?.trim() || undefined,
         correo: raw.correo?.trim() || undefined,
         rncCedula: raw.rncCedula?.trim() || undefined,
+        fechaNacimiento: raw.fechaNacimiento || undefined,
+        direccion: raw.direccion?.trim() || undefined,
+        rnc: raw.rnc?.trim() || undefined,
         activo: true,
         creadoEn: new Date().toISOString(),
       } as any);
@@ -751,7 +856,11 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
   onMontoPagadoInput(event: Event): void {
     const raw = String((event as CustomEvent).detail?.value ?? '');
-    this.cobroForm.patchValue({ montoPagado: this.parseMoneyInput(raw) }, { emitEvent: false });
+    const parsed = this.parseMoneyInput(raw);
+    this.cobroForm.patchValue({ montoPagado: parsed }, { emitEvent: false });
+    if (!this.esPagoMixtoConCredito) {
+      this.syncSimplePaymentWithFormaPago(parsed);
+    }
   }
 
   onMontoPagadoBlur(): void {
@@ -790,10 +899,6 @@ export class FacturacionPage implements OnInit, OnDestroy {
   async confirmarCobroYEmitir(imprimir = false): Promise<void> {
     if (this.isEmitting) return;
     const pago = this.pagoDistribucion;
-    if (pago.totalRegistrado > this.total) {
-      await this.toastService.error('El pago no puede superar el total de la factura.');
-      return;
-    }
     if (pago.credito <= 0 && pago.totalRegistrado < this.total) {
       await this.toastService.error('Sin crédito, el pago debe cubrir el total de la factura.');
       return;
@@ -802,7 +907,36 @@ export class FacturacionPage implements OnInit, OnDestroy {
       await this.toastService.error('La distribución con crédito debe cubrir exactamente el total.');
       return;
     }
-    await this.emitirFactura(pago.totalPagadoAhora, imprimir, pago);
+    const pagoAplicado = this.normalizePaymentAppliedToInvoice(pago);
+    await this.emitirFactura(pago.totalPagadoAhora, imprimir, pagoAplicado);
+  }
+
+  private normalizePaymentAppliedToInvoice(pago: {
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+    credito: number;
+    totalPagadoAhora: number;
+    totalRegistrado: number;
+    diferencia: number;
+  }): any {
+    const recibido = Number(pago.totalPagadoAhora || 0);
+    const maximoAplicable = Math.max(0, this.total - Number(pago.credito || 0));
+    const aplicado = Number(Math.min(recibido, maximoAplicable).toFixed(2));
+    const factor = recibido > 0 ? aplicado / recibido : 0;
+    const efectivo = Number((pago.efectivo * factor).toFixed(2));
+    const tarjeta = Number((pago.tarjeta * factor).toFixed(2));
+    const transferencia = Number(Math.max(0, aplicado - efectivo - tarjeta).toFixed(2));
+    const totalRegistrado = Number((aplicado + pago.credito).toFixed(2));
+    return {
+      ...pago,
+      efectivo,
+      tarjeta,
+      transferencia,
+      totalPagadoAhora: aplicado,
+      totalRegistrado,
+      diferencia: Number((this.total - totalRegistrado).toFixed(2)),
+    };
   }
 
   private formatNumberAmount(value: number): string {
@@ -857,8 +991,10 @@ export class FacturacionPage implements OnInit, OnDestroy {
       const facturaFinal = factura || ({ ...payload, id: facturaId, numero: payload.numeroFactura || `FACT-${facturaId.slice(0, 6).toUpperCase()}` } as Factura);
       await this.syncCitaAfterFactura(facturaFinal, facturaId, user?.uid || 'sistema');
 
-      if (imprimir) {
-        this.pdfFacturaService.imprimirTicket80mm(facturaFinal);
+      const shouldPrint = imprimir || Boolean(this.printerConfiguration?.autoPrintAfterInvoice);
+      if (shouldPrint) {
+        await this.dismissLoading();
+        await this.tryPrintIssuedInvoice(facturaFinal);
       }
 
       if (factura && !imprimir) {
@@ -942,7 +1078,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       header: `Factura ${factura.numero}`,
       buttons: [
         ...extraButtons,
-        { text: 'Imprimir ticket 80mm', icon: 'print-outline', handler: () => this.pdfFacturaService.imprimirTicket80mm(factura) },
+        { text: `Imprimir (${this.printerConfigurationLabel})`, icon: 'print-outline', handler: () => void this.imprimirFacturaConfigurada(factura) },
         { text: 'Guardar PDF', icon: 'download-outline', handler: () => this.pdfFacturaService.generarFacturaPdf(factura) },
         { text: 'Ver preview', icon: 'eye-outline', handler: () => this.pdfFacturaService.abrirPreview(factura) },
         { text: 'Anular factura', icon: 'ban-outline', role: 'destructive', handler: () => this.anularFactura(factura) },
@@ -957,7 +1093,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   imprimirTicketFactura(factura: Factura): void {
-    this.pdfFacturaService.imprimirTicket80mm(factura);
+    void this.imprimirFacturaConfigurada(factura);
   }
 
   openFacturasActionsPopover(event: Event, factura: Factura): void {
@@ -1119,6 +1255,13 @@ export class FacturacionPage implements OnInit, OnDestroy {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
+  private toDateInputValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private applyCatalogFilters(): void {
     const filters = this.filtrosCatalogo.getRawValue();
     const q = String(filters.busqueda || '').trim().toLowerCase();
@@ -1135,26 +1278,47 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
   async abrirModalFacturas(estado: 'emitida' | 'borrador'): Promise<void> {
     this.facturasModalEstado = estado;
+    if (!this.facturasFechaDesde || !this.facturasFechaHasta) {
+      const today = this.toDateInputValue(new Date());
+      this.facturasFechaDesde = today;
+      this.facturasFechaHasta = today;
+    }
     this.facturasModalOpen = true;
     await this.cargarFacturasHoyPorEstado(estado);
   }
 
   async cargarFacturasHoyPorEstado(estado: 'emitida' | 'borrador' = this.facturasModalEstado): Promise<void> {
+    if (!this.facturasFechaDesde || !this.facturasFechaHasta) {
+      await this.toastService.error('Selecciona las fechas desde y hasta.');
+      return;
+    }
+    if (this.facturasFechaDesde > this.facturasFechaHasta) {
+      await this.toastService.error('La fecha desde no puede ser posterior a la fecha hasta.');
+      return;
+    }
+
     this.facturasModalLoading = true;
     this.facturasModalEstado = estado;
     this.facturasModalPage = 1;
     try {
-      const facturas = await (estado === 'emitida'
-        ? this.facturacionService.getFacturasEmitidasHoy()
-        : this.facturacionService.getBorradoresHoy());
+      const desdeIso = new Date(`${this.facturasFechaDesde}T00:00:00.000`).toISOString();
+      const hastaIso = new Date(`${this.facturasFechaHasta}T23:59:59.999`).toISOString();
+      const facturas = await this.facturacionService.getFacturasPorRangoYEstado(estado, desdeIso, hastaIso);
       this.facturasDelDia = [...(facturas || [])].sort((a, b) => (b.creadoEn || b.fecha || '').localeCompare(a.creadoEn || a.fecha || ''));
     } catch (error) {
       console.error('[Facturacion] cargarFacturasHoyPorEstado error:', error);
       this.facturasDelDia = [];
-      await this.toastService.error('No fue posible cargar facturas del día.');
+      await this.toastService.error('No fue posible cargar las facturas del período.');
     } finally {
       this.facturasModalLoading = false;
     }
+  }
+
+  async restablecerFiltroFacturas(): Promise<void> {
+    const today = this.toDateInputValue(new Date());
+    this.facturasFechaDesde = today;
+    this.facturasFechaHasta = today;
+    await this.cargarFacturasHoyPorEstado();
   }
 
   cerrarModalFacturas(): void {
@@ -1235,7 +1399,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       clienteNombre: cliente?.nombreCompleto || 'Cliente general',
       clienteTelefono: cliente?.telefono,
       clienteCorreo: cliente?.correo,
-      clienteRncCedula: (cliente as any)?.rncCedula,
+      clienteRncCedula: (cliente as any)?.rnc || (cliente as any)?.rncCedula,
       artistaId: this.selectedCita?.artistaId || userId,
       artistaNombre: this.selectedCita?.artistaNombre || 'Sistema',
       citaId: this.facturaForm.value.citaId || undefined,
@@ -1257,7 +1421,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
         totalCredito,
       },
       totalPagado: Number(pagos.totalPagadoAhora || paid || (mode === 'emitida' ? this.total : 0)),
-      montoPagado: Number(pagos.totalPagadoAhora || paid || (mode === 'emitida' ? this.total : 0)),
+      montoPagado: Number(paid || pagos.totalPagadoAhora || (mode === 'emitida' ? this.total : 0)),
       devuelta: mode === 'emitida' ? Math.max(0, change) : 0,
       cambio: mode === 'emitida' ? Math.max(0, change) : 0,
       fechaPago: mode === 'emitida' ? today : undefined,
@@ -1447,7 +1611,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       header: 'Factura emitida',
       message: 'La factura fue emitida correctamente. Puedes imprimir el ticket o abrir el PDF.',
       buttons: [
-        { text: 'Imprimir ticket', handler: () => this.pdfFacturaService.imprimirTicket80mm(factura) },
+        { text: `Imprimir (${this.printerConfigurationLabel})`, handler: () => void this.imprimirFacturaConfigurada(factura) },
         { text: 'Abrir PDF', handler: () => this.pdfFacturaService.abrirFacturaPdf(factura) },
         { text: 'Descargar PDF', handler: () => this.pdfFacturaService.descargarFacturaPdf(factura) },
         { text: 'Cerrar', role: 'cancel' },

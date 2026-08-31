@@ -1,73 +1,57 @@
-<ion-content class="cxp-page">
-  <div class="shell ion-padding">
-    <section class="header">
-      <div class="header-copy">
-        <h1>Cuentas por pagar</h1>
-        <p>Controla facturas de proveedores, pagos y vencimientos.</p>
+<ion-content class="cxp-page inventario-module-page" [class.theme-light]="inventoryTheme === 'light'" [class.theme-dark]="inventoryTheme === 'dark'">
+  <div class="shell cxp-shell">
+    <header class="header cxp-page-header">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="wallet-outline" aria-hidden="true"></ion-icon></span>
+        <div>
+          <span class="eyebrow">Finanzas · Proveedores</span>
+          <h1>Cuentas por pagar</h1>
+          <p>Controla facturas pendientes, pagos y vencimientos de proveedores.</p>
+        </div>
       </div>
-
       <div class="header-actions">
-        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas">
-          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
-          Volver a finanzas
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleInventoryTheme()" [attr.aria-label]="inventoryTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'" [attr.aria-pressed]="inventoryTheme === 'dark'">
+          <ion-icon slot="start" [name]="inventoryTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ inventoryTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
         </ion-button>
-        <ion-button class="btn-primary header-action-desktop" (click)="abrirNuevaCuenta()">
-          <ion-icon name="add-circle-outline" slot="start"></ion-icon>
-          Nueva cuenta
-        </ion-button>
+        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas"><ion-icon name="arrow-back-outline" slot="start"></ion-icon>Volver a finanzas</ion-button>
+        <ion-button class="btn-primary header-action-desktop" (click)="abrirNuevaCuenta()"><ion-icon name="add-outline" slot="start"></ion-icon>Nueva cuenta</ion-button>
+      </div>
+    </header>
+
+    <section class="card filtros-card cxp-filters-card">
+      <div class="cxp-filters-header">
+        <div><span class="eyebrow">Consulta de obligaciones</span><h2>Filtra las cuentas</h2><p>Selecciona los criterios para revisar las obligaciones que requieren atención.</p></div>
+        <div class="cxp-filter-actions">
+          <div class="cxp-result"><span>Resultados</span><strong>{{ cuentasFiltradas.length }} {{ cuentasFiltradas.length === 1 ? 'cuenta' : 'cuentas' }}</strong></div>
+          <ion-button class="clear-filters-button" fill="clear" (click)="clearFiltros()" [disabled]="!hasActiveFilters"><ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros</ion-button>
+        </div>
+      </div>
+      <div class="cxp-filter-grid">
+        <div class="cxp-filter-field cxp-search-field"><span>Proveedor o factura</span><ion-searchbar placeholder="Nombre del proveedor o número de factura" [value]="searchTerm" (ionInput)="searchTerm = $any($event.detail).value || ''; aplicarFiltros()" debounce="250"></ion-searchbar></div>
+        <div class="cxp-filter-field"><span>Estado</span><ion-item lines="none"><ion-select aria-label="Estado de la cuenta" [value]="filtroEstado" (ionChange)="filtroEstado = $any($event.detail).value; aplicarFiltros()" interface="popover"><ion-select-option value="todos">Todos los estados</ion-select-option><ion-select-option value="pendiente">Pendiente</ion-select-option><ion-select-option value="parcial">Parcial</ion-select-option><ion-select-option value="pagada">Pagada</ion-select-option><ion-select-option value="vencida">Vencida</ion-select-option><ion-select-option value="anulada">Anulada</ion-select-option></ion-select></ion-item></div>
+        <div class="cxp-filter-field"><span>Vence desde</span><ion-item lines="none"><ion-input aria-label="Vencimiento desde" type="date" [value]="fechaDesde" [max]="fechaHasta || undefined" (ionChange)="fechaDesde = $any($event.detail).value || ''; aplicarFiltros()"></ion-input></ion-item></div>
+        <div class="cxp-filter-field"><span>Vence hasta</span><ion-item lines="none"><ion-input aria-label="Vencimiento hasta" type="date" [value]="fechaHasta" [min]="fechaDesde || undefined" (ionChange)="fechaHasta = $any($event.detail).value || ''; aplicarFiltros()"></ion-input></ion-item></div>
+      </div>
+      <div class="cxp-filter-shortcuts">
+        <span>Atajos:</span>
+        <ion-chip (click)="toggleSoloVencidas()" [class.active]="soloVencidas"><ion-icon name="alert-circle-outline"></ion-icon><ion-label>Solo vencidas</ion-label></ion-chip>
+        <ion-chip (click)="toggleSoloProximas()" [class.active]="soloProximas"><ion-icon name="time-outline"></ion-icon><ion-label>Próximas a vencer</ion-label></ion-chip>
       </div>
     </section>
 
-    <section class="kpis-grid" *ngIf="!loading">
-      <article class="kpi-card"><span>Total pendiente</span><strong>{{ formatCurrency(kpis.totalPendiente) }}</strong></article>
-      <article class="kpi-card"><span>Total vencido</span><strong class="is-danger">{{ formatCurrency(kpis.totalVencido) }}</strong></article>
-      <article class="kpi-card"><span>Pagado este mes</span><strong class="is-success">{{ formatCurrency(kpis.pagadoMesActual) }}</strong></article>
-      <article class="kpi-card"><span>Facturas pendientes</span><strong>{{ kpis.facturasPendientes }}</strong></article>
-    </section>
-
-    <section class="card filtros-card">
-      <div class="section-head">
-        <h3>Filtros</h3>
-        <p>Busca por proveedor, factura, estado y rango de vencimiento.</p>
-      </div>
-      <div class="filtros-grid">
-        <ion-item>
-          <ion-label position="stacked">Buscar</ion-label>
-          <ion-input [value]="searchTerm" (ionInput)="searchTerm = $any($event.detail).value || ''; aplicarFiltros()" placeholder="Proveedor o número de factura"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Estado</ion-label>
-          <ion-select [value]="filtroEstado" (ionChange)="filtroEstado = $any($event.detail).value; aplicarFiltros()">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option value="pendiente">Pendiente</ion-select-option>
-            <ion-select-option value="parcial">Parcial</ion-select-option>
-            <ion-select-option value="pagada">Pagada</ion-select-option>
-            <ion-select-option value="vencida">Vencida</ion-select-option>
-            <ion-select-option value="anulada">Anulada</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Desde</ion-label>
-          <ion-input type="date" [value]="fechaDesde" (ionInput)="fechaDesde = $any($event.detail).value || ''; aplicarFiltros()"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Hasta</ion-label>
-          <ion-input type="date" [value]="fechaHasta" (ionInput)="fechaHasta = $any($event.detail).value || ''; aplicarFiltros()"></ion-input>
-        </ion-item>
-      </div>
-      <div class="filtro-toggles">
-        <ion-chip (click)="toggleSoloVencidas()" [class.active]="soloVencidas">
-          <ion-label>Vencidas</ion-label>
-        </ion-chip>
-        <ion-chip (click)="toggleSoloProximas()" [class.active]="soloProximas">
-          <ion-label>Próximas a vencer</ion-label>
-        </ion-chip>
-        <ion-button fill="outline" size="small" (click)="clearFiltros()">Limpiar filtros</ion-button>
-        
+    <section class="cxp-section" *ngIf="!loading">
+      <div class="cxp-section-title"><span class="eyebrow">Resumen ejecutivo</span><h2>Estado de las obligaciones</h2><p>Consulta el saldo pendiente, los vencimientos y los pagos del mes.</p></div>
+      <div class="kpis-grid">
+        <article class="kpi-card"><ion-icon name="wallet-outline"></ion-icon><span>Total pendiente</span><strong>{{ formatCurrency(kpis.totalPendiente) }}</strong></article>
+        <article class="kpi-card"><ion-icon name="alert-circle-outline"></ion-icon><span>Total vencido</span><strong class="is-danger">{{ formatCurrency(kpis.totalVencido) }}</strong></article>
+        <article class="kpi-card"><ion-icon name="checkmark-circle-outline"></ion-icon><span>Pagado este mes</span><strong class="is-success">{{ formatCurrency(kpis.pagadoMesActual) }}</strong></article>
+        <article class="kpi-card"><ion-icon name="document-text-outline"></ion-icon><span>Facturas pendientes</span><strong>{{ kpis.facturasPendientes }}</strong></article>
       </div>
     </section>
 
-    <section class="card" *ngIf="!loading">
+    <section class="cxp-section" *ngIf="!loading">
+      <div class="cxp-section-title"><span class="eyebrow">Control operativo</span><h2>Detalle de cuentas</h2><p>Revisa saldos, fechas de vencimiento y acciones disponibles.</p></div>
+      <section class="card cxp-table-card">
       <div class="table-wrap" *ngIf="cuentasFiltradas.length; else emptyState">
         <table>
           <thead>
@@ -95,8 +79,8 @@
               <td><span [class]="getEstadoBadgeClass(cuenta)">{{ getEstadoCuenta(cuenta) | titlecase }}</span></td>
               <td class="acciones">
                 <ion-button size="small" fill="clear" (click)="goToDetail(cuenta.id)">Ver detalle</ion-button>
-                <ion-button size="small" fill="clear" (click)="abrirPago(cuenta)">Pagar</ion-button>
-                <ion-button size="small" fill="clear" (click)="anularCuenta(cuenta)">Anular</ion-button>
+                <ion-button size="small" fill="clear" (click)="abrirPago(cuenta)" [disabled]="getEstadoCuenta(cuenta) === 'pagada' || getEstadoCuenta(cuenta) === 'anulada'">Pagar</ion-button>
+                <ion-button size="small" fill="clear" color="danger" (click)="anularCuenta(cuenta)" [disabled]="getEstadoCuenta(cuenta) === 'anulada'">Anular</ion-button>
                 <ion-button size="small" fill="clear" (click)="marcarComoPagada(cuenta)" [disabled]="cuenta.balancePendiente > 0">Marcar pagada</ion-button>
               </td>
             </tr>
@@ -120,6 +104,7 @@
           </div>
         </article>
       </div>
+      </section>
     </section>
 
     <ng-template #emptyState>
@@ -141,98 +126,221 @@
     </ion-fab-list>
   </ion-fab>
 
-  <ion-modal [isOpen]="modalNuevaCuentaOpen" (didDismiss)="cerrarNuevaCuenta()" cssClass="premium-select-modal fin-categoria-modal small-modal">
+  <ion-modal [isOpen]="modalNuevaCuentaOpen" (didDismiss)="cerrarNuevaCuenta()" cssClass="premium-select-modal cxp-account-modal">
     <ng-template>
-      <ion-content class="premium-modal-content ion-padding">
+      <ion-content class="premium-modal-content cxp-modal-content">
         <div class="modal-shell">
           <section class="modal-card">
-            <header class="card-header">
-              <div>
-                <h2>Nueva cuenta</h2>
-                <p>Registra una factura pendiente para su seguimiento financiero.</p>
+            <header class="cxp-modal-header">
+              <div class="cxp-modal-heading">
+                <span class="cxp-modal-icon" aria-hidden="true">
+                  <ion-icon name="document-text-outline"></ion-icon>
+                </span>
+                <div>
+                  <span class="cxp-modal-eyebrow">Nueva obligación</span>
+                  <h2>Nueva cuenta por pagar</h2>
+                  <p>Registra los datos de la factura para controlar su vencimiento y balance.</p>
+                </div>
               </div>
-              <ion-button fill="clear" (click)="cerrarNuevaCuenta()">Cerrar</ion-button>
+              <ion-button class="cxp-modal-close" fill="clear" (click)="cerrarNuevaCuenta()" aria-label="Cerrar nueva cuenta">
+                <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+              </ion-button>
             </header>
 
-            <form class="grid" [formGroup]="nuevaCuentaForm">
-              <ion-item>
-                <ion-label position="stacked">Proveedor</ion-label>
-                <ion-input formControlName="proveedorNombre"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Proveedor ID</ion-label>
-                <ion-input formControlName="proveedorId"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Número de factura</ion-label>
-                <ion-input formControlName="numeroFactura"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Fecha emisión</ion-label>
-                <ion-input type="date" formControlName="fechaEmision"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Fecha vencimiento</ion-label>
-                <ion-input type="date" formControlName="fechaVencimiento"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Monto original</ion-label>
-                <ion-input type="number" formControlName="montoOriginal"></ion-input>
-              </ion-item>
-            </form>
+            <form class="cxp-account-form" [formGroup]="nuevaCuentaForm" (ngSubmit)="crearCuenta()">
+              <section class="cxp-form-section">
+                <div class="cxp-section-header">
+                  <span class="cxp-section-icon" aria-hidden="true"><ion-icon name="business-outline"></ion-icon></span>
+                  <div>
+                    <h3>Datos del proveedor</h3>
+                    <p>Identifica a quién corresponde la obligación.</p>
+                  </div>
+                </div>
 
-            <div class="actions">
-              <ion-button fill="clear" (click)="cerrarNuevaCuenta()">Cancelar</ion-button>
-              <ion-button class="btn-primary" [disabled]="saving" (click)="crearCuenta()">Guardar cuenta</ion-button>
-            </div>
+                <div class="cxp-form-grid">
+                  <label class="cxp-form-field">
+                    <span>Nombre del proveedor <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-input formControlName="proveedorNombre" placeholder="Ej. Proveedor Central" autocomplete="organization"></ion-input>
+                    </ion-item>
+                    <small class="field-error" *ngIf="nuevaCuentaForm.controls.proveedorNombre.touched && nuevaCuentaForm.controls.proveedorNombre.invalid">
+                      Ingresa el nombre del proveedor.
+                    </small>
+                  </label>
+
+                  <label class="cxp-form-field">
+                    <span>Código del proveedor <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-input formControlName="proveedorId" placeholder="Ej. PROV-001"></ion-input>
+                    </ion-item>
+                    <small class="field-error" *ngIf="nuevaCuentaForm.controls.proveedorId.touched && nuevaCuentaForm.controls.proveedorId.invalid">
+                      Ingresa el código del proveedor.
+                    </small>
+                  </label>
+                </div>
+              </section>
+
+              <section class="cxp-form-section">
+                <div class="cxp-section-header">
+                  <span class="cxp-section-icon" aria-hidden="true"><ion-icon name="receipt-outline"></ion-icon></span>
+                  <div>
+                    <h3>Información de la factura</h3>
+                    <p>Define el documento, el importe y las fechas de seguimiento.</p>
+                  </div>
+                </div>
+
+                <div class="cxp-form-grid">
+                  <label class="cxp-form-field cxp-field-wide">
+                    <span>Número de factura <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-input formControlName="numeroFactura" placeholder="Ej. FAC-2026-001"></ion-input>
+                    </ion-item>
+                    <small class="field-error" *ngIf="nuevaCuentaForm.controls.numeroFactura.touched && nuevaCuentaForm.controls.numeroFactura.invalid">
+                      Ingresa el número de factura.
+                    </small>
+                  </label>
+
+                  <label class="cxp-form-field">
+                    <span>Fecha de emisión <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-input type="date" formControlName="fechaEmision"></ion-input>
+                    </ion-item>
+                    <small class="field-error" *ngIf="nuevaCuentaForm.controls.fechaEmision.touched && nuevaCuentaForm.controls.fechaEmision.invalid">
+                      Selecciona la fecha de emisión.
+                    </small>
+                  </label>
+
+                  <label class="cxp-form-field">
+                    <span>Fecha de vencimiento <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-input type="date" formControlName="fechaVencimiento"></ion-input>
+                    </ion-item>
+                    <small class="field-error" *ngIf="nuevaCuentaForm.controls.fechaVencimiento.touched && nuevaCuentaForm.controls.fechaVencimiento.invalid">
+                      Selecciona la fecha de vencimiento.
+                    </small>
+                  </label>
+
+                  <label class="cxp-form-field">
+                    <span>Monto original <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-input type="number" min="0.01" step="0.01" inputmode="decimal" formControlName="montoOriginal" placeholder="0.00"></ion-input>
+                    </ion-item>
+                    <small class="field-error" *ngIf="nuevaCuentaForm.controls.montoOriginal.touched && nuevaCuentaForm.controls.montoOriginal.invalid">
+                      Ingresa un monto mayor a cero.
+                    </small>
+                  </label>
+
+                  <label class="cxp-form-field">
+                    <span>Moneda <em>*</em></span>
+                    <ion-item lines="none">
+                      <ion-select formControlName="moneda" interface="popover" aria-label="Moneda">
+                        <ion-select-option value="DOP">Peso dominicano (DOP)</ion-select-option>
+                      </ion-select>
+                    </ion-item>
+                  </label>
+
+                  <label class="cxp-form-field cxp-field-wide">
+                    <span>Nota <small>Opcional</small></span>
+                    <ion-item class="cxp-textarea-item" lines="none">
+                      <ion-textarea formControlName="nota" rows="3" autoGrow="true" placeholder="Agrega una referencia o detalle útil para el seguimiento."></ion-textarea>
+                    </ion-item>
+                  </label>
+                </div>
+              </section>
+
+              <footer class="cxp-modal-actions">
+                <p><span>*</span> Campos obligatorios</p>
+                <div>
+                  <ion-button class="cxp-cancel-button" fill="outline" type="button" (click)="cerrarNuevaCuenta()">Cancelar</ion-button>
+                  <ion-button class="btn-primary cxp-save-button" type="submit" [disabled]="saving">
+                    <ion-spinner *ngIf="saving" name="crescent"></ion-spinner>
+                    <ion-icon *ngIf="!saving" slot="start" name="save-outline"></ion-icon>
+                    {{ saving ? 'Guardando…' : 'Guardar cuenta' }}
+                  </ion-button>
+                </div>
+              </footer>
+            </form>
           </section>
         </div>
       </ion-content>
     </ng-template>
   </ion-modal>
 
-  <ion-modal [isOpen]="modalPagoOpen" (didDismiss)="cerrarPago()" cssClass="premium-select-modal fin-categoria-modal small-modal">
+  <ion-modal [isOpen]="modalPagoOpen" (didDismiss)="cerrarPago()" cssClass="premium-select-modal cxp-account-modal cxp-payment-modal">
     <ng-template>
-      <ion-content class="premium-modal-content ion-padding">
+      <ion-content class="premium-modal-content cxp-modal-content">
         <div class="modal-shell">
           <section class="modal-card">
-            <header class="card-header">
-              <div>
-                <h2>Registrar pago</h2>
-                <p>Registra un pago parcial o total para esta cuenta.</p>
+            <header class="cxp-modal-header">
+              <div class="cxp-modal-heading">
+                <span class="cxp-modal-icon" aria-hidden="true"><ion-icon name="cash-outline"></ion-icon></span>
+                <div>
+                  <span class="cxp-modal-eyebrow">Aplicar movimiento</span>
+                  <h2>Registrar pago</h2>
+                  <p>Registra un pago parcial o total y actualiza el balance del proveedor.</p>
+                </div>
               </div>
-              <ion-button fill="clear" (click)="cerrarPago()">Cerrar</ion-button>
+              <ion-button class="cxp-modal-close" fill="clear" (click)="cerrarPago()" aria-label="Cerrar registro de pago">
+                <ion-icon slot="icon-only" name="close-outline"></ion-icon>
+              </ion-button>
             </header>
 
-            <form class="grid" [formGroup]="pagoForm">
-              <ion-item>
-                <ion-label position="stacked">Monto a pagar</ion-label>
-                <ion-input type="number" formControlName="monto"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Método de pago</ion-label>
-                <ion-select formControlName="metodoPago">
-                  <ion-select-option *ngFor="let metodo of metodosPago" [value]="metodo">{{ metodo | titlecase }}</ion-select-option>
-                </ion-select>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Fecha de pago</ion-label>
-                <ion-input type="date" formControlName="fechaPago"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Referencia</ion-label>
-                <ion-input formControlName="referencia"></ion-input>
-              </ion-item>
-              <ion-item>
-                <ion-label position="stacked">Nota</ion-label>
-                <ion-input formControlName="nota"></ion-input>
-              </ion-item>
-            </form>
+            <form class="cxp-account-form" [formGroup]="pagoForm" (ngSubmit)="registrarPago()">
+              <section class="cxp-form-section" *ngIf="cuentaSeleccionada as cuenta">
+                <div class="cxp-section-header">
+                  <span class="cxp-section-icon" aria-hidden="true"><ion-icon name="business-outline"></ion-icon></span>
+                  <div><h3>Cuenta seleccionada</h3><p>Confirma el proveedor y el balance antes de registrar el pago.</p></div>
+                </div>
+                <div class="cxc-account-summary">
+                  <div><span>Proveedor</span><strong>{{ cuenta.proveedorNombre }}</strong></div>
+                  <div><span>Factura</span><strong>{{ cuenta.numeroFactura }}</strong></div>
+                  <div class="is-balance"><span>Balance pendiente</span><strong>{{ formatCurrency(cuenta.balancePendiente) }}</strong></div>
+                </div>
+              </section>
 
-            <div class="actions">
-              <ion-button fill="clear" (click)="cerrarPago()">Cancelar</ion-button>
-              <ion-button class="btn-primary" [disabled]="saving" (click)="registrarPago()">Registrar pago</ion-button>
-            </div>
+              <section class="cxp-form-section">
+                <div class="cxp-section-header">
+                  <span class="cxp-section-icon" aria-hidden="true"><ion-icon name="receipt-outline"></ion-icon></span>
+                  <div><h3>Información del pago</h3><p>Completa el importe, método y fecha de la transacción.</p></div>
+                </div>
+                <div class="cxp-form-grid">
+                  <label class="cxp-form-field">
+                    <span>Monto a pagar <em>*</em></span>
+                    <ion-item lines="none"><ion-input type="number" min="0.01" step="0.01" inputmode="decimal" formControlName="monto" placeholder="0.00"></ion-input></ion-item>
+                    <small class="field-error" *ngIf="pagoForm.controls.monto.touched && pagoForm.controls.monto.invalid">Ingresa un monto mayor a cero.</small>
+                  </label>
+                  <label class="cxp-form-field">
+                    <span>Método de pago <em>*</em></span>
+                    <ion-item lines="none"><ion-select formControlName="metodoPago" interface="popover" aria-label="Método de pago"><ion-select-option *ngFor="let metodo of metodosPago" [value]="metodo">{{ metodo | titlecase }}</ion-select-option></ion-select></ion-item>
+                  </label>
+                  <label class="cxp-form-field">
+                    <span>Fecha de pago <em>*</em></span>
+                    <ion-item lines="none"><ion-input type="date" formControlName="fechaPago"></ion-input></ion-item>
+                    <small class="field-error" *ngIf="pagoForm.controls.fechaPago.touched && pagoForm.controls.fechaPago.invalid">Selecciona la fecha del pago.</small>
+                  </label>
+                  <label class="cxp-form-field">
+                    <span>Referencia <small>Opcional</small></span>
+                    <ion-item lines="none"><ion-input formControlName="referencia" placeholder="Ej. TRANS-001"></ion-input></ion-item>
+                  </label>
+                  <label class="cxp-form-field cxp-field-wide">
+                    <span>Nota <small>Opcional</small></span>
+                    <ion-item class="cxp-textarea-item" lines="none"><ion-textarea formControlName="nota" rows="3" autoGrow="true" placeholder="Agrega un detalle útil para el seguimiento."></ion-textarea></ion-item>
+                  </label>
+                </div>
+              </section>
+
+              <footer class="cxp-modal-actions">
+                <p><span>*</span> Campos obligatorios</p>
+                <div>
+                  <ion-button class="cxp-cancel-button" fill="outline" type="button" (click)="cerrarPago()">Cancelar</ion-button>
+                  <ion-button class="cxp-save-button" type="submit" [disabled]="saving">
+                    <ion-spinner *ngIf="saving" name="crescent"></ion-spinner>
+                    <ion-icon *ngIf="!saving" slot="start" name="checkmark-circle-outline"></ion-icon>
+                    {{ saving ? 'Registrando…' : 'Registrar pago' }}
+                  </ion-button>
+                </div>
+              </footer>
+            </form>
           </section>
         </div>
       </ion-content>

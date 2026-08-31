@@ -21,7 +21,7 @@ export class ClientesService {
       map((items) => {
         if (!q) return items;
         return items.filter((item) =>
-          [item.nombreCompleto, item.telefono, item.correo]
+          [item.nombreCompleto, item.telefono, item.correo, item.rnc, item.rncCedula, item.direccion]
             .some((v) => String(v || '').toLowerCase().includes(q)));
       }),
     );
@@ -40,7 +40,8 @@ export class ClientesService {
     const normalized = String(rncCedula || '').trim().toLowerCase();
     if (!normalized) return false;
     const items = await this.firestoreBase.listOnce<Cliente>(this.collectionPath);
-    return items.some((item) => item.id !== excludeId && String(item.rncCedula || '').trim().toLowerCase() === normalized);
+    return items.some((item) => item.id !== excludeId
+      && [item.rncCedula, item.rnc].some((value) => String(value || '').trim().toLowerCase() === normalized));
   }
 
   async existsClienteTelefono(telefono: string, excludeId?: string): Promise<boolean> {

@@ -1,48 +1,21 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>{{ insumoId ? 'Editar insumo' : 'Nuevo insumo' }}</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content class="inventario-module-page">
+  <main class="shell">
+    <section class="header">
+      <div><h1>{{ insumoId ? 'Editar insumo' : 'Nuevo insumo' }}</h1><p>Configura existencia, unidad y costo del insumo.</p></div>
+    </section>
 
-<ion-content class="ion-padding">
-  <form [formGroup]="form" (ngSubmit)="save()">
-    <ion-item>
-      <ion-label position="stacked">Nombre</ion-label>
-      <ion-input formControlName="nombre"></ion-input>
-    </ion-item>
-
-    <ion-item>
-      <ion-label position="stacked">Categoría</ion-label>
-      <ion-select formControlName="categoria">
-        <ion-select-option *ngFor="let categoria of categorias" [value]="categoria">{{ categoria }}</ion-select-option>
-      </ion-select>
-    </ion-item>
-
-    <ion-item>
-      <ion-label position="stacked">Unidad de medida</ion-label>
-      <ion-input formControlName="unidadMedida"></ion-input>
-    </ion-item>
-
-    <ion-item>
-      <ion-label position="stacked">Stock actual</ion-label>
-      <ion-input formControlName="stockActual" type="number"></ion-input>
-    </ion-item>
-
-    <ion-item>
-      <ion-label position="stacked">Stock mínimo</ion-label>
-      <ion-input formControlName="stockMinimo" type="number"></ion-input>
-    </ion-item>
-
-    <ion-item>
-      <ion-label position="stacked">Costo unitario</ion-label>
-      <ion-input formControlName="costoUnitario" type="number"></ion-input>
-    </ion-item>
-
-    <ion-item lines="none">
-      <ion-label>Activo</ion-label>
-      <ion-toggle formControlName="activo"></ion-toggle>
-    </ion-item>
-
-    <ion-button type="submit" expand="block" class="ion-margin-top">Guardar</ion-button>
-  </form>
+    <form class="card inventory-simple-form" [formGroup]="form" (ngSubmit)="save()">
+      <div><h2>Información del insumo</h2><p>Completa los datos requeridos para mantener el inventario actualizado.</p></div>
+      <div class="inventory-form-grid">
+        <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input formControlName="nombre"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Categoría</ion-label><ion-select formControlName="categoria"><ion-select-option *ngFor="let categoria of categorias" [value]="categoria">{{ categoria }}</ion-select-option></ion-select></ion-item>
+        <ion-item><ion-label position="stacked">Unidad de medida</ion-label><ion-input formControlName="unidadMedida"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Stock actual</ion-label><ion-input formControlName="stockActual" type="number"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Stock mínimo</ion-label><ion-input formControlName="stockMinimo" type="number"></ion-input></ion-item>
+        <ion-item><ion-label position="stacked">Costo unitario</ion-label><ion-input formControlName="costoUnitario" type="number"></ion-input></ion-item>
+      </div>
+      <ion-item lines="none"><ion-label>Activo</ion-label><ion-toggle formControlName="activo"></ion-toggle></ion-item>
+      <div class="inventory-actions"><ion-button type="submit" class="btn-primary">Guardar insumo</ion-button></div>
+    </form>
+  </main>
 </ion-content>
