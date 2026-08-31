@@ -35,13 +35,13 @@ export class DashboardPage {
       route: '/admin/dashboard',
       roles: ['superadmin', 'admin', 'assistant', 'artist'],
     },
-    {
-      title: 'Agenda',
-      description: 'Control de citas y planificación.',
-      icon: 'calendar-outline',
-      route: '/admin/agenda',
-      roles: ['superadmin', 'admin', 'assistant', 'artist'],
-    },
+    // {
+    //   title: 'Agenda',
+    //   description: 'Control de citas y planificación.',
+    //   icon: 'calendar-outline',
+    //   route: '/admin/agenda',
+    //   roles: ['superadmin', 'admin', 'assistant', 'artist'],
+    // },
        {
       title: 'Facturación',
       description: 'Ventas, tickets y comprobantes.',

@@ -34,7 +34,7 @@ export class AdminLayoutPage {
 
   readonly menuItems: AdminMenuItem[] = [
     { label: 'Dashboard', icon: 'grid-outline', route: '/admin/dashboard', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
-    { label: 'Agenda', icon: 'calendar-outline', route: '/admin/agenda', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
+    // { label: 'Agenda', icon: 'calendar-outline', route: '/admin/agenda', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
     { label: 'Facturación', icon: 'receipt-outline', route: '/admin/facturacion', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
     { label: 'Inventario', icon: 'cube-outline', route: '/admin/inventario', roles: ['superadmin', 'admin', 'assistant', 'artist'] },
     { label: 'Compras', icon: 'cart-outline', route: '/admin/inventario/compras', roles: ['superadmin', 'admin', 'assistant', 'artist'] },

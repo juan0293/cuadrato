@@ -70,7 +70,7 @@ export class CompanyProfileService {
 
     const data = this.sanitizeUndefined<CompanyProfile>({
       companyId: ctx.companyId,
-      companyTitle: String(payload.companyTitle || existing?.companyTitle || 'Vargas Tattoo').trim() || 'Vargas Tattoo',
+      companyTitle: String(payload.companyTitle || existing?.companyTitle || 'CUADRATO').trim() || 'CUADRATO',
       ticketSubtitle: String(payload.ticketSubtitle || existing?.ticketSubtitle || 'TICKET DE FACTURA').trim() || 'TICKET DE FACTURA',
       rnc: this.cleanOptionalText(payload.rnc ?? existing?.rnc),
       telefono: this.cleanOptionalText(payload.telefono ?? existing?.telefono),
