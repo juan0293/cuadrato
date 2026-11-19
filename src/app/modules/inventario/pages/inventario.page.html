@@ -1,52 +1,85 @@
-<ion-content class="inventario-home">
-  <div class="shell ion-padding">
-    <section class="header">
-      <div>
-        <h1>Inventario</h1>
-        <p>Visión general de productos, servicios, stock y rentabilidad.</p>
+<ion-content class="inventario-home inventario-module-page" [class.theme-light]="inventoryTheme === 'light'"
+  [class.theme-dark]="inventoryTheme === 'dark'">
+  <main class="shell">
+    <header class="page-header card">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="cube-outline" aria-hidden="true"></ion-icon></span>
+        <div>
+          <span class="eyebrow">Control operativo</span>
+          <h1>Inventario</h1>
+          <p>Visión general de productos, servicios, stock y rentabilidad.</p>
+        </div>
       </div>
-      <!-- <div class="header-actions">
+      <div class="header-actions">
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleInventoryTheme()"
+          [attr.aria-label]="inventoryTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'"
+          [attr.aria-pressed]="inventoryTheme === 'dark'">
+          <ion-icon slot="start" [name]="inventoryTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>
+          {{ inventoryTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
+        </ion-button>
         <ion-button class="btn-primary" (click)="navigate('/admin/inventario/productos-servicios/nuevo')">
           <ion-icon name="add-outline" slot="start"></ion-icon>
           Nuevo producto/servicio
         </ion-button>
-        <ion-button class="btn-outline" fill="outline" (click)="navigate('/admin/inventario/compras/nuevo')">
-          <ion-icon name="receipt-outline" slot="start"></ion-icon>
-          Nueva compra
-        </ion-button>
-      </div> -->
-    </section>
+      </div>
+    </header>
 
     <section class="hero card">
       <div>
+        <span class="eyebrow">Resumen general</span>
         <h2>Dashboard ejecutivo de inventario</h2>
         <p>Controla disponibilidad, costos, precios e impuestos desde una vista gerencial.</p>
       </div>
-      <ion-chip color="success" *ngIf="!hasAlerts && !loading && !loadError">
-        <ion-icon name="checkmark-circle-outline"></ion-icon>
-        <ion-label>Inventario saludable</ion-label>
-      </ion-chip>
+      <span class="health-badge health-badge--ok" *ngIf="!hasAlerts && !loading && !loadError">
+        <ion-icon name="checkmark-circle-outline"></ion-icon> Inventario saludable
+      </span>
+      <span class="health-badge health-badge--warn" *ngIf="hasAlerts && !loading && !loadError">
+        <ion-icon name="warning-outline"></ion-icon> {{ alerts.length }} alerta(s)
+      </span>
     </section>
 
     <section class="kpis">
-      <article class="kpi-card"><span>Total productos/servicios</span><strong>{{ totalProductosServicios }}</strong></article>
-      <article class="kpi-card"><span>Productos activos</span><strong>{{ productosActivos }}</strong></article>
-      <article class="kpi-card"><span>Servicios activos</span><strong>{{ serviciosActivos }}</strong></article>
-      <article class="kpi-card"><span>Productos bajo stock</span><strong>{{ productosBajoStock }}</strong></article>
-      <article class="kpi-card"><span>Valor estimado de inventario</span><strong>{{ formatMoney(valorInventarioEstimado) }}</strong></article>
-      <article class="kpi-card"><span>Costo total del inventario</span><strong>{{ formatMoney(costoTotalInventario) }}</strong></article>
-      <article class="kpi-card"><span>Margen promedio estimado</span><strong>{{ margenPromedioEstimado | number:'1.0-2' }}%</strong></article>
-      <article class="kpi-card"><span>Productos con ITBIS</span><strong>{{ productosConItbis }}</strong></article>
+      <article class="kpi-card"><ion-icon name="layers-outline"></ion-icon><span>Total productos/servicios</span><strong>{{ totalProductosServicios }}</strong></article>
+      <article class="kpi-card"><ion-icon name="cube-outline"></ion-icon><span>Productos activos</span><strong>{{ productosActivos }}</strong></article>
+      <article class="kpi-card"><ion-icon name="construct-outline"></ion-icon><span>Servicios activos</span><strong>{{ serviciosActivos }}</strong></article>
+      <article class="kpi-card kpi-card--warning"><ion-icon name="warning-outline"></ion-icon><span>Productos bajo stock</span><strong>{{ productosBajoStock }}</strong></article>
+      <article class="kpi-card kpi-card--primary"><ion-icon name="trending-up-outline"></ion-icon><span>Valor estimado de inventario</span><strong>{{ formatMoney(valorInventarioEstimado) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="wallet-outline"></ion-icon><span>Costo total del inventario</span><strong>{{ formatMoney(costoTotalInventario) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="analytics-outline"></ion-icon><span>Margen promedio estimado</span><strong>{{ margenPromedioEstimado | number:'1.0-2' }}%</strong></article>
+      <article class="kpi-card"><ion-icon name="receipt-outline"></ion-icon><span>Productos con ITBIS</span><strong>{{ productosConItbis }}</strong></article>
     </section>
 
-    <section class="card chart-card">
-      <div class="section-head">
-        <h3>Distribución del catálogo</h3>
-        <p>Relación entre productos y servicios registrados.</p>
-      </div>
-      <div class="chart-wrap">
-        <canvas #tipoChartCanvas></canvas>
-      </div>
+    <section class="dashboard-grid">
+      <section class="card chart-card">
+        <div class="section-head">
+          <div><span class="eyebrow">Composición</span><h3>Distribución del catálogo</h3></div>
+          <p>Relación entre productos y servicios registrados.</p>
+        </div>
+        <div class="chart-wrap"><canvas #tipoChartCanvas></canvas></div>
+      </section>
+
+      <section class="card alerts-card">
+        <div class="section-head">
+          <div><span class="eyebrow">Seguimiento</span><h3>Alertas de inventario</h3></div>
+          <p>Riesgos que requieren atención.</p>
+        </div>
+
+        <ng-container *ngIf="!loading && !loadError">
+          <div class="alerts-list" *ngIf="hasAlerts; else healthyState">
+            <article class="alert-item" *ngFor="let alert of alerts" [class.warn]="alert.type === 'warning'">
+              <ion-icon [name]="alert.type === 'warning' ? 'warning-outline' : 'information-circle-outline'"></ion-icon>
+              <div><h4>{{ alert.title }}</h4><p>{{ alert.detail }}</p></div>
+            </article>
+          </div>
+          <ng-template #healthyState>
+            <app-empty-state title="Inventario en orden" message="No se detectaron alertas críticas."></app-empty-state>
+          </ng-template>
+        </ng-container>
+
+        <app-skeleton-card *ngIf="loading"></app-skeleton-card>
+        <app-empty-state *ngIf="loadError" title="No pudimos cargar el inventario"
+          message="Intenta nuevamente para visualizar el dashboard operativo."></app-empty-state>
+      </section>
     </section>
 
     <section class="card">
@@ -55,46 +88,12 @@
         <p>Atajos operativos para mantener el inventario actualizado.</p>
       </div>
       <section class="quick-grid">
-        <article class="quick-card" *ngFor="let action of quickActions" (click)="navigate(action.route)">
-          <ion-icon [name]="action.icon"></ion-icon>
-          <h3>{{ action.label }}</h3>
-          <p>{{ action.description }}</p>
-        </article>
+        <button type="button" class="quick-card" *ngFor="let action of quickActions" (click)="navigate(action.route)">
+          <span class="quick-icon"><ion-icon [name]="action.icon"></ion-icon></span>
+          <span class="quick-copy"><strong>{{ action.label }}</strong><small>{{ action.description }}</small></span>
+          <ion-icon class="quick-arrow" name="chevron-forward-outline"></ion-icon>
+        </button>
       </section>
     </section>
-
-    <section class="quick-grid">
-      <section class="card alerts-card">
-        <div class="section-head">
-          <h3>Alertas de inventario</h3>
-          <p>Detección temprana de riesgos operativos y comerciales.</p>
-        </div>
-
-        <ng-container *ngIf="!loading && !loadError">
-          <div class="alerts-list" *ngIf="hasAlerts; else healthyState">
-            <article class="alert-item" *ngFor="let alert of alerts" [class.warn]="alert.type === 'warning'">
-              <ion-icon [name]="alert.type === 'warning' ? 'warning-outline' : 'information-circle-outline'"></ion-icon>
-              <div>
-                <h4>{{ alert.title }}</h4>
-                <p>{{ alert.detail }}</p>
-              </div>
-            </article>
-          </div>
-          <ng-template #healthyState>
-            <app-empty-state
-              title="Inventario en orden"
-              message="No se detectaron alertas críticas.">
-            </app-empty-state>
-          </ng-template>
-        </ng-container>
-
-        <app-skeleton-card *ngIf="loading"></app-skeleton-card>
-        <app-empty-state 
-          *ngIf="loadError"
-          title="No pudimos cargar el inventario"
-          message="Intenta nuevamente para visualizar el dashboard operativo.">
-        </app-empty-state>
-      </section>
-    </section>
-  </div>
+  </main>
 </ion-content>

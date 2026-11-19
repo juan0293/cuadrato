@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { combineLatest, Subscription } from 'rxjs';
 import { AuthService } from './core/services/auth.service';
 import { resolveHomeByRole } from './core/helpers/auth.helper';
+import { AdminShellThemeService } from './core/services/admin-shell-theme.service';
 
 @Component({
   selector: 'app-root',
@@ -29,10 +30,19 @@ export class AppComponent implements OnDestroy {
     { stage: 'Listo', message: 'Listo para vender con control.' },
   ];
 
-  constructor(private readonly authService: AuthService, private readonly router: Router) {
+  constructor(
+    private readonly authService: AuthService,
+    private readonly router: Router,
+    private readonly themeService: AdminShellThemeService,
+  ) {
+    this.themeService.initialize();
     this.startBootRotation();
     this.bindNetworkStatus();
     this.bootstrapSession();
+  }
+
+  get shellTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
   }
 
   private bootstrapSession(): void {

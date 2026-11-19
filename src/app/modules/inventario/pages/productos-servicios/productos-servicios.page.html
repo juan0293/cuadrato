@@ -1,9 +1,13 @@
-<ion-content class="inventory-products-page">
+<ion-content class="inventory-products-page inventario-module-page">
   <div class="shell ion-padding">
     <section class="header">
-      <div class="header-copy">
-        <h1>Catálogo de productos y servicios</h1>
-        <p>Gestiona precios, costos, stock e impuestos desde un solo lugar.</p>
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="cube-outline" aria-hidden="true"></ion-icon></span>
+        <div class="header-copy">
+          <span class="eyebrow">Inventario · Catálogo</span>
+          <h1>Productos y servicios</h1>
+          <p>Gestiona precios, costos, stock e impuestos desde un solo lugar.</p>
+        </div>
       </div>
       <div class="header-actions">
         <ion-button class="btn-secondary" fill="outline" (click)="goToInventario()">
@@ -22,71 +26,98 @@
     </section>
 
     <section class="kpis">
-      <article class="kpi-card"><span>Total catálogo</span><strong>{{ kpiTotal }}</strong></article>
-      <article class="kpi-card"><span>Productos activos</span><strong>{{ kpiProductosActivos }}</strong></article>
-      <article class="kpi-card"><span>Servicios activos</span><strong>{{ kpiServiciosActivos }}</strong></article>
-      <article class="kpi-card"><span>Stock total</span><strong>{{ kpiStockTotal }}</strong></article>
-      <article class="kpi-card"><span>Bajo stock mínimo</span><strong>{{ kpiBajoStock }}</strong></article>
-      <article class="kpi-card"><span>Valor inventario</span><strong>{{ formatMoney(kpiValorInventario) }}</strong></article>
-      <article class="kpi-card"><span>Costo inventario</span><strong>{{ formatMoney(kpiCostoInventario) }}</strong></article>
-      <article class="kpi-card"><span>Margen promedio</span><strong>{{ kpiMargenPromedio | number:'1.0-2' }}%</strong></article>
-      <article class="kpi-card"><span>Con ITBIS</span><strong>{{ kpiConItbis }}</strong></article>
-      <article class="kpi-card"><span>Sin ITBIS</span><strong>{{ kpiSinItbis }}</strong></article>
+      <article class="kpi-card kpi-card--primary"><ion-icon name="layers-outline"></ion-icon><span>Total catálogo</span><strong>{{ kpiTotal }}</strong></article>
+      <article class="kpi-card"><ion-icon name="cube-outline"></ion-icon><span>Productos activos</span><strong>{{ kpiProductosActivos }}</strong></article>
+      <article class="kpi-card"><ion-icon name="construct-outline"></ion-icon><span>Servicios activos</span><strong>{{ kpiServiciosActivos }}</strong></article>
+      <article class="kpi-card"><ion-icon name="archive-outline"></ion-icon><span>Stock total</span><strong>{{ kpiStockTotal }}</strong></article>
+      <article class="kpi-card kpi-card--warning"><ion-icon name="warning-outline"></ion-icon><span>Bajo stock mínimo</span><strong>{{ kpiBajoStock }}</strong></article>
+      <article class="kpi-card kpi-card--primary"><ion-icon name="trending-up-outline"></ion-icon><span>Valor inventario</span><strong>{{ formatMoney(kpiValorInventario) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="wallet-outline"></ion-icon><span>Costo inventario</span><strong>{{ formatMoney(kpiCostoInventario) }}</strong></article>
+      <article class="kpi-card"><ion-icon name="analytics-outline"></ion-icon><span>Margen promedio</span><strong>{{ kpiMargenPromedio | number:'1.0-2' }}%</strong></article>
+      <article class="kpi-card"><ion-icon name="receipt-outline"></ion-icon><span>Con ITBIS</span><strong>{{ kpiConItbis }}</strong></article>
+      <article class="kpi-card"><ion-icon name="remove-circle-outline"></ion-icon><span>Sin ITBIS</span><strong>{{ kpiSinItbis }}</strong></article>
     </section>
 
-    <section class="card filters">
+    <section class="card filters catalog-explorer-filters">
       <div class="filters-header">
-        <h2>Filtros del catálogo</h2>
-        <p>Explora por tipo, estado y salud de inventario.</p>
+        <div>
+          <span class="section-kicker">Explorar catálogo</span>
+          <h2>Encuentra un producto o servicio</h2>
+          <p>Busca por sus datos principales y luego refina los resultados.</p>
+        </div>
+        <div class="filters-status-actions">
+          <div class="filter-result">
+            <span class="filter-status-label">Resultados</span>
+            <strong>{{ itemsFiltrados.length }} {{ itemsFiltrados.length === 1 ? 'registro' : 'registros' }}</strong>
+          </div>
+          <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters">
+            <ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros
+          </ion-button>
+        </div>
       </div>
-      <div class="filter-block filter-block-search">
-        <span class="filter-label">Búsqueda general</span>
-        <ion-searchbar
-          placeholder="Buscar por nombre, código, categoría o unidad"
-          [value]="query"
-          (ionInput)="onSearch($event)"
-          debounce="250">
-        </ion-searchbar>
+
+      <div class="catalog-search-panel">
+        <div class="catalog-search-copy">
+          <span class="catalog-search-icon"><ion-icon name="search-outline"></ion-icon></span>
+          <div><strong>Búsqueda principal</strong><small>Nombre, código interno, categoría o unidad de medida</small></div>
+        </div>
+        <div class="catalog-search-field">
+          <ion-searchbar class="catalog-primary-search" aria-label="Buscar en el catálogo"
+            placeholder="Escribe un nombre, código, categoría o unidad..." [value]="query"
+            (ionInput)="onSearch($event)" debounce="250"></ion-searchbar>
+        </div>
       </div>
-      <div class="filter-block">
-        <span class="filter-label">Filtros principales</span>
-        <div class="filter-grid">
+
+      <div class="catalog-filter-grid catalog-select-grid">
+        <div class="catalog-filter-field">
+          <span>Tipo de registro</span>
+          <ion-item><ion-select aria-label="Filtrar por tipo" [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="producto">Producto</ion-select-option><ion-select-option value="servicio">Servicio</ion-select-option></ion-select></ion-item>
+        </div>
+        <div class="catalog-filter-field">
+          <span>Categoría</span>
           <ion-item>
-            <ion-label>Tipo</ion-label>
-            <ion-select [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover">
-              <ion-select-option value="todos">Todos</ion-select-option>
-              <ion-select-option value="producto">Producto</ion-select-option>
-              <ion-select-option value="servicio">Servicio</ion-select-option>
-            </ion-select>
-          </ion-item>
-          <ion-item>
-            <ion-label>Estado</ion-label>
-            <ion-select [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
-              <ion-select-option value="todos">Todos</ion-select-option>
-              <ion-select-option value="activo">Activo</ion-select-option>
-              <ion-select-option value="inactivo">Inactivo</ion-select-option>
-            </ion-select>
-          </ion-item>
-          <ion-item>
-            <ion-label>Stock</ion-label>
-            <ion-select [value]="filtroStock" (ionChange)="onStockChange($any($event.detail).value)" interface="popover">
-              <ion-select-option value="todos">Todos</ion-select-option>
-              <ion-select-option value="normal">Stock normal</ion-select-option>
-              <ion-select-option value="bajo">Bajo stock</ion-select-option>
+            <ion-select aria-label="Filtrar por categoría" [value]="filtroCategoria"
+              (ionChange)="onCategoriaChange($any($event.detail).value)" interface="popover">
+              <ion-select-option value="todas">Todas las categorías</ion-select-option>
+              <ion-select-option *ngFor="let categoria of categoriasDisponibles" [value]="categoria">{{ categoria }}</ion-select-option>
+              <ion-select-option value="sin_categoria">Sin categoría</ion-select-option>
             </ion-select>
           </ion-item>
         </div>
+        <div class="catalog-filter-field">
+          <span>Disponibilidad</span>
+          <ion-item><ion-select aria-label="Filtrar por estado" [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="activo">Activo</ion-select-option><ion-select-option value="inactivo">Inactivo</ion-select-option></ion-select></ion-item>
+        </div>
+        <div class="catalog-filter-field">
+          <span>Nivel de existencias</span>
+          <ion-item><ion-select aria-label="Filtrar por stock" [value]="filtroStock" (ionChange)="onStockChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="normal">Stock normal</ion-select-option><ion-select-option value="bajo">Bajo stock</ion-select-option></ion-select></ion-item>
+        </div>
+      </div>
+
+      <div class="catalog-filter-feedback">
+        <ion-icon name="information-circle-outline"></ion-icon>
+        <span>Los resultados se actualizan automáticamente mientras escribes o cambias un filtro.</span>
       </div>
     </section>
 
-    <section class="card" *ngIf="!loading">
+    <section class="card catalog-results-card catalog-register-card" *ngIf="!loading">
+      <header class="catalog-results-head">
+        <div class="catalog-results-title">
+          <span class="results-title-icon"><ion-icon name="albums-outline"></ion-icon></span>
+          <div><span class="eyebrow">Resultados del catálogo</span><h2>Catálogo registrado</h2><p>Consulta precios, existencias, impuestos y disponibilidad.</p></div>
+        </div>
+        <div class="catalog-results-actions">
+          <span class="catalog-count-badge"><strong>{{ itemsFiltrados.length }}</strong>{{ itemsFiltrados.length === 1 ? 'registro' : 'registros' }}</span>
+        <ion-button class="btn-primary results-new-button" (click)="goToNew()"><ion-icon slot="start" name="add-outline"></ion-icon>Nuevo registro</ion-button>
+        </div>
+      </header>
       <ng-container *ngIf="itemsFiltrados.length > 0; else emptyState">
-        <div class="desktop-table">
-          <table>
+        <div class="desktop-table catalog-table-wrap">
+          <table class="catalog-table">
             <thead>
               <tr>
                 <th>Código</th>
-                <th>Nombre</th>
+                <th>Producto o servicio</th>
                 <th>Tipo</th>
                 <th>Categoría</th>
                 <th class="num">Precio venta</th>
@@ -100,30 +131,37 @@
             </thead>
             <tbody>
               <tr *ngFor="let item of pagedItems">
-                <td>{{ item.codigoInterno || '—' }}</td>
-                <td>{{ item.nombre }}</td>
+                <td><span class="catalog-code">{{ item.codigoInterno || 'Sin código' }}</span></td>
                 <td>
-                  <ion-chip [color]="getTipoFilterValue(item) === 'producto' ? 'primary' : 'tertiary'">
+                  <div class="catalog-product-cell">
+                    <span class="catalog-product-icon" [class.catalog-product-icon--service]="getTipoFilterValue(item) === 'servicio'">
+                      <ion-icon [name]="getTipoFilterValue(item) === 'producto' ? 'cube-outline' : 'construct-outline'"></ion-icon>
+                    </span>
+                    <div><strong>{{ item.nombre }}</strong><small>{{ item.categoriaNombre || 'Sin categoría asignada' }}</small></div>
+                  </div>
+                </td>
+                <td>
+                  <ion-chip class="catalog-chip type-chip" [color]="getTipoFilterValue(item) === 'producto' ? 'primary' : 'tertiary'">
                     <ion-label>{{ getTipoLabel(item) }}</ion-label>
                   </ion-chip>
                 </td>
-                <td>{{ item.categoriaNombre || '—' }}</td>
-                <td class="num">{{ formatMoney(item.precioVenta) }}</td>
-                <td class="num">{{ formatMoney(item.precioCompra ?? item.ultimoCosto ?? item.costoPromedio) }}</td>
-                <td>{{ getItbisLabel(item) }}</td>
+                <td><span class="category-text">{{ item.categoriaNombre || 'Sin categoría' }}</span></td>
+                <td class="num catalog-sale-price">{{ formatMoney(item.precioVenta) }}</td>
+                <td class="num catalog-cost">{{ formatMoney(item.precioCompra ?? item.ultimoCosto ?? item.costoPromedio) }}</td>
+                <td><span class="tax-badge">{{ getItbisLabel(item) }}</span></td>
                 <td class="num">
-                  <ion-chip [color]="getStockChipColor(item)">
+                  <ion-chip class="catalog-chip stock-chip" [color]="getStockChipColor(item)">
                     <ion-label>{{ item.manejaInventario ? item.stockActual : 'N/A' }}</ion-label>
                   </ion-chip>
                 </td>
-                <td class="num">{{ item.manejaInventario ? (item.stockMinimo ?? 0) : 'N/A' }}</td>
+                <td class="num catalog-minimum">{{ item.manejaInventario ? (item.stockMinimo ?? 0) : 'N/A' }}</td>
                 <td>
-                  <ion-chip [color]="item.activo ? 'success' : 'medium'">
+                  <ion-chip class="catalog-chip status-chip" [color]="item.activo ? 'success' : 'medium'">
                     <ion-label>{{ item.activo ? 'Activo' : 'Inactivo' }}</ion-label>
                   </ion-chip>
                 </td>
-                <td>
-                  <ion-button fill="clear" size="small" (click)="openActions(item)">
+                <td class="catalog-action-cell">
+                  <ion-button class="row-menu-button" fill="clear" size="small" (click)="openActions(item)" aria-label="Abrir acciones del producto">
                     <ion-icon slot="icon-only" name="ellipsis-horizontal"></ion-icon>
                   </ion-button>
                 </td>
@@ -146,7 +184,7 @@
         </div>
 
         <div class="mobile-cards">
-          <article class="item-card" *ngFor="let item of itemsFiltrados">
+          <article class="item-card" *ngFor="let item of pagedItems">
             <div class="item-card-glow"></div>
 
             <header class="item-card-header">

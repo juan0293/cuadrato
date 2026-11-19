@@ -1,51 +1,33 @@
-<ion-header class="modal-header">
-  <ion-toolbar>
-    <ion-title>{{ userId ? 'Editar usuario' : 'Nuevo usuario' }}</ion-title>
-  </ion-toolbar>
-</ion-header>
+<ion-content class="user-form-page" [class.theme-light]="usersTheme === 'light'" [class.theme-dark]="usersTheme === 'dark'">
+  <div class="form-shell">
+    <header class="page-header">
+      <div class="page-title"><span class="title-icon"><ion-icon [name]="userId ? 'create-outline' : 'person-add-outline'"></ion-icon></span><div><span class="eyebrow">Administración · Usuarios internos</span><h1>{{ userId ? 'Editar usuario' : 'Nuevo usuario' }}</h1><p>{{ userId ? 'Actualiza la información y los permisos operativos.' : 'Registra un perfil interno para operar en el sistema.' }}</p></div></div>
+      <div class="header-actions">
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleUsersTheme()" [attr.aria-label]="usersTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'"><ion-icon slot="start" [name]="usersTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ usersTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}</ion-button>
+        <ion-button class="btn-secondary" fill="outline" (click)="cancel()"><ion-icon slot="start" name="arrow-back-outline"></ion-icon>Volver a usuarios</ion-button>
+      </div>
+    </header>
 
-<ion-content class="crud-page">
-  <div class="shell ion-padding">
-    <section class="card">
-      <h2>{{ userId ? 'Actualizar usuario interno' : 'Crear usuario interno' }}</h2>
-      <p>Define acceso, rol operativo y estado del usuario.</p>
-
-      <form [formGroup]="form" (ngSubmit)="save()">
-        <div class="grid">
-          <ion-item>
-            <ion-label position="stacked">Nombre</ion-label>
-            <ion-input formControlName="nombre"></ion-input>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Email</ion-label>
-            <ion-input formControlName="email" type="email"></ion-input>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Rol</ion-label>
-            <ion-select formControlName="rol">
-              <ion-select-option value="admin">Admin</ion-select-option>
-              <ion-select-option value="asistente">Asistente</ion-select-option>
-              <ion-select-option value="artista">Artista</ion-select-option>
-            </ion-select>
-          </ion-item>
-
-          <ion-item>
-            <ion-label position="stacked">Teléfono</ion-label>
-            <ion-input formControlName="telefono"></ion-input>
-          </ion-item>
+    <form class="user-editor" [formGroup]="form" (ngSubmit)="save()">
+      <section class="form-card">
+        <div class="section-head"><span class="section-icon"><ion-icon name="person-outline"></ion-icon></span><div><span class="eyebrow">Información básica</span><h2>Identificación del usuario</h2><p>Datos utilizados para identificar y contactar a la persona.</p></div></div>
+        <div class="form-grid">
+          <label class="form-field"><span>Nombre completo <em>*</em></span><ion-item lines="none"><ion-input formControlName="nombre" placeholder="Ej. María Rodríguez" autocomplete="name"></ion-input></ion-item><small class="field-error" *ngIf="form.controls.nombre.touched && form.controls.nombre.invalid">Ingresa al menos tres caracteres.</small></label>
+          <label class="form-field"><span>Correo electrónico <em>*</em></span><ion-item lines="none"><ion-input formControlName="email" type="email" placeholder="nombre@empresa.com" autocomplete="email"></ion-input></ion-item><small class="field-error" *ngIf="form.controls.email.touched && form.controls.email.invalid">Ingresa un correo electrónico válido.</small></label>
+          <label class="form-field"><span>Teléfono <small>Opcional</small></span><ion-item lines="none"><ion-input formControlName="telefono" type="tel" inputmode="tel" placeholder="Ej. 809-555-0123" autocomplete="tel"></ion-input></ion-item><small class="field-error" *ngIf="form.controls.telefono.touched && form.controls.telefono.invalid">Revisa el formato del teléfono.</small></label>
+          <label class="form-field"><span>Rol operativo <em>*</em></span><ion-item lines="none"><ion-select formControlName="rol" interface="popover"><ion-select-option value="admin">Administrador</ion-select-option><ion-select-option value="asistente">Asistente</ion-select-option><ion-select-option value="artista">Artista</ion-select-option></ion-select></ion-item></label>
         </div>
+      </section>
 
-        <ion-item lines="none">
-          <ion-label>Activo</ion-label>
-          <ion-toggle formControlName="activo"></ion-toggle>
-        </ion-item>
+      <section class="form-card access-card">
+        <div class="section-head"><span class="section-icon"><ion-icon name="shield-checkmark-outline"></ion-icon></span><div><span class="eyebrow">Control de acceso</span><h2>Estado operativo</h2><p>Determina si el usuario puede acceder y trabajar en el sistema.</p></div></div>
+        <ion-item class="status-control" lines="none"><div><ion-label>Usuario activo</ion-label><small>{{ form.controls.activo.value ? 'Puede acceder y realizar las funciones de su rol.' : 'El acceso permanecerá suspendido.' }}</small></div><ion-toggle slot="end" formControlName="activo" aria-label="Estado activo del usuario"></ion-toggle></ion-item>
+      </section>
 
-        <div class="actions">
-          <ion-button type="submit" class="btn-primary">Guardar</ion-button>
-        </div>
-      </form>
-    </section>
+      <footer class="form-actions">
+        <p><span>*</span> Campos obligatorios</p>
+        <div><ion-button class="btn-secondary" fill="outline" type="button" (click)="cancel()">Cancelar</ion-button><ion-button class="btn-primary" type="submit" [disabled]="saving"><ion-spinner *ngIf="saving" name="crescent"></ion-spinner><ion-icon *ngIf="!saving" slot="start" name="save-outline"></ion-icon>{{ saving ? 'Guardando…' : (userId ? 'Guardar cambios' : 'Crear usuario') }}</ion-button></div>
+      </footer>
+    </form>
   </div>
 </ion-content>

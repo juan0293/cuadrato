@@ -10,6 +10,7 @@ import { categoriasGasto, categoriasIngreso } from '../helpers/finanzas.helper';
 import { EvidenciaMovimiento, MovimientoFinanciero } from '../models/movimiento-financiero.model';
 import { CategoriasFinancierasService, CategoriaFinanciera } from '../services/categorias-financieras.service';
 import { FinanzasService } from '../services/finanzas.service';
+import { FinanzasTheme, FinanzasThemeService } from '../services/finanzas-theme.service';
 
 type TipoVisualMovimiento = 'ingreso' | 'gasto' | 'ajuste' | 'transferencia';
 interface EvidenciaLocal extends EvidenciaMovimiento {
@@ -28,6 +29,7 @@ interface EvidenciaLocal extends EvidenciaMovimiento {
   styleUrls: ['./movimiento-financiero-form.page.scss'],
 })
 export class MovimientoFinancieroFormPage implements OnInit, OnDestroy {
+  financeTheme: FinanzasTheme;
   readonly categoriasIngreso = categoriasIngreso;
   readonly categoriasGasto = categoriasGasto;
 
@@ -94,7 +96,14 @@ export class MovimientoFinancieroFormPage implements OnInit, OnDestroy {
     private readonly toastService: ToastService,
     private readonly alertCtrl: AlertController,
     private readonly router: Router,
-  ) {}
+    private readonly finanzasThemeService: FinanzasThemeService,
+  ) {
+    this.financeTheme = this.finanzasThemeService.theme;
+  }
+
+  toggleFinanceTheme(): void {
+    this.financeTheme = this.finanzasThemeService.toggle();
+  }
 
   ngOnInit(): void {
     this.sub.add(

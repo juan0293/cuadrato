@@ -82,7 +82,18 @@ service cloud.firestore {
 
     match /facturas/{facturaId} {
       allow read: if isAuthenticated() && (isOperativo() || resource.data.artistaId == request.auth.uid);
-      allow create, update: if isAuthenticated() && isOperativo();
+      allow create: if isAuthenticated() && isOperativo()
+        && request.resource.data.get('tipoDocumento', '') != 'precuenta'
+        && (!request.resource.data.keys().hasAny(['cuentaAbiertaId']) || (
+          (isAdmin() || isAsistente())
+          && get(/databases/$(database)/documents/cuentasAbiertas/$(request.resource.data.cuentaAbiertaId)).data.estado == 'abierta'
+          && get(/databases/$(database)/documents/cuentasAbiertas/$(request.resource.data.cuentaAbiertaId)).data.version == request.resource.data.cuentaAbiertaVersion
+          && getAfter(/databases/$(database)/documents/cuentasAbiertas/$(request.resource.data.cuentaAbiertaId)).data.facturaId == facturaId
+          && getAfter(/databases/$(database)/documents/cuentasAbiertas/$(request.resource.data.cuentaAbiertaId)).data.estado == 'cerrada'
+        ));
+      allow update: if isAuthenticated() && isOperativo()
+        && request.resource.data.get('cuentaAbiertaId', '') == resource.data.get('cuentaAbiertaId', '')
+        && request.resource.data.get('cuentaAbiertaVersion', 0) == resource.data.get('cuentaAbiertaVersion', 0);
       allow delete: if false;
     }
 
@@ -123,6 +134,51 @@ service cloud.firestore {
 
       match /pagos/{pagoId} {
         allow read, create: if isAuthenticated() && isOperativo();
+        allow update, delete: if false;
+      }
+    }
+
+    // Cuentas de consumo: mismos perfiles habilitados en el punto de venta.
+    // Sin borrado físico ni reapertura; revisiones y cierre fiscal atómicos.
+    match /cuentasAbiertas/{id} {
+      allow read: if isAuthenticated() && (isAdmin() || isAsistente());
+      allow create: if isAuthenticated() && (isAdmin() || isAsistente())
+        && request.resource.data.estado == 'abierta'
+        && request.resource.data.version == 1
+        && request.resource.data.id == id
+        && request.resource.data.creadaPor == request.auth.uid
+        && request.resource.data.actualizadaPor == request.auth.uid
+        && request.resource.data.clienteNombre is string
+        && request.resource.data.clienteNombre.size() > 0
+        && request.resource.data.clienteNombre.size() <= 120
+        && request.resource.data.items is list
+        && !request.resource.data.keys().hasAny(['facturaId', 'cerradaEn']);
+      allow update: if isAuthenticated() && (isAdmin() || isAsistente())
+        && resource.data.estado == 'abierta'
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.actualizadaPor == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'clienteNombre', 'clienteId', 'items', 'descuentoGlobal', 'subtotal', 'impuesto', 'total',
+          'version', 'actualizadaPor', 'actualizadaEn', 'estado', 'facturaId', 'cerradaEn', 'motivoCancelacion'
+        ])
+        && (
+          (request.resource.data.estado == 'abierta'
+            && !request.resource.data.keys().hasAny(['facturaId', 'cerradaEn', 'motivoCancelacion']))
+          || (request.resource.data.estado == 'cancelada'
+            && request.resource.data.motivoCancelacion is string
+            && request.resource.data.motivoCancelacion.size() > 0
+            && !request.resource.data.keys().hasAny(['facturaId', 'cerradaEn']))
+          || (request.resource.data.estado == 'cerrada'
+            && getAfter(/databases/$(database)/documents/facturas/$(request.resource.data.facturaId)).data.cuentaAbiertaId == id
+            && getAfter(/databases/$(database)/documents/facturas/$(request.resource.data.facturaId)).data.cuentaAbiertaVersion == resource.data.version
+            && getAfter(/databases/$(database)/documents/facturas/$(request.resource.data.facturaId)).data.estado == 'emitida')
+        );
+      allow delete: if false;
+      match /eventos/{eventoId} {
+        allow read: if isAuthenticated() && (isAdmin() || isAsistente());
+        allow create: if isAuthenticated() && (isAdmin() || isAsistente())
+          && request.resource.data.usuarioId == request.auth.uid
+          && request.resource.data.version == getAfter(/databases/$(database)/documents/cuentasAbiertas/$(id)).data.version;
         allow update, delete: if false;
       }
     }

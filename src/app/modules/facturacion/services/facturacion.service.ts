@@ -9,6 +9,8 @@ import { Factura } from '../models/factura.model';
 import { FacturaItem } from '../models/factura-item.model';
 import { generarNumeroFactura } from '../helpers/facturacion.helper';
 import { CuentaPorCobrar } from '../models/cuenta-por-cobrar.model';
+import { CuentaAbierta } from '../models/cuenta-abierta.model';
+import { cuentaCoincideConFactura, validarCuentaAbierta } from '../helpers/cuenta-abierta.helper';
 
 @Injectable({ providedIn: 'root' })
 export class FacturacionService {
@@ -60,6 +62,21 @@ export class FacturacionService {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Factura) }));
   }
 
+  async getFacturasPorRangoYEstado(
+    estado: 'emitida' | 'borrador',
+    fechaDesdeIso: string,
+    fechaHastaIso: string,
+  ): Promise<Factura[]> {
+    const snapshot = await this.afs.firestore.collection(this.collectionPath)
+      .where('estado', '==', estado)
+      .where('creadoEn', '>=', fechaDesdeIso)
+      .where('creadoEn', '<=', fechaHastaIso)
+      .orderBy('creadoEn', 'desc')
+      .get();
+
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Factura) }));
+  }
+
   getFacturasEmitidasHoy(): Promise<Factura[]> {
     return this.getFacturasDelDiaPorEstado('emitida');
   }
@@ -69,6 +86,7 @@ export class FacturacionService {
   }
 
   async createFactura(payload: Omit<Factura, 'numero'>): Promise<string> {
+    if (payload.cuentaAbiertaId || payload.tipoDocumento === 'precuenta') throw new Error('ACCOUNT_USE_CHECKOUT');
     const sequence = await this.obtenerSecuenciaFactura();
     const numero = generarNumeroFactura(sequence);
     const now = new Date().toISOString();
@@ -95,6 +113,7 @@ export class FacturacionService {
    * 4) crea factura emitida
    */
   async emitirFactura(payload: Omit<Factura, 'numero' | 'estado'>): Promise<string> {
+    if (payload.tipoDocumento === 'precuenta') throw new Error('PREBILL_NOT_INVOICE');
     // TODO(Fase e-CF): reactivar validación fiscal estricta cuando se habilite comprobante.
     // this.validateFiscalCliente(payload);
 
@@ -105,6 +124,13 @@ export class FacturacionService {
 
     await db.runTransaction(async (tx) => {
       // READ phase: Firestore exige completar todas las lecturas antes de escribir.
+      const cuentaRef = payload.cuentaAbiertaId ? db.collection('cuentasAbiertas').doc(payload.cuentaAbiertaId) : null;
+      if (cuentaRef) {
+        const cuentaSnap = await tx.get(cuentaRef);
+        const cuenta = cuentaSnap.data() as CuentaAbierta | undefined;
+        validarCuentaAbierta(cuenta, payload.cuentaAbiertaVersion ?? -1);
+        if (!cuenta.items.length || !cuentaCoincideConFactura(cuenta, payload)) throw new Error('ACCOUNT_CONFLICT');
+      }
       const seqRef = db.collection(this.ncfSequencePath).doc('INTERNA_FACTURA');
       const seqSnap = await tx.get(seqRef);
       const numeroSecuencia = (seqSnap.exists ? Number((seqSnap.data() as any)?.ultimo || 0) : 0) + 1;
@@ -114,16 +140,18 @@ export class FacturacionService {
 
       const inventoryItems = (payload.items || []).filter((item) => !!item.productoServicioId && item.tipo === 'producto' && item.manejaInventario);
       const readBuffer: Array<{ item: FacturaItem; productRef: any; stockActual: number; stockNuevo: number }> = [];
+      const stockRestante = new Map<string, number>();
 
       for (const item of inventoryItems) {
         const productRef = db.collection(this.productsPath).doc(item.productoServicioId as string);
         const productSnap = await tx.get(productRef);
         if (!productSnap.exists) throw new Error('PRODUCT_NOT_FOUND');
         const product = productSnap.data() as any;
-        const stockActual = Number(product?.stockActual || 0);
+        const stockActual = stockRestante.get(productRef.id) ?? Number(product?.stockActual || 0);
         const qty = Number(item.cantidad || 0);
         if (qty > stockActual) throw new Error(`INSUFFICIENT_STOCK:${item.descripcion}`);
         const stockNuevo = Number((stockActual - qty).toFixed(2));
+        stockRestante.set(productRef.id, stockNuevo);
         readBuffer.push({ item, productRef, stockActual, stockNuevo });
       }
 
@@ -168,8 +196,25 @@ export class FacturacionService {
         creadoEn: payload.creadoEn || now,
         actualizadoEn: now,
       }));
+      if (cuentaRef) {
+        tx.update(cuentaRef, { estado: 'cerrada', facturaId, cerradaEn: now,
+          actualizadaEn: now, actualizadaPor: payload.creadaPor, version: payload.cuentaAbiertaVersion! + 1 });
+        tx.set(cuentaRef.collection('eventos').doc(), { accion: 'facturacion', facturaId,
+          usuarioId: payload.creadaPor, fecha: now, version: payload.cuentaAbiertaVersion! + 1 });
+        const monto = Number(payload.pagos?.totalPagadoAhora ?? payload.total);
+        if (monto > 0) tx.set(db.collection('movimientosFinancieros').doc(`cuenta-${facturaId}`), this.sanitizeForFirestore({
+          tipo: 'ingreso', categoria: 'facturacion', monto, descripcion: `Ingreso por factura ${numero}`,
+          artistaId: payload.artistaId, facturaId, fecha: payload.fecha, creadoPor: payload.creadaPor,
+        }));
+        const cuentaPorCobrar = this.buildCuentaPorCobrarPayload(facturaId,
+          { ...payload, numero, estado: 'emitida' }, payload.creadaPor);
+        if (cuentaPorCobrar) tx.set(db.collection('cuentasPorCobrar').doc(facturaId), this.sanitizeForFirestore(cuentaPorCobrar));
+      }
     });
 
+    // Para cuentas abiertas todos los efectos ya se confirmaron atómicamente.
+    // No hacer lecturas/escrituras posteriores que puedan aparentar una emisión fallida.
+    if (payload.cuentaAbiertaId) return facturaId;
     const factura = await this.getFacturaSnapshot(facturaId);
     if (factura) {
       await this.registrarIngresoFinanciero(factura, facturaId);
@@ -335,12 +380,15 @@ export class FacturacionService {
 
   async validarStockItems(items: FacturaItem[]): Promise<void> {
     const products = await this.firestoreBase.listOnce<any>(this.productsPath);
+    const cantidades = new Map<string, number>();
     for (const item of items) {
       if (!item.productoServicioId || item.tipo !== 'producto' || !item.manejaInventario) continue;
       const product = products.find((p) => p.id === item.productoServicioId);
       if (!product) throw new Error('PRODUCT_NOT_FOUND');
       const stock = Number(product.stockActual || 0);
-      if (Number(item.cantidad || 0) > stock) throw new Error(`INSUFFICIENT_STOCK:${item.descripcion}`);
+      const cantidad = (cantidades.get(item.productoServicioId) || 0) + Number(item.cantidad || 0);
+      cantidades.set(item.productoServicioId, cantidad);
+      if (cantidad > stock) throw new Error(`INSUFFICIENT_STOCK:${item.descripcion}`);
     }
   }
 
@@ -425,6 +473,11 @@ export class FacturacionService {
   }
 
   async createCuentaPorCobrarFromFactura(facturaId: string, factura: Factura, userId: string): Promise<string | null> {
+    const payload = this.buildCuentaPorCobrarPayload(facturaId, factura, userId);
+    return payload ? this.firestoreBase.create<CuentaPorCobrar>('cuentasPorCobrar', payload) : null;
+  }
+
+  private buildCuentaPorCobrarPayload(facturaId: string, factura: Factura, userId: string): CuentaPorCobrar | null {
     const montoCredito = Number(factura.pagos?.totalCredito || factura.pagos?.credito || 0);
     if (montoCredito <= 0) return null;
     const now = new Date();
@@ -448,7 +501,7 @@ export class FacturacionService {
       fechaCreacion: now.toISOString(),
       updatedAt: now.toISOString(),
     };
-    return this.firestoreBase.create<CuentaPorCobrar>('cuentasPorCobrar', payload);
+    return payload;
   }
 
   private async obtenerSecuenciaFactura(): Promise<number> {

@@ -1,68 +1,65 @@
-<ion-content [fullscreen]="true" class="auth-shell">
-  <div class="bg-glow bg-glow-top"></div>
-  <div class="bg-glow bg-glow-bottom"></div>
+<ion-content class="auth-shell" [fullscreen]="true" [class.theme-light]="shellTheme === 'light'" [class.theme-dark]="shellTheme === 'dark'">
+  <div class="auth-page">
+    <header class="auth-topbar">
+      <div class="topbar-brand"><span class="topbar-icon"><ion-icon name="apps-outline"></ion-icon></span><div><strong>CuadraTó</strong><small>Centro administrativo</small></div></div>
+      <ion-button class="theme-toggle" fill="outline" (click)="toggleShellTheme()" [attr.aria-label]="shellTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'" [attr.aria-pressed]="shellTheme === 'dark'">
+        <ion-icon slot="start" [name]="shellTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ shellTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}
+      </ion-button>
+    </header>
 
-  <section class="auth-wrapper">
-    <section class="command-center card">
-      <div class="command-hero">
-        <div class="command-logo" *ngIf="logoPath; else logoFallback">
-          <img [src]="logoPath" alt="Logo" />
+    <main class="auth-layout">
+      <section class="brand-panel">
+        <div class="brand-logo" *ngIf="logoPath; else logoFallback"><img [src]="logoPath" alt="Logo de CuadraTó" /></div>
+        <ng-template #logoFallback><div class="brand-logo brand-logo--fallback"><span>CT</span></div></ng-template>
+        <div class="brand-copy">
+          <span class="eyebrow">Gestión empresarial</span>
+          <h1>Controla tu operación desde un solo lugar</h1>
+          <p>Accede de forma segura a facturación, inventario, finanzas y administración.</p>
         </div>
-        <ng-template #logoFallback>
-          <div class="command-logo command-logo--fallback">
-            <span>VT</span>
-            <small>Vargas TattooApp</small>
-          </div>
-        </ng-template>
+        <div class="feature-list" aria-label="Beneficios del sistema">
+          <span><ion-icon name="checkmark-circle-outline"></ion-icon>Información centralizada</span>
+          <span><ion-icon name="shield-checkmark-outline"></ion-icon>Acceso protegido por roles</span>
+          <span><ion-icon name="phone-portrait-outline"></ion-icon>Disponible en móvil, tablet y PC</span>
+        </div>
+      </section>
 
-        <!-- <h1 class="command-title">Centro de mando</h1>
-        <p class="command-subtitle">Gestiona tus operaciones desde un solo lugar.</p> -->
-      </div>
-    </section>
+      <section class="login-card">
+        <header class="login-header">
+          <span class="login-icon"><ion-icon name="log-in-outline"></ion-icon></span>
+          <div><span class="eyebrow">Acceso seguro</span><h2>Iniciar sesión</h2><p>Ingresa las credenciales asignadas a tu cuenta.</p></div>
+        </header>
 
-    <div class="brand-block">
-      <!-- <p class="brand-kicker">VARGAS TATTOOAPP</p> -->
-      <!-- <h1>Acceso al sistema</h1> -->
-       <h1>CuadraTó</h1>
-      <p class="brand-subtitle">Gestiona tus operaciones desde un solo lugar</p>
-    </div>
-
-    <ion-card class="login-card">
-      <ion-card-header>
-        <ion-card-title>Iniciar sesión</ion-card-title>
-        <ion-card-subtitle>Ingresa con tu cuenta interna</ion-card-subtitle>
-      </ion-card-header>
-
-      <ion-card-content>
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-          <div class="field-group">
-            <label for="email">Correo electrónico</label>
+          <label class="field-group" for="email">
+            <span>Correo electrónico</span>
             <ion-item lines="none" class="field-item" [class.field-error]="emailInvalid">
-              <ion-input id="email" formControlName="email" type="email" autocomplete="email" inputmode="email" placeholder="tu-correo@empresa.com"></ion-input>
+              <ion-icon slot="start" name="mail-outline"></ion-icon>
+              <ion-input id="email" formControlName="email" type="email" autocomplete="email" inputmode="email" placeholder="nombre@empresa.com" [attr.aria-invalid]="emailInvalid"></ion-input>
             </ion-item>
-            <p class="field-feedback" *ngIf="emailInvalid">Ingresa un correo válido.</p>
-          </div>
+            <small class="field-feedback" *ngIf="emailInvalid"><ion-icon name="alert-circle-outline"></ion-icon>Ingresa un correo electrónico válido.</small>
+          </label>
 
-          <div class="field-group">
-            <label for="password">Contraseña</label>
+          <label class="field-group" for="password">
+            <span>Contraseña</span>
             <ion-item lines="none" class="field-item" [class.field-error]="passwordInvalid">
-              <ion-input id="password" formControlName="password" [type]="showPassword ? 'text' : 'password'" autocomplete="current-password" placeholder="********"></ion-input>
-              <ion-button fill="clear" type="button" class="toggle-button" (click)="togglePasswordVisibility()">{{ showPassword ? 'Ocultar' : 'Mostrar' }}</ion-button>
+              <ion-icon slot="start" name="lock-closed-outline"></ion-icon>
+              <ion-input id="password" formControlName="password" [type]="showPassword ? 'text' : 'password'" autocomplete="current-password" placeholder="Ingresa tu contraseña" [attr.aria-invalid]="passwordInvalid"></ion-input>
+              <ion-button fill="clear" type="button" class="toggle-button" (click)="togglePasswordVisibility()" [attr.aria-label]="showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'">
+                <ion-icon slot="icon-only" [name]="showPassword ? 'eye-off-outline' : 'eye-outline'"></ion-icon>
+              </ion-button>
             </ion-item>
-            <p class="field-feedback" *ngIf="passwordInvalid">Verifica tu contraseña.</p>
-          </div>
+            <small class="field-feedback" *ngIf="passwordInvalid"><ion-icon name="alert-circle-outline"></ion-icon>Ingresa una contraseña de al menos seis caracteres.</small>
+          </label>
 
-          <div class="auth-links-row">
-            <ion-button fill="clear" size="small" class="forgot-link" type="button">¿Olvidaste tu contraseña?</ion-button>
-          </div>
+          <div class="auth-links-row"><ion-button fill="clear" size="small" class="forgot-link" type="button">¿Olvidaste tu contraseña?</ion-button></div>
 
-          <ion-button expand="block" type="submit" class="submit-button">Ingresar</ion-button>
+          <ion-button expand="block" type="submit" class="submit-button"><ion-icon slot="start" name="log-in-outline"></ion-icon>Ingresar al sistema</ion-button>
         </form>
-      </ion-card-content>
-    </ion-card>
 
-    <footer class="auth-footer">
-      Desarrollado por EscolasticX SRL · Todos los derechos reservados
-    </footer>
-  </section>
+        <footer class="login-security"><ion-icon name="shield-checkmark-outline"></ion-icon><span>Tu sesión y permisos se validan de forma segura.</span></footer>
+      </section>
+    </main>
+
+    <footer class="auth-footer">Desarrollado por EscolasticX SRL · Todos los derechos reservados</footer>
+  </div>
 </ion-content>

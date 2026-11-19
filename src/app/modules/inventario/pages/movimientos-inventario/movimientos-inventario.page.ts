@@ -6,8 +6,10 @@ import { Chart, DoughnutController, ArcElement, Tooltip, Legend, CategoryScale, 
 import * as XLSX from 'xlsx';
 import { MovimientoInventario } from '../../models/movimiento-inventario.model';
 import { MovimientosInventarioService } from '../../services/movimientos-inventario.service';
+import { InventarioThemeService } from '../../services/inventario-theme.service';
 import { UsuariosService } from '../../../usuarios/services/usuarios.service';
 import { UsuarioModel } from '../../../usuarios/models/usuario.model';
+import { ProductosServiciosService } from '../../services/productos-servicios.service';
 
 interface QuickAction {
   title: string;
@@ -37,6 +39,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
   movimientos: MovimientoInventario[] = [];
   movimientosFiltrados: MovimientoInventario[] = [];
   usuarios: UsuarioModel[] = [];
+  private preciosVenta = new Map<string, number>();
   loading = true;
   loadError = false;
 
@@ -59,8 +62,8 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
   ];
 
   private sub?: Subscription;
-  private tipoChart?: Chart;
-  private tendenciaChart?: Chart;
+  private tipoChart?: Chart<'doughnut', number[], string>;
+  private tendenciaChart?: Chart<'bar', number[], string>;
   private viewReady = false;
 
   constructor(
@@ -69,13 +72,18 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     private readonly usuariosService: UsuariosService,
     private readonly actionSheetCtrl: ActionSheetController,
     private readonly alertCtrl: AlertController,
+    private readonly themeService: InventarioThemeService,
+    private readonly productosService: ProductosServiciosService,
   ) {}
 
   ngOnInit(): void {
     this.setDefaultMonthDateRange();
 
-    this.sub = combineLatest([this.movimientosService.list(), this.usuariosService.list()]).subscribe({
-      next: ([items, usuarios]) => {
+    this.sub = combineLatest([this.movimientosService.list(), this.usuariosService.list(), this.productosService.list()]).subscribe({
+      next: ([items, usuarios, productos]) => {
+        this.preciosVenta = new Map(productos
+          .filter(p => p.id && typeof p.precioVenta === 'number' && Number.isFinite(p.precioVenta) && p.precioVenta >= 0)
+          .map(p => [p.id!, p.precioVenta]));
         this.usuarios = usuarios || [];
         this.movimientos = [...items].sort((a, b) => {
           const da = this.parseDate(a.fecha).getTime();
@@ -124,7 +132,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
       Codigo: m.productoId || m.insumoId || '—',
       Cantidad: this.toNumber(m.cantidad),
       CostoUnitario: this.toNumber(m.costoUnitario),
+      PrecioVentaActual: this.getPrecioVenta(m) ?? 'No disponible',
       ValorTotal: this.getValorTotal(m),
+      ValorTotalVentaActual: this.getValorTotalVenta(m) ?? 'No disponible',
       Referencia: m.referenciaId || m.referenciaTipo || '—',
       Responsable: this.getResponsableNombre(m),
       Estado: 'Registrado',
@@ -173,7 +183,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
         `Fecha: ${this.formatDate(movimiento.fecha, true)}`,
         `Cantidad: ${this.toNumber(movimiento.cantidad)}`,
         `Costo unitario: ${this.formatMoney(movimiento.costoUnitario)}`,
+        `Precio de venta actual: ${this.formatVenta(this.getPrecioVenta(movimiento))}`,
         `Valor total: ${this.formatMoney(this.getValorTotal(movimiento))}`,
+        `Valor total de venta: ${this.formatVenta(this.getValorTotalVenta(movimiento))}`,
         `Responsable: ${this.getResponsableNombre(movimiento)}`,
         `Referencia: ${movimiento.referenciaId || movimiento.referenciaTipo || '—'}`,
       ].join('<br>'),
@@ -220,7 +232,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
       const motivo = String(m.motivo || '').toLowerCase();
       const creadoPor = String(this.getResponsableNombre(m) || '').toLowerCase();
       const matchText = !q || [product, referencia, motivo, label.toLowerCase()].some((v) => v.includes(q));
-      const matchTipo = this.filtroTipo === 'todos' || this.getTipoGrupo(m) === this.filtroTipo;
+      const matchTipo = this.filtroTipo === 'todos' || (this.filtroTipo === 'anulacion_compra'
+        ? this.getTipoValue(m) === 'anulacion_compra'
+        : this.getTipoGrupo(m) === this.filtroTipo);
       const matchResp = !resp || creadoPor.includes(resp);
       const date = this.parseDate(m.fecha);
       const validDate = !Number.isNaN(date.getTime());
@@ -251,6 +265,16 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     return this.page < this.totalPages;
   }
 
+  get hasActiveFilters(): boolean {
+    return Boolean(
+      this.query.trim()
+      || this.filtroResponsable.trim()
+      || this.filtroFechaDesde
+      || this.filtroFechaHasta
+      || this.filtroTipo !== 'todos'
+    );
+  }
+
   prevPage(): void {
     if (!this.canGoPrev) return;
     this.page -= 1;
@@ -265,6 +289,15 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     const parsed = Number(value);
     this.pageSize = this.pageSizeOptions.includes(parsed) ? parsed : 10;
     this.page = 1;
+  }
+
+  clearFilters(): void {
+    this.query = '';
+    this.filtroTipo = 'todos';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.filtroResponsable = '';
+    this.applyFilters();
   }
 
   movimientoLabel(tipo?: string): string {
@@ -365,6 +398,19 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     return this.toNumber(m.cantidad) * this.toNumber(m.costoUnitario);
   }
 
+  getPrecioVenta(m: MovimientoInventario): number | null {
+    return m.productoId ? this.preciosVenta.get(m.productoId) ?? null : null;
+  }
+
+  getValorTotalVenta(m: MovimientoInventario): number | null {
+    const precio = this.getPrecioVenta(m);
+    return precio === null ? null : Number((this.toNumber(m.cantidad) * precio).toFixed(2));
+  }
+
+  formatVenta(value: number | null): string {
+    return value === null ? 'No disponible' : this.formatMoney(value);
+  }
+
   getResponsableNombre(m: MovimientoInventario): string {
     const uid = String(m.creadoPor || '').trim();
     if (!uid) return '—';
@@ -401,6 +447,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     const salida = this.salidasRegistradas;
     const ajuste = this.ajustesRealizados;
     const devolucion = this.movimientosFiltrados.filter((m) => this.getTipoGrupo(m) === 'devolucion').length;
+    const isDark = this.themeService.theme === 'dark';
     this.tipoChart = new Chart(canvas, {
       type: 'doughnut',
       data: {
@@ -408,7 +455,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
         datasets: [{
           data: [entrada, salida, ajuste, devolucion],
           backgroundColor: ['#34D399', '#F87171', '#FBBF24', '#38BDF8'],
-          borderColor: 'rgba(255,255,255,0.18)',
+          borderColor: isDark ? '#334155' : '#ffffff',
           borderWidth: 1.4,
           hoverOffset: 8,
         }],
@@ -417,7 +464,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: '#E5EDFF', boxWidth: 14 },
+            labels: { color: isDark ? '#E5EDFF' : '#344054', boxWidth: 14 },
           },
         },
       },
@@ -437,6 +484,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     }
     const labels = Array.from(group.keys()).slice(-10);
     const values = labels.map((label) => group.get(label) || 0);
+    const isDark = this.themeService.theme === 'dark';
+    const axisColor = isDark ? '#C9D7EE' : '#667085';
+    const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(16,24,40,0.08)';
 
     this.tendenciaChart = new Chart(canvas, {
       type: 'bar',
@@ -454,8 +504,8 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
       options: {
         maintainAspectRatio: false,
         scales: {
-          x: { ticks: { color: '#C9D7EE' }, grid: { color: 'rgba(255,255,255,0.08)' } },
-          y: { ticks: { color: '#C9D7EE' }, grid: { color: 'rgba(255,255,255,0.08)' } },
+          x: { ticks: { color: axisColor }, grid: { color: gridColor } },
+          y: { ticks: { color: axisColor }, grid: { color: gridColor } },
         },
         plugins: {
           legend: { display: false },

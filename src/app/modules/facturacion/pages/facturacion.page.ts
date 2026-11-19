@@ -1,8 +1,8 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, Inject, OnDestroy, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, Inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { ActionSheetController, AlertController, LoadingController } from '@ionic/angular';
+import { ActionSheetController, AlertController, IonInput, LoadingController } from '@ionic/angular';
 import { combineLatest, firstValueFrom, map, Subscription } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -16,10 +16,17 @@ import { ProductosServiciosService } from '../../inventario/services/productos-s
 import { CuentasPorCobrarService } from '../services/cuentas-por-cobrar.service';
 import { FacturaItem } from '../models/factura-item.model';
 import { Factura } from '../models/factura.model';
-import { TurnoCaja, TurnoTotales } from '../models/turno-caja.model';
+import { DENOMINACIONES_DOP, DesgloseEfectivo, TurnoCaja, TurnoTotales } from '../models/turno-caja.model';
 import { PdfFacturaService } from '../services/pdf-factura.service';
 import { FacturacionService } from '../services/facturacion.service';
 import { TurnosCajaService } from '../services/turnos-caja.service';
+import { PrinterConfiguration } from '../models/printer-configuration.model';
+import { InvoicePrintingService } from '../services/invoice-printing.service';
+import { PrinterConfigurationService } from '../services/printer-configuration.service';
+import { CuentaAbierta, CuentaAbiertaConsumo } from '../models/cuenta-abierta.model';
+import { CuentasAbiertasService } from '../services/cuentas-abiertas.service';
+import { recalcularConsumo } from '../helpers/cuenta-abierta.helper';
+import { aplicarPagoAFactura } from '../helpers/pagos-factura.helper';
 
 interface PosCartItem extends FacturaItem {
   key: string;
@@ -32,6 +39,54 @@ interface PosCartItem extends FacturaItem {
   styleUrls: ['./facturacion.component.scss'],
 })
 export class FacturacionPage implements OnInit, OnDestroy {
+  private catalogSearch?: IonInput;
+  private viewEntered = false;
+  private catalogFocusPending = true;
+  private catalogFocusFrame?: number;
+  private cartItemsContainer?: HTMLElement;
+  private cartScrollFrame?: number;
+  private pendingCartItemKey?: string;
+  private cartResizeObserver?: ResizeObserver;
+
+  @ViewChild('cartItemsContainer')
+  set cartItemsViewport(ref: ElementRef<HTMLElement> | undefined) {
+    this.cartResizeObserver?.disconnect();
+    this.cartItemsContainer = ref?.nativeElement;
+    if (this.cartItemsContainer) {
+      // En móvil el carrito puede estar oculto mientras se escanea el catálogo.
+      // Completar el desplazamiento cuando el panel vuelva a estar visible.
+      this.cartResizeObserver = new ResizeObserver(() => this.showLastAddedCartItem());
+      this.cartResizeObserver.observe(this.cartItemsContainer);
+      this.showLastAddedCartItem();
+    }
+  }
+
+  private showLastAddedCartItem(key?: string): void {
+    if (key) this.pendingCartItemKey = key;
+    if (!this.cartItemsContainer || !this.pendingCartItemKey || this.cartScrollFrame !== undefined) return;
+    this.cartScrollFrame = requestAnimationFrame(() => {
+      this.cartScrollFrame = undefined;
+      const container = this.cartItemsContainer;
+      if (!container?.clientHeight || !this.pendingCartItemKey) return;
+      const row = Array.from(container.children).find((child) => child.getAttribute('data-cart-key') === this.pendingCartItemKey) as HTMLElement | undefined;
+      if (!row) return;
+      const viewport = container.getBoundingClientRect();
+      const item = row.getBoundingClientRect();
+      if (item.top < viewport.top || item.height > container.clientHeight) {
+        container.scrollTop += item.top - viewport.top;
+      } else if (item.bottom > viewport.bottom) {
+        container.scrollTop += item.bottom - viewport.bottom;
+      }
+      this.pendingCartItemKey = undefined;
+    });
+  }
+
+  @ViewChild('catalogSearch')
+  set catalogSearchInput(input: IonInput | undefined) {
+    this.catalogSearch = input;
+    this.focusCatalogSearchIfReady();
+  }
+
   productos: ProductoServicio[] = [];
   productosFiltrados: ProductoServicio[] = [];
   productosPage = 1;
@@ -47,13 +102,18 @@ export class FacturacionPage implements OnInit, OnDestroy {
   catalogStockFilter: 'todos' | 'disponibles' = 'todos';
   posTheme: 'light' | 'dark' = 'light';
   quickClienteModalOpen = false;
+  private openQuickClienteAfterSelectorDismiss = false;
   clienteSelectorModalOpen = false;
   citaSelectorModalOpen = false;
   cobroModalOpen = false;
+  cobroSubmitting = false;
+  cobroKeyboardReady = false;
   isEmitting = false;
   facturasModalOpen = false;
   facturasModalLoading = false;
   facturasModalEstado: 'emitida' | 'borrador' = 'emitida';
+  facturasFechaDesde = '';
+  facturasFechaHasta = '';
   facturasDelDia: Factura[] = [];
   facturasModalPage = 1;
   readonly facturasModalPageSize = 8;
@@ -77,6 +137,279 @@ export class FacturacionPage implements OnInit, OnDestroy {
     cantidadFacturas: 0,
   };
   showCierreTurnoModal = false;
+  printerSettingsModalOpen = false;
+  printerConfiguration?: PrinterConfiguration;
+  cuentasAbiertas: CuentaAbierta[] = [];
+  cuentasModalOpen = false;
+  cuentasLoading = true;
+  cuentasError = '';
+  cuentaSearch = '';
+  nuevaCuentaNombre = '';
+  nuevaCuentaClienteId = '';
+  cuentaActiva: CuentaAbierta | null = null;
+  cuentaActionBusy = false;
+  cuentaEstado: 'guardada' | 'guardando' | 'error' | 'conflicto' = 'guardada';
+  cuentaError = '';
+  cuentaRecuperacion = false;
+  private cuentaUid = '';
+  private cuentaResponsableNombre = '';
+  private cuentaPendiente?: CuentaAbiertaConsumo;
+  private cuentaSaveTask?: Promise<boolean>;
+  private cuentasSub?: Subscription;
+
+  get cuentasFiltradas(): CuentaAbierta[] {
+    const q = this.normalizeText(this.cuentaSearch);
+    return this.cuentasAbiertas.filter(c => !q || this.normalizeText(`${c.clienteNombre} ${c.id}`).includes(q));
+  }
+
+  get cuentaEdicionBloqueada(): boolean {
+    return this.isEmitting || this.cuentaActionBusy || (!!this.cuentaActiva && this.cuentaEstado === 'conflicto');
+  }
+
+  cargarCuentasAbiertas(): void {
+    this.cuentasSub?.unsubscribe();
+    this.cuentasLoading = true;
+    this.cuentasError = '';
+    this.cuentasSub = this.cuentasAbiertasService.list().subscribe({
+      next: cuentas => { this.cuentasAbiertas = cuentas; this.cuentasLoading = false; },
+      error: () => { this.cuentasLoading = false; this.cuentasError = 'No se pudieron cargar las cuentas. Verifica conexión y permisos.'; },
+    });
+    this.sub.add(this.cuentasSub);
+  }
+
+  async abrirCuentas(): Promise<void> {
+    this.cuentasModalOpen = true;
+    const user = await firstValueFrom(this.authService.user$);
+    this.cuentaUid = user?.uid || '';
+    this.cuentaResponsableNombre = user?.displayName || user?.email || 'Usuario de caja';
+    try { this.cuentaRecuperacion = !!localStorage.getItem(this.recuperacionCuentaKey); } catch { /* Almacenamiento no disponible. */ }
+  }
+
+  private get recuperacionCuentaKey(): string { return `cuadrato.cuenta-pendiente.${this.cuentaUid}`; }
+
+  private consumoActual(nombre?: string): CuentaAbiertaConsumo {
+    return {
+      clienteNombre: nombre || this.selectedCliente?.nombreCompleto || this.cuentaActiva?.clienteNombre || 'Cuenta sin nombre',
+      clienteId: this.facturaForm.controls.clienteId.value || '',
+      items: JSON.parse(JSON.stringify(this.cartItems)), descuentoGlobal: this.descuentoGlobal,
+    };
+  }
+
+  private registrarRecuperacionCuenta(): void {
+    if (!this.cuentaActiva || !this.cuentaPendiente) return;
+    try {
+      localStorage.setItem(this.recuperacionCuentaKey, JSON.stringify({ cuenta: this.cuentaActiva, consumo: this.cuentaPendiente }));
+      this.cuentaRecuperacion = true;
+    } catch { this.cuentaError = 'El dispositivo no permite respaldo local. Espera a ver “Guardada” antes de salir.'; }
+  }
+
+  private borrarRecuperacionCuenta(): void {
+    try { localStorage.removeItem(this.recuperacionCuentaKey); } catch { /* No afecta la cuenta persistida. */ }
+    this.cuentaRecuperacion = false;
+  }
+
+  private marcarCuentaModificada(): void {
+    if (!this.cuentaActiva || this.cuentaEdicionBloqueada) return;
+    this.cuentaPendiente = this.consumoActual();
+    this.registrarRecuperacionCuenta();
+    if (this.cuentaEstado !== 'conflicto') void this.guardarCuentaActual();
+  }
+
+  async guardarCuentaActual(): Promise<boolean> {
+    if (this.cuentaSaveTask) return this.cuentaSaveTask;
+    if (!this.cuentaActiva) return true;
+    if (this.cuentaEstado === 'conflicto') return false;
+    this.cuentaSaveTask = this.persistirConsumos().finally(() => { this.cuentaSaveTask = undefined; });
+    return this.cuentaSaveTask;
+  }
+
+  private async persistirConsumos(): Promise<boolean> {
+    while (this.cuentaPendiente && this.cuentaActiva) {
+      const consumo = this.cuentaPendiente;
+      this.cuentaPendiente = undefined;
+      this.cuentaEstado = 'guardando';
+      try {
+        this.cuentaActiva = await this.cuentasAbiertasService.guardar(this.cuentaActiva.id, this.cuentaActiva.version, consumo, this.cuentaUid);
+        const pendiente = this.cuentaPendiente as CuentaAbiertaConsumo | undefined;
+        if (pendiente) {
+          this.cuentaActiva = { ...this.cuentaActiva, clienteNombre: pendiente.clienteNombre, clienteId: pendiente.clienteId };
+          this.registrarRecuperacionCuenta();
+        }
+      } catch (error) {
+        this.cuentaPendiente = this.cuentaPendiente || consumo;
+        const message = String((error as Error)?.message || '');
+        this.cuentaEstado = ['ACCOUNT_CONFLICT', 'ACCOUNT_NOT_OPEN'].includes(message) ? 'conflicto' : 'error';
+        this.cuentaError = this.cuentaEstado === 'conflicto'
+          ? 'Otro usuario cambió, cobró o canceló esta cuenta. Tus cambios locales se conservan. Recarga antes de continuar.'
+          : 'No se guardaron los últimos cambios. Se conserva un respaldo local; revisa la conexión y reintenta antes de cobrar.';
+        if (message === 'ACCOUNT_INVALID_DISCOUNT') this.cuentaError = 'El descuento global debe ser un importe válido mayor o igual a cero.';
+        if (message === 'ACCOUNT_INVALID_ITEM') this.cuentaError = 'Revisa cantidades, precios, impuestos y descuentos: hay un importe inválido en los consumos.';
+        this.registrarRecuperacionCuenta();
+        return false;
+      }
+    }
+    this.cuentaEstado = 'guardada';
+    this.cuentaError = '';
+    this.borrarRecuperacionCuenta();
+    return true;
+  }
+
+  async crearCuenta(): Promise<void> {
+    if (this.cuentaActionBusy || !this.cuentaUid) return;
+    const cliente = this.clientes.find(c => c.id === this.nuevaCuentaClienteId);
+    const nombre = cliente?.nombreCompleto || this.nuevaCuentaNombre.trim();
+    if (!nombre) { await this.toastService.error('Selecciona un cliente o escribe un nombre para la cuenta.'); return; }
+    this.cuentaActionBusy = true;
+    let cuenta: CuentaAbierta | undefined;
+    try {
+      cuenta = await this.cuentasAbiertasService.crear({ clienteNombre: nombre, clienteId: cliente?.id || '', items: [], descuentoGlobal: 0 }, this.cuentaUid, this.cuentaResponsableNombre);
+      this.nuevaCuentaNombre = ''; this.nuevaCuentaClienteId = '';
+    } catch { await this.toastService.error('No se pudo abrir la cuenta. Verifica tu conexión y permisos.'); }
+    finally { this.cuentaActionBusy = false; }
+    if (cuenta) await this.abrirCuenta(cuenta);
+  }
+
+  private async prepararCarritoParaCuenta(): Promise<boolean> {
+    if (!this.cartItems.length && !this.cuentaActiva) return true;
+    const alert = await this.alertCtrl.create({
+      header: 'El carrito tiene consumos',
+      message: this.cuentaActiva ? 'Guardaremos la cuenta actual antes de abrir la seleccionada.'
+        : 'Puedes guardar este carrito como otra cuenta antes de continuar. Los consumos no se mezclarán.',
+      inputs: this.cuentaActiva ? [] : [{ name: 'nombre', type: 'text', placeholder: 'Nombre para guardar el carrito', value: this.selectedCliente?.nombreCompleto || 'Consumos pendientes' }],
+      buttons: [{ text: 'Volver', role: 'cancel' }, { text: 'Guardar actual y abrir', role: 'guardar' }],
+    });
+    await alert.present();
+    const result = await alert.onDidDismiss();
+    if (result.role !== 'guardar') return false;
+    if (this.cuentaActiva) return this.guardarCuentaActual();
+    if (this.selectedCita) { await this.toastService.error('Completa o guarda la factura de la cita antes de abrir una cuenta.'); return false; }
+    const nombre = String(result.data?.values?.nombre || '').trim();
+    if (!nombre) { await this.toastService.error('Escribe un nombre para conservar el carrito.'); return false; }
+    const guardada = await this.cuentasAbiertasService.crear(this.consumoActual(nombre), this.cuentaUid, this.cuentaResponsableNombre);
+    this.cargarCuentaEnCarrito(guardada);
+    return true;
+  }
+
+  async abrirCuenta(cuenta: CuentaAbierta): Promise<void> {
+    if (this.cuentaEdicionBloqueada) return;
+    if (this.cuentaActiva?.id === cuenta.id) { this.cuentasModalOpen = false; this.tabMobile = 'carrito'; return; }
+    this.cuentaActionBusy = true;
+    try {
+      if (!(await this.prepararCarritoParaCuenta())) return;
+      const actual = await this.cuentasAbiertasService.get(cuenta.id);
+      if (actual.estado !== 'abierta') throw new Error('ACCOUNT_NOT_OPEN');
+      this.cargarCuentaEnCarrito(actual);
+      this.cuentasModalOpen = false;
+    } catch { await this.toastService.error('No se pudo abrir la cuenta. Puede haber sido cobrada o modificada. El carrito actual se conserva.'); }
+    finally { this.cuentaActionBusy = false; }
+  }
+
+  private cargarCuentaEnCarrito(cuenta: CuentaAbierta, consumo: CuentaAbiertaConsumo = cuenta): void {
+    this.resetFacturaActual();
+    this.cuentaActiva = { ...cuenta, clienteNombre: consumo.clienteNombre, clienteId: consumo.clienteId };
+    this.cartItems = consumo.items.map((item, index) => this.recalculateCartItem({ ...item,
+      key: `${cuenta.id}-${index}`, stockActual: this.productos.find(p => p.id === item.productoServicioId)?.stockActual ?? item.stockActual ?? 0,
+    }));
+    this.selectedCliente = this.clientes.find(c => c.id === consumo.clienteId);
+    this.facturaForm.patchValue({ clienteId: consumo.clienteId, descuentoGlobal: consumo.descuentoGlobal }, { emitEvent: false });
+    this.tabMobile = 'carrito';
+  }
+
+  async guardarYSalirCuenta(): Promise<void> {
+    if (this.isEmitting || this.cuentaActionBusy) return;
+    this.cuentaActionBusy = true;
+    try {
+      if (!(await this.guardarCuentaActual())) return;
+      this.resetFacturaActual();
+      await this.abrirCuentas();
+    } finally { this.cuentaActionBusy = false; }
+  }
+
+  async renombrarCuenta(): Promise<void> {
+    if (!this.cuentaActiva || this.cuentaEdicionBloqueada) return;
+    const alert = await this.alertCtrl.create({ header: 'Nombre de la cuenta',
+      inputs: [{ name: 'nombre', type: 'text', value: this.cuentaActiva.clienteNombre, attributes: { maxlength: 120 } }],
+      buttons: [{ text: 'Volver', role: 'cancel' }, { text: 'Guardar nombre', role: 'guardar' }],
+    });
+    await alert.present(); const result = await alert.onDidDismiss();
+    const nombre = String(result.data?.values?.nombre || '').trim();
+    if (result.role !== 'guardar' || !nombre || !this.cuentaActiva) return;
+    this.selectedCliente = undefined;
+    this.cuentaActiva = { ...this.cuentaActiva, clienteNombre: nombre, clienteId: '' };
+    this.facturaForm.patchValue({ clienteId: '' }, { emitEvent: false });
+    this.marcarCuentaModificada();
+  }
+
+  async imprimirPrecuenta(cuenta: CuentaAbierta | null = this.cuentaActiva): Promise<void> {
+    if (!cuenta || this.cuentaEdicionBloqueada) return;
+    this.cuentaActionBusy = true;
+    let enviandoImpresion = false;
+    try {
+      if (this.cuentaActiva?.id === cuenta.id && !(await this.guardarCuentaActual())) return;
+      const actual = await this.cuentasAbiertasService.get(cuenta.id);
+      if (actual.estado !== 'abierta' || !actual.items.length) { await this.toastService.error('La precuenta requiere una cuenta abierta con consumos.'); return; }
+      enviandoImpresion = true;
+      await this.invoicePrintingService.printPrebill(actual);
+    } catch (error) { await this.toastService.error(enviandoImpresion
+      ? this.invoicePrintingService.getFriendlyError(error) : 'No se pudo recuperar la cuenta para imprimir. Verifica su estado y la conexión.'); }
+    finally { this.cuentaActionBusy = false; }
+  }
+
+  async cancelarCuenta(cuenta: CuentaAbierta): Promise<void> {
+    if (this.cuentaEdicionBloqueada) return;
+    const alert = await this.alertCtrl.create({ header: 'Cancelar cuenta', message: `Se conservará la trazabilidad de la cuenta de ${cuenta.clienteNombre}. No se registrará una venta.`,
+      inputs: [{ name: 'motivo', type: 'text', placeholder: 'Motivo obligatorio' }],
+      buttons: [{ text: 'Volver', role: 'cancel' }, { text: 'Cancelar cuenta', role: 'confirmar' }],
+    });
+    await alert.present(); const result = await alert.onDidDismiss();
+    const motivo = String(result.data?.values?.motivo || '').trim();
+    if (result.role !== 'confirmar') return;
+    if (!motivo) { await this.toastService.error('Indica el motivo de cancelación.'); return; }
+    this.cuentaActionBusy = true;
+    try {
+      if (this.cuentaActiva?.id === cuenta.id && !(await this.guardarCuentaActual())) return;
+      const actual = this.cuentaActiva?.id === cuenta.id ? this.cuentaActiva : cuenta;
+      await this.cuentasAbiertasService.cancelar(actual, motivo, this.cuentaUid);
+      if (this.cuentaActiva?.id === cuenta.id) { this.borrarRecuperacionCuenta(); this.resetFacturaActual(); }
+    } catch { await this.toastService.error('No se pudo cancelar. Recarga la cuenta; puede haber cambiado o sido cobrada.'); }
+    finally { this.cuentaActionBusy = false; }
+  }
+
+  async recuperarConsumos(): Promise<void> {
+    if (this.cuentaEdicionBloqueada) return;
+    this.cuentaActionBusy = true;
+    try {
+      const raw = localStorage.getItem(this.recuperacionCuentaKey);
+      if (!raw) return;
+      const backup = JSON.parse(raw) as { cuenta: CuentaAbierta; consumo: CuentaAbiertaConsumo };
+      if (this.cartItems.length || this.cuentaActiva) { await this.toastService.error('Guarda y sal del carrito actual antes de recuperar consumos pendientes.'); return; }
+      const actual = await this.cuentasAbiertasService.get(backup.cuenta.id);
+      this.cargarCuentaEnCarrito(actual, backup.consumo);
+      this.cuentaPendiente = backup.consumo;
+      this.cuentasModalOpen = false;
+      if (actual.estado !== 'abierta' || actual.version !== backup.cuenta.version) {
+        this.cuentaEstado = 'conflicto'; this.cuentaError = 'La cuenta del respaldo cambió en el servidor. Revisa y recarga antes de continuar.';
+      } else await this.guardarCuentaActual();
+    } catch { await this.toastService.error('No se pudieron recuperar los consumos. El respaldo local se conserva.'); }
+    finally { this.cuentaActionBusy = false; }
+  }
+
+  async recargarCuenta(): Promise<void> {
+    if (!this.cuentaActiva || this.isEmitting || this.cuentaActionBusy) return;
+    const alert = await this.alertCtrl.create({ header: 'Recargar estado de la cuenta',
+      message: 'Se descartarán los cambios locales pendientes y se cargará la última versión guardada. Si ya fue cobrada o cancelada, se liberará este carrito.',
+      buttons: [{ text: 'Conservar cambios', role: 'cancel' }, { text: 'Descartar locales y recargar', role: 'recargar' }],
+    });
+    await alert.present(); if ((await alert.onDidDismiss()).role !== 'recargar') return;
+    this.cuentaActionBusy = true;
+    try {
+      const actual = await this.cuentasAbiertasService.get(this.cuentaActiva.id);
+      this.borrarRecuperacionCuenta();
+      if (actual.estado === 'abierta') this.cargarCuentaEnCarrito(actual);
+      else { this.resetFacturaActual(); await this.toastService.success(actual.facturaId ? `Cuenta facturada: ${actual.facturaId}` : 'Cuenta cancelada.'); }
+    } catch { await this.toastService.error('No se pudo recargar. Tus cambios locales se conservan.'); }
+    finally { this.cuentaActionBusy = false; }
+  }
 
   readonly aperturaTurnoForm = this.fb.nonNullable.group({
     cajaId: ['principal', [Validators.required]],
@@ -86,6 +419,10 @@ export class FacturacionPage implements OnInit, OnDestroy {
   });
 
   readonly cierreTurnoForm = this.fb.nonNullable.group({
+    usarDesglose: [true],
+    incluirFondoInicial: [false],
+    cantidades: this.fb.nonNullable.array(DENOMINACIONES_DOP.map(() => this.fb.nonNullable.control(0,
+      [Validators.required, Validators.min(0), Validators.pattern(/^\d+$/)]))),
     efectivoContado: [0, [Validators.required, Validators.min(0)]],
     observacionCierre: [''],
   });
@@ -110,6 +447,9 @@ export class FacturacionPage implements OnInit, OnDestroy {
     telefono: ['', [Validators.required, Validators.minLength(7)]],
     correo: ['', [Validators.email]],
     rncCedula: [''],
+    fechaNacimiento: [''],
+    direccion: [''],
+    rnc: [''],
   });
 
   readonly cobroForm = this.fb.nonNullable.group({
@@ -144,11 +484,20 @@ export class FacturacionPage implements OnInit, OnDestroy {
     private readonly alertCtrl: AlertController,
     private readonly turnosCajaService: TurnosCajaService,
     private readonly loadingCtrl: LoadingController,
+    private readonly invoicePrintingService: InvoicePrintingService,
+    private readonly printerConfigurationService: PrinterConfigurationService,
     @Inject(DOCUMENT) private readonly document: Document,
+    private readonly cuentasAbiertasService: CuentasAbiertasService,
   ) {}
 
   ngOnInit(): void {
+    this.cargarCuentasAbiertas();
+    this.sub.add(this.facturaForm.valueChanges.subscribe(() => this.marcarCuentaModificada()));
     this.initializePosTheme();
+    void this.printerConfigurationService.load();
+    this.sub.add(this.printerConfigurationService.configuration$.subscribe((configuration) => {
+      this.printerConfiguration = configuration;
+    }));
     this.sub.add(
       combineLatest([
         this.productosService.getProductosServicios(),
@@ -157,6 +506,9 @@ export class FacturacionPage implements OnInit, OnDestroy {
       ]).subscribe({
         next: ([productos, citas, clientes]) => {
           this.productos = (productos || []).filter((item) => item.activo);
+          if (this.cuentaActiva) this.cartItems = this.cartItems.map(item => ({ ...item,
+            stockActual: this.productos.find(p => p.id === item.productoServicioId)?.stockActual ?? item.stockActual,
+          }));
           this.citas = citas || [];
           this.clientes = clientes || [];
           this.clientesFiltrados = [...this.clientes];
@@ -173,11 +525,104 @@ export class FacturacionPage implements OnInit, OnDestroy {
     );
 
     this.sub.add(this.filtrosCatalogo.valueChanges.subscribe(() => this.applyCatalogFilters()));
+    this.cierreTurnoForm.controls.efectivoContado.disable({ emitEvent: false });
+    this.sub.add(this.cierreTurnoForm.controls.usarDesglose.valueChanges.subscribe((usarDesglose) => {
+      const { cantidades, efectivoContado } = this.cierreTurnoForm.controls;
+      if (usarDesglose) {
+        cantidades.enable({ emitEvent: false });
+        efectivoContado.disable({ emitEvent: false });
+      } else {
+        cantidades.disable({ emitEvent: false });
+        efectivoContado.enable({ emitEvent: false });
+      }
+    }));
+  }
+
+  ionViewDidEnter(): void {
+    this.viewEntered = true;
+    this.catalogFocusPending = true;
+    this.focusCatalogSearchIfReady();
+  }
+
+  ionViewWillLeave(): void {
+    if (this.cuentaActiva) void this.guardarCuentaActual();
+    this.viewEntered = false;
+    if (this.catalogFocusFrame !== undefined) cancelAnimationFrame(this.catalogFocusFrame);
+    this.catalogFocusFrame = undefined;
+    if (this.cartScrollFrame !== undefined) cancelAnimationFrame(this.cartScrollFrame);
+    this.cartScrollFrame = undefined;
+  }
+
+  private focusCatalogSearchIfReady(): void {
+    if (!this.viewEntered || !this.catalogFocusPending || !this.catalogSearch
+      || this.loading || this.turnoLoading || this.facturacionBloqueadaPorTurno
+      || this.catalogFocusFrame !== undefined) return;
+
+    this.catalogFocusFrame = requestAnimationFrame(() => {
+      this.catalogFocusFrame = undefined;
+      if (!this.viewEntered || this.facturacionBloqueadaPorTurno || this.tabMobile !== 'catalogo'
+        || this.activeLoading || this.cobroModalOpen || this.clienteSelectorModalOpen
+        || this.citaSelectorModalOpen || this.quickClienteModalOpen || this.facturasModalOpen
+        || this.showCierreTurnoModal || this.printerSettingsModalOpen || this.cuentasModalOpen) return;
+      this.catalogFocusPending = false;
+      void this.catalogSearch?.setFocus();
+    });
   }
 
   ngOnDestroy(): void {
+    this.ionViewWillLeave();
+    this.cartResizeObserver?.disconnect();
     this.sub.unsubscribe();
     this.document.body.classList.remove('facturacion-light-theme', 'facturacion-dark-theme');
+  }
+
+  get printerConfigurationLabel(): string {
+    return this.printerConfigurationService.describe(this.printerConfiguration);
+  }
+
+  openPrinterSettings(): void {
+    this.printerSettingsModalOpen = true;
+  }
+
+  closePrinterSettings(): void {
+    this.printerSettingsModalOpen = false;
+  }
+
+  async onPrinterConfigurationSaved(configuration: PrinterConfiguration): Promise<void> {
+    this.printerConfiguration = configuration;
+    await this.toastService.success('Configuración de impresión guardada en esta caja.');
+  }
+
+  async imprimirFacturaConfigurada(factura: Factura): Promise<void> {
+    try {
+      await this.invoicePrintingService.print(factura);
+      await this.toastService.success('Comprobante enviado a impresión.');
+    } catch (error) {
+      await this.presentPrintFailure(factura, error);
+    }
+  }
+
+  private async tryPrintIssuedInvoice(factura: Factura): Promise<boolean> {
+    try {
+      await this.invoicePrintingService.print(factura);
+      return true;
+    } catch (error) {
+      await this.presentPrintFailure(factura, error);
+      return false;
+    }
+  }
+
+  private async presentPrintFailure(factura: Factura, error: unknown): Promise<void> {
+    const alert = await this.alertCtrl.create({
+      header: 'Factura emitida, impresión pendiente',
+      message: `${this.invoicePrintingService.getFriendlyError(error)} La venta ya fue registrada; reintentar no creará otra factura.`,
+      buttons: [
+        { text: 'Cerrar', role: 'cancel' },
+        { text: 'Configurar', handler: () => this.openPrinterSettings() },
+        { text: 'Reintentar', handler: () => void this.imprimirFacturaConfigurada(factura) },
+      ],
+    });
+    await alert.present();
   }
 
   togglePosTheme(): void {
@@ -237,18 +682,37 @@ export class FacturacionPage implements OnInit, OnDestroy {
     return Number((this.montoPagado - this.total).toFixed(2));
   }
 
+  get cambioCobro(): number {
+    if (this.pagoDistribucion.credito > 0) return 0;
+    return Number(Math.max(0, this.pagoDistribucion.totalPagadoAhora - this.total).toFixed(2));
+  }
+
   get facturacionBloqueadaPorTurno(): boolean {
     return !this.turnoActivo || this.turnoActivo.estado !== 'abierto';
   }
 
   get efectivoEsperadoCierre(): number {
-    const base = Number(this.turnoActivo?.montoInicial || 0);
+    const base = this.cierreTurnoForm.controls.incluirFondoInicial.value ? Number(this.turnoActivo?.montoInicial || 0) : 0;
     return Number((base + Number(this.turnoTotales.totalEfectivo || 0)).toFixed(2));
   }
 
   get diferenciaCierre(): number {
-    const contado = this.parseMoneyInput(this.cierreTurnoForm.value.efectivoContado);
+    const contado = this.totalContadoCierre;
     return Number((contado - this.efectivoEsperadoCierre).toFixed(2));
+  }
+
+  readonly denominacionesCierre = DENOMINACIONES_DOP;
+
+  get desgloseCierre(): DesgloseEfectivo[] {
+    return this.denominacionesCierre.map((denominacion, index) => ({
+      denominacion, cantidad: Number(this.cierreTurnoForm.controls.cantidades.at(index).value || 0),
+    }));
+  }
+
+  get totalContadoCierre(): number {
+    return this.cierreTurnoForm.controls.usarDesglose.value
+      ? this.desgloseCierre.reduce((total, item) => total + item.denominacion * item.cantidad, 0)
+      : this.parseMoneyInput(this.cierreTurnoForm.controls.efectivoContado.value);
   }
 
   get montoPagadoDisplay(): string {
@@ -303,11 +767,15 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   get facturasModalTitle(): string {
-    return this.facturasModalEstado === 'emitida' ? 'Facturas emitidas de hoy' : 'Borradores de hoy';
+    return this.facturasModalEstado === 'emitida' ? 'Facturas emitidas' : 'Borradores';
   }
 
   get facturasModalDateLabel(): string {
-    return new Intl.DateTimeFormat('es-DO', { dateStyle: 'full' }).format(new Date());
+    if (!this.facturasFechaDesde || !this.facturasFechaHasta) return 'Selecciona un rango de fechas';
+    const formatter = new Intl.DateTimeFormat('es-DO', { dateStyle: 'medium' });
+    const desde = formatter.format(new Date(`${this.facturasFechaDesde}T00:00:00`));
+    const hasta = formatter.format(new Date(`${this.facturasFechaHasta}T00:00:00`));
+    return this.facturasFechaDesde === this.facturasFechaHasta ? desde : `${desde} – ${hasta}`;
   }
 
   get facturasModalTotalPages(): number {
@@ -319,7 +787,80 @@ export class FacturacionPage implements OnInit, OnDestroy {
     return this.facturasDelDia.slice(start, start + this.facturasModalPageSize);
   }
 
+  onCatalogSearchKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || event.isComposing) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.repeat || this.loading || this.isEmitting) return;
+
+    // El lector actúa como teclado. Lee el valor nativo para no depender del
+    // orden entre ionInput, el formulario reactivo y la tecla final del lector.
+    const input = event.composedPath().find((target) => target instanceof HTMLInputElement) as HTMLInputElement | undefined;
+    const code = String(input?.value ?? this.filtrosCatalogo.controls.busqueda.value).trim();
+    if (!code) return;
+
+    const normalizedCode = code.toUpperCase();
+    const matches = this.productos.filter((producto) => producto.activo
+      && String(producto.codigoInterno || '').trim().toUpperCase() === normalizedCode);
+
+    // Limpiar de forma síncrona mantiene el foco y permite escanear el mismo
+    // código consecutivamente sin mezclarlo con el escaneo anterior.
+    this.filtrosCatalogo.controls.busqueda.setValue('');
+    if (input) input.value = '';
+    this.applyCatalogFilters();
+
+    if (!matches.length) {
+      void this.toastService.warning(`No hay un producto activo con el código ${code}. Verifica el código o regístralo en inventario.`, 'Producto no encontrado');
+      return;
+    }
+    if (matches.length > 1) {
+      void this.toastService.warning(`El código ${code} pertenece a varios productos. Revisa los códigos en inventario.`, 'Código duplicado');
+      return;
+    }
+    this.addProductoToCart(matches[0]);
+  }
+
+  private shortcutOverlayActive(): boolean {
+    return !!this.document.querySelector('ion-alert:not(.overlay-hidden), ion-action-sheet:not(.overlay-hidden), ion-popover:not(.overlay-hidden), ion-loading:not(.overlay-hidden)');
+  }
+
+  @HostListener('document:keydown', ['$event'])
+  onVentaKeydown(event: KeyboardEvent): void {
+    if (event.key !== ' ' || event.defaultPrevented || event.isComposing || event.repeat
+      || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey || !this.viewEntered
+      || this.loading || this.isEmitting || this.cobroSubmitting || this.turnoLoading || this.turnoActionLoading
+      || this.cuentaEdicionBloqueada || this.facturacionBloqueadaPorTurno || !this.cartItems.length
+      || this.cobroModalOpen || this.clienteSelectorModalOpen || this.citaSelectorModalOpen || this.quickClienteModalOpen
+      || this.facturasModalOpen || this.cuentasModalOpen || this.showCierreTurnoModal || this.printerSettingsModalOpen
+      || this.activeLoading || this.shortcutOverlayActive()) return;
+    const path = event.composedPath().filter((node): node is HTMLElement => node instanceof HTMLElement);
+    if (path.some(node => node.matches('button, ion-button, a, ion-select, ion-toggle, [role="button"], [role="combobox"]'))) return;
+    const input = path.find(node => node.matches('input, textarea, select, ion-input, ion-textarea, [contenteditable="true"], [role="textbox"]'));
+    // El catálogo recibe el foco por defecto. Un Espacio con su búsqueda vacía
+    // funciona como atajo; al escribir nombres o códigos conserva el espacio.
+    const emptyCatalog = path.some(node => node.hasAttribute('data-pos-catalog-search'))
+      && !String(path.find(node => node instanceof HTMLInputElement)?.['value'] ?? this.filtrosCatalogo.controls.busqueda.value).trim();
+    if (input && !emptyCatalog) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.openCobroModal();
+  }
+
+  onCobroKeydown(event: KeyboardEvent): void {
+    if (event.key !== 'Enter' || event.defaultPrevented || event.isComposing || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    const path = event.composedPath().filter((node): node is HTMLElement => node instanceof HTMLElement);
+    // Conservar la activación accesible de botones y controles desplegables.
+    if (path.some(node => node.matches('button, ion-button, a, textarea, ion-textarea, ion-select, [role="button"], [role="combobox"]'))) return;
+    event.preventDefault();
+    event.stopPropagation(); // Evita el submit implícito adicional del formulario.
+    if (event.repeat || !this.viewEntered || !this.cobroModalOpen || !this.cobroKeyboardReady
+      || this.isEmitting || this.cobroSubmitting || this.cuentaEdicionBloqueada || this.turnoActionLoading
+      || this.activeLoading || this.shortcutOverlayActive()) return;
+    void this.confirmarCobroYEmitir(false);
+  }
+
   addProductoToCart(producto: ProductoServicio): void {
+    if (this.cuentaEdicionBloqueada) return;
     if (!producto.activo) return;
     if (this.getStockStatus(producto) === 'sin-stock') {
       void this.toastService.error('Producto sin stock disponible.');
@@ -327,9 +868,16 @@ export class FacturacionPage implements OnInit, OnDestroy {
     }
 
     const key = producto.id || producto.codigoInterno || `${Date.now()}`;
-    const found = this.cartItems.find((item) => item.key === key);
+    const found = this.cartItems.find((item) => item.key === key
+      || (!!producto.id && item.productoServicioId === producto.id));
     if (found) {
+      const previousQuantity = found.cantidad;
       this.updateQuantity(found, found.cantidad + 1);
+      if (found.cantidad > previousQuantity) {
+        this.showLastAddedCartItem(found.key);
+        this.catalogFocusPending = true;
+        this.focusCatalogSearchIfReady();
+      }
       return;
     }
 
@@ -354,10 +902,16 @@ export class FacturacionPage implements OnInit, OnDestroy {
     };
 
     this.cartItems = [...this.cartItems, this.recalculateCartItem(base)];
+    this.marcarCuentaModificada();
+    this.showLastAddedCartItem(key);
+    this.catalogFocusPending = true;
+    this.focusCatalogSearchIfReady();
   }
 
   updateQuantity(item: PosCartItem, qty: number): void {
+    if (this.cuentaEdicionBloqueada) return;
     const quantity = Math.max(1, Number(qty || 1));
+    if (!Number.isFinite(quantity)) return;
     if (item.manejaInventario && quantity > Number(item.stockActual || 0)) {
       void this.toastService.error('Cantidad supera stock disponible.');
       return;
@@ -366,38 +920,38 @@ export class FacturacionPage implements OnInit, OnDestroy {
     this.patchCartItem(item);
   }
 
-  updatePrice(item: PosCartItem, price: number): void {
-    item.precioUnitario = Math.max(0, Number(price || 0));
-    this.patchCartItem(item);
+  trackByCartItem(_: number, item: PosCartItem): string {
+    return item.key;
   }
 
-  onCartPriceInput(item: PosCartItem, event: Event): void {
-    const raw = String((event as CustomEvent)?.detail?.value ?? '');
-    const numeric = this.parseEditableDecimal(raw);
-    item.precioUnitario = Math.max(0, numeric);
-    this.patchCartItem(item);
+  onCartQuantityInput(item: PosCartItem, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    if (!input.value.trim()) return; // Permitir borrar el valor antes de reescribir.
+    const quantity = Number(input.value);
+    if (!Number.isFinite(quantity) || quantity < 1) return;
+    this.updateQuantity(item, quantity);
   }
 
-  onCartPriceFocus(event: Event, item: PosCartItem): void {
-    const target = event.target as HTMLInputElement | null;
-    if (target) target.value = this.formatEditableDecimal(item.precioUnitario);
-  }
-
-  onCartPriceBlur(event: Event, item: PosCartItem): void {
-    const target = event.target as HTMLInputElement | null;
-    if (target) target.value = this.formatCartPriceInput(item.precioUnitario);
+  onCartQuantityBlur(item: PosCartItem, event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const current = this.cartItems.find(row => row.key === item.key);
+    input.value = String(current?.cantidad ?? item.cantidad);
   }
 
   updateDiscount(item: PosCartItem, discount: number): void {
+    if (this.cuentaEdicionBloqueada) return;
     item.descuento = Math.max(0, Number(discount || 0));
     this.patchCartItem(item);
   }
 
   removeCartItem(item: PosCartItem): void {
+    if (this.cuentaEdicionBloqueada) return;
     this.cartItems = this.cartItems.filter((current) => current.key !== item.key);
+    this.marcarCuentaModificada();
   }
 
   selectCliente(clienteId: string): void {
+    if (this.cuentaEdicionBloqueada) return;
     this.selectedCliente = this.clientes.find((c) => c.id === clienteId);
     this.facturaForm.patchValue({ clienteId });
   }
@@ -426,7 +980,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
     this.clientesFiltrados = this.clientes.filter((cliente) => {
       const nombre = this.normalizeText((cliente as any).nombreCompleto || (cliente as any).nombre || '');
-      const cedula = this.normalizeText((cliente as any).rncCedula || (cliente as any).cedula || '');
+      const cedula = this.normalizeText((cliente as any).rnc || (cliente as any).rncCedula || (cliente as any).cedula || '');
       const telefono = this.normalizeText((cliente as any).telefono || (cliente as any).numero || '');
       const correo = this.normalizeText((cliente as any).correo || '');
 
@@ -444,12 +998,14 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   selectConsumidorFinal(): void {
+    if (this.cuentaEdicionBloqueada) return;
     this.selectedCliente = undefined;
     this.facturaForm.patchValue({ clienteId: '' });
     this.closeClienteSelectorModal();
   }
 
   selectCita(citaId: string, mode: 'abono' | 'total' | 'pendiente' = this.selectedCitaModo): void {
+    if (this.cuentaActiva) { void this.toastService.error('Guarda y sal de la cuenta antes de facturar una cita.'); return; }
     this.selectedCita = this.citas.find((c) => c.id === citaId);
     this.facturaForm.patchValue({ citaId });
     if (!this.selectedCita) return;
@@ -600,18 +1156,34 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   openQuickClienteModal(): void {
-    this.clienteSelectorModalOpen = false;
-    this.quickClienteModalOpen = true;
     this.quickClienteForm.reset({
       nombreCompleto: '',
       telefono: '',
       correo: '',
       rncCedula: '',
+      fechaNacimiento: '',
+      direccion: '',
+      rnc: '',
     });
+
+    if (this.clienteSelectorModalOpen) {
+      this.openQuickClienteAfterSelectorDismiss = true;
+      this.clienteSelectorModalOpen = false;
+      return;
+    }
+
+    this.quickClienteModalOpen = true;
   }
 
   closeQuickClienteModal(): void {
     this.quickClienteModalOpen = false;
+  }
+
+  onClienteSelectorModalDidDismiss(): void {
+    this.clienteSelectorModalOpen = false;
+    if (!this.openQuickClienteAfterSelectorDismiss) return;
+    this.openQuickClienteAfterSelectorDismiss = false;
+    this.quickClienteModalOpen = true;
   }
 
   get quickTelefonoExistente(): Cliente | undefined {
@@ -637,13 +1209,24 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
     const raw = this.quickClienteForm.getRawValue();
     const doc = String(raw.rncCedula || '').replace(/\D/g, '');
+    const rnc = String(raw.rnc || '').replace(/\D/g, '');
     if (doc && doc.length !== 9 && doc.length !== 11) {
       await this.toastService.error('RNC/Cédula inválido. Debe tener 9 o 11 dígitos.');
       return;
     }
 
+    if (rnc && rnc.length !== 9) {
+      await this.toastService.error('El RNC debe tener 9 dígitos.');
+      return;
+    }
+
     if (raw.rncCedula?.trim() && await this.clientesService.existsClienteRncCedula(raw.rncCedula.trim())) {
       await this.toastService.error('Ya existe un cliente con esa cédula/RNC.');
+      return;
+    }
+
+    if (raw.rnc?.trim() && await this.clientesService.existsClienteRncCedula(raw.rnc.trim())) {
+      await this.toastService.error('Ya existe un cliente con ese RNC.');
       return;
     }
 
@@ -659,6 +1242,9 @@ export class FacturacionPage implements OnInit, OnDestroy {
         telefono: raw.telefono?.trim() || undefined,
         correo: raw.correo?.trim() || undefined,
         rncCedula: raw.rncCedula?.trim() || undefined,
+        fechaNacimiento: raw.fechaNacimiento || undefined,
+        direccion: raw.direccion?.trim() || undefined,
+        rnc: raw.rnc?.trim() || undefined,
         activo: true,
         creadoEn: new Date().toISOString(),
       } as any);
@@ -705,6 +1291,8 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   openCobroModal(): void {
+    if (this.cobroModalOpen || this.cobroSubmitting) return;
+    if (this.cuentaEdicionBloqueada || (this.cuentaActiva && this.cuentaEstado === 'error')) return;
     if (this.facturacionBloqueadaPorTurno) {
       void this.showConfirmTurnoRequired();
       return;
@@ -722,11 +1310,13 @@ export class FacturacionPage implements OnInit, OnDestroy {
       transferencia: formaPago === 'transferencia' ? total : 0,
       credito: formaPago === 'credito' ? total : 0,
     });
+    this.cobroKeyboardReady = false;
     this.cobroModalOpen = true;
   }
 
   closeCobroModal(): void {
     this.cobroModalOpen = false;
+    this.cobroKeyboardReady = false;
   }
 
   parseMoneyInput(value: any): number {
@@ -751,7 +1341,11 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
   onMontoPagadoInput(event: Event): void {
     const raw = String((event as CustomEvent).detail?.value ?? '');
-    this.cobroForm.patchValue({ montoPagado: this.parseMoneyInput(raw) }, { emitEvent: false });
+    const parsed = this.parseMoneyInput(raw);
+    this.cobroForm.patchValue({ montoPagado: parsed }, { emitEvent: false });
+    if (!this.esPagoMixtoConCredito) {
+      this.syncSimplePaymentWithFormaPago(parsed);
+    }
   }
 
   onMontoPagadoBlur(): void {
@@ -788,21 +1382,40 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   async confirmarCobroYEmitir(imprimir = false): Promise<void> {
-    if (this.isEmitting) return;
-    const pago = this.pagoDistribucion;
-    if (pago.totalRegistrado > this.total) {
-      await this.toastService.error('El pago no puede superar el total de la factura.');
-      return;
+    if (this.isEmitting || this.cobroSubmitting) return;
+    this.cobroSubmitting = true;
+    try {
+      const pago = this.pagoDistribucion;
+      if (pago.credito <= 0 && pago.totalRegistrado < this.total) {
+        await this.toastService.error('Sin crédito, el pago debe cubrir el total de la factura.');
+        return;
+      }
+      if (pago.credito > 0 && Number(pago.diferencia.toFixed(2)) !== 0) {
+        await this.toastService.error('La distribución con crédito debe cubrir exactamente el total.');
+        return;
+      }
+      let pagoAplicado;
+      try { pagoAplicado = this.normalizePaymentAppliedToInvoice(pago); }
+      catch {
+        await this.toastService.error('El exceso de pago solo puede devolverse del efectivo recibido. Revisa los importes de tarjeta y transferencia.');
+        return;
+      }
+      await this.emitirFactura(pago.totalPagadoAhora, imprimir, pagoAplicado);
+    } finally {
+      this.cobroSubmitting = false;
     }
-    if (pago.credito <= 0 && pago.totalRegistrado < this.total) {
-      await this.toastService.error('Sin crédito, el pago debe cubrir el total de la factura.');
-      return;
-    }
-    if (pago.credito > 0 && Number(pago.diferencia.toFixed(2)) !== 0) {
-      await this.toastService.error('La distribución con crédito debe cubrir exactamente el total.');
-      return;
-    }
-    await this.emitirFactura(pago.totalPagadoAhora, imprimir, pago);
+  }
+
+  private normalizePaymentAppliedToInvoice(pago: {
+    efectivo: number;
+    tarjeta: number;
+    transferencia: number;
+    credito: number;
+    totalPagadoAhora: number;
+    totalRegistrado: number;
+    diferencia: number;
+  }): any {
+    return aplicarPagoAFactura(pago, this.total);
   }
 
   private formatNumberAmount(value: number): string {
@@ -836,16 +1449,22 @@ export class FacturacionPage implements OnInit, OnDestroy {
       return;
     }
 
+    // La validación del turno es asíncrona: volver a comprobar el bloqueo
+    // antes de iniciar para cubrir pulsaciones simultáneas durante esa espera.
+    if (this.isEmitting) return;
     const paid = Number(montoPagado ?? this.total);
+    let cuentaFacturaConfirmada = '';
 
     try {
       this.isEmitting = true;
       await this.showLoading('Emitiendo factura...', 'Estamos registrando la venta y preparando el comprobante.');
+      if (this.cuentaActiva && !(await this.guardarCuentaActual())) return;
       await this.facturacionService.validarStockItems(this.cartItems);
       const user = await firstValueFrom(this.authService.user$);
       const payload = this.buildFacturaPayload(user?.uid || 'sistema', 'emitida', paid, pagosBreakdown);
       const facturaId = await this.facturacionService.emitirFactura(payload as any);
-      if ((payload.pagos?.totalCredito || 0) > 0 && !payload.citaId) {
+      if (payload.cuentaAbiertaId) cuentaFacturaConfirmada = facturaId;
+      if ((payload.pagos?.totalCredito || 0) > 0 && !payload.citaId && !payload.cuentaAbiertaId) {
         try {
           await this.facturacionService.createCuentaPorCobrarFromFactura(facturaId, payload as Factura, user?.uid || 'sistema');
         } catch (cxError) {
@@ -853,21 +1472,26 @@ export class FacturacionPage implements OnInit, OnDestroy {
           await this.toastService.error('Factura emitida, pero no se pudo crear la cuenta por cobrar. Verifica permisos o conexión.');
         }
       }
+      // El cobro de una cuenta ya se confirmó en la transacción. Liberar el
+      // carrito antes de tareas de presentación que puedan fallar por conexión.
+      if (payload.cuentaAbiertaId) {
+        this.borrarRecuperacionCuenta();
+        this.resetFacturaActual();
+      }
       const factura = await this.fetchFacturaByIdWithRetry(facturaId);
       const facturaFinal = factura || ({ ...payload, id: facturaId, numero: payload.numeroFactura || `FACT-${facturaId.slice(0, 6).toUpperCase()}` } as Factura);
       await this.syncCitaAfterFactura(facturaFinal, facturaId, user?.uid || 'sistema');
 
-      if (imprimir) {
-        this.pdfFacturaService.imprimirTicket80mm(facturaFinal);
+      this.resetFacturaActual();
+      const shouldPrint = imprimir || Boolean(this.printerConfiguration?.autoPrintAfterInvoice);
+      if (shouldPrint) {
+        await this.dismissLoading();
+        await this.tryPrintIssuedInvoice(facturaFinal);
       }
 
       if (factura && !imprimir) {
         await this.presentPostEmitActions(factura);
       }
-      this.cobroModalOpen = false;
-      this.cartItems = [];
-      this.facturaForm.patchValue({ descuentoGlobal: 0, origen: 'manual', citaId: '' });
-      this.selectedCita = undefined;
       await this.showSuccessToast(
         (payload.pagos?.totalCredito || 0) > 0
           ? 'Factura emitida con saldo pendiente.'
@@ -875,6 +1499,16 @@ export class FacturacionPage implements OnInit, OnDestroy {
       );
     } catch (error) {
       const message = String((error as Error)?.message || '');
+      if (cuentaFacturaConfirmada) {
+        await this.toastService.error(`La factura ${cuentaFacturaConfirmada} quedó registrada y la cuenta cerrada. Consulta las facturas para imprimirla; no vuelvas a cobrar.`);
+        return;
+      }
+      if (message === 'ACCOUNT_CONFLICT' || message === 'ACCOUNT_NOT_OPEN') {
+        this.cuentaEstado = 'conflicto';
+        this.cuentaError = 'La cuenta cambió o ya fue cobrada/cancelada. Recarga su estado antes de continuar.';
+        await this.toastService.error(this.cuentaError);
+        return;
+      }
       if (message.startsWith('INSUFFICIENT_STOCK')) {
         await this.toastService.error('Stock insuficiente en uno de los productos.');
         return;
@@ -892,6 +1526,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   async guardarBorrador(): Promise<void> {
+    if (this.cuentaActiva) { await this.guardarCuentaActual(); return; }
     if (!this.cartItems.length) {
       await this.toastService.error('Agrega ítems para guardar borrador.');
       return;
@@ -942,7 +1577,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       header: `Factura ${factura.numero}`,
       buttons: [
         ...extraButtons,
-        { text: 'Imprimir ticket 80mm', icon: 'print-outline', handler: () => this.pdfFacturaService.imprimirTicket80mm(factura) },
+        { text: `Imprimir (${this.printerConfigurationLabel})`, icon: 'print-outline', handler: () => void this.imprimirFacturaConfigurada(factura) },
         { text: 'Guardar PDF', icon: 'download-outline', handler: () => this.pdfFacturaService.generarFacturaPdf(factura) },
         { text: 'Ver preview', icon: 'eye-outline', handler: () => this.pdfFacturaService.abrirPreview(factura) },
         { text: 'Anular factura', icon: 'ban-outline', role: 'destructive', handler: () => this.anularFactura(factura) },
@@ -957,7 +1592,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   imprimirTicketFactura(factura: Factura): void {
-    this.pdfFacturaService.imprimirTicket80mm(factura);
+    void this.imprimirFacturaConfigurada(factura);
   }
 
   openFacturasActionsPopover(event: Event, factura: Factura): void {
@@ -1045,18 +1680,13 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   private recalculateCartItem(item: PosCartItem): PosCartItem {
-    const cantidad = Number(item.cantidad || 0);
-    const precio = Number(item.precioUnitario || 0);
-    const descuento = Number(item.descuento || 0);
-    const subtotal = Math.max(0, Number((cantidad * precio - descuento).toFixed(2)));
-    const itbis = item.aplicaItbis ? Number((subtotal * (Number(item.porcentajeItbis || 0) / 100)).toFixed(2)) : 0;
-    const total = Number((subtotal + itbis).toFixed(2));
-    return { ...item, subtotal, itbis, total };
+    return recalcularConsumo(item);
   }
 
   private patchCartItem(item: PosCartItem): void {
     const updated = this.recalculateCartItem(item);
     this.cartItems = this.cartItems.map((current) => (current.key === item.key ? updated : current));
+    this.marcarCuentaModificada();
   }
 
   private normalizeText(value: unknown): string {
@@ -1075,27 +1705,6 @@ export class FacturacionPage implements OnInit, OnDestroy {
       return Number.isFinite(parsed) ? parsed : 0;
     }
     return 0;
-  }
-
-  formatCartPriceInput(value: unknown): string {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(this.toNumber(value));
-  }
-
-  private formatEditableDecimal(value: unknown): string {
-    return String(this.toNumber(value));
-  }
-
-  private parseEditableDecimal(rawValue: string): number {
-    const cleaned = rawValue
-      .replace(/,/g, '')
-      .replace(/[^\d.]/g, '');
-    const [integerPart = '', ...decimalParts] = cleaned.split('.');
-    const normalized = decimalParts.length ? `${integerPart}.${decimalParts.join('')}` : integerPart;
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
   }
 
   private productoAplicaItbis(producto: ProductoServicio): boolean {
@@ -1119,6 +1728,13 @@ export class FacturacionPage implements OnInit, OnDestroy {
     return Number.isFinite(parsed) ? parsed : undefined;
   }
 
+  private toDateInputValue(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
   private applyCatalogFilters(): void {
     const filters = this.filtrosCatalogo.getRawValue();
     const q = String(filters.busqueda || '').trim().toLowerCase();
@@ -1135,26 +1751,47 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
   async abrirModalFacturas(estado: 'emitida' | 'borrador'): Promise<void> {
     this.facturasModalEstado = estado;
+    if (!this.facturasFechaDesde || !this.facturasFechaHasta) {
+      const today = this.toDateInputValue(new Date());
+      this.facturasFechaDesde = today;
+      this.facturasFechaHasta = today;
+    }
     this.facturasModalOpen = true;
     await this.cargarFacturasHoyPorEstado(estado);
   }
 
   async cargarFacturasHoyPorEstado(estado: 'emitida' | 'borrador' = this.facturasModalEstado): Promise<void> {
+    if (!this.facturasFechaDesde || !this.facturasFechaHasta) {
+      await this.toastService.error('Selecciona las fechas desde y hasta.');
+      return;
+    }
+    if (this.facturasFechaDesde > this.facturasFechaHasta) {
+      await this.toastService.error('La fecha desde no puede ser posterior a la fecha hasta.');
+      return;
+    }
+
     this.facturasModalLoading = true;
     this.facturasModalEstado = estado;
     this.facturasModalPage = 1;
     try {
-      const facturas = await (estado === 'emitida'
-        ? this.facturacionService.getFacturasEmitidasHoy()
-        : this.facturacionService.getBorradoresHoy());
+      const desdeIso = new Date(`${this.facturasFechaDesde}T00:00:00.000`).toISOString();
+      const hastaIso = new Date(`${this.facturasFechaHasta}T23:59:59.999`).toISOString();
+      const facturas = await this.facturacionService.getFacturasPorRangoYEstado(estado, desdeIso, hastaIso);
       this.facturasDelDia = [...(facturas || [])].sort((a, b) => (b.creadoEn || b.fecha || '').localeCompare(a.creadoEn || a.fecha || ''));
     } catch (error) {
       console.error('[Facturacion] cargarFacturasHoyPorEstado error:', error);
       this.facturasDelDia = [];
-      await this.toastService.error('No fue posible cargar facturas del día.');
+      await this.toastService.error('No fue posible cargar las facturas del período.');
     } finally {
       this.facturasModalLoading = false;
     }
+  }
+
+  async restablecerFiltroFacturas(): Promise<void> {
+    const today = this.toDateInputValue(new Date());
+    this.facturasFechaDesde = today;
+    this.facturasFechaHasta = today;
+    await this.cargarFacturasHoyPorEstado();
   }
 
   cerrarModalFacturas(): void {
@@ -1164,6 +1801,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   continuarBorrador(factura: Factura): void {
+    if (this.cuentaActiva) { void this.toastService.error('Guarda y sal de la cuenta antes de continuar un borrador.'); return; }
     if (factura.estado !== 'borrador') return;
     const items = (factura.items || []).map((item, index) => this.recalculateCartItem({
       ...item,
@@ -1200,6 +1838,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   async limpiarFacturaActual(): Promise<void> {
+    if (this.cuentaActiva) { await this.guardarYSalirCuenta(); return; }
     this.resetFacturaActual();
     await this.toastService.success('Factura actual limpiada.');
   }
@@ -1207,19 +1846,20 @@ export class FacturacionPage implements OnInit, OnDestroy {
   private buildFacturaPayload(userId: string, mode: 'emitida' | 'borrador', montoPagado = 0, pagosBreakdown?: any): Omit<Factura, 'numero'> {
     const cliente = this.clientes.find((c) => c.id === this.facturaForm.value.clienteId) || this.selectedCliente;
     const today = new Date().toISOString();
-    const paid = Number(montoPagado || 0);
-    const pagos = pagosBreakdown || {
-      efectivo: this.facturaForm.value.formaPago === 'efectivo' ? paid : 0,
-      tarjeta: this.facturaForm.value.formaPago === 'tarjeta' ? paid : 0,
-      transferencia: this.facturaForm.value.formaPago === 'transferencia' ? paid : 0,
-      credito: this.facturaForm.value.formaPago === 'credito' ? this.total : 0,
+    const formaPago = this.facturaForm.value.formaPago || 'efectivo';
+    const paid = formaPago === 'credito' ? 0 : Number(montoPagado || 0);
+    const pagoRecibido = {
+      efectivo: formaPago === 'efectivo' ? paid : 0,
+      tarjeta: formaPago === 'tarjeta' ? paid : 0,
+      transferencia: formaPago === 'transferencia' ? paid : 0,
+      credito: formaPago === 'credito' ? this.total : 0,
       totalPagadoAhora: paid,
       totalRegistrado: paid,
       diferencia: Number((this.total - paid).toFixed(2)),
     };
+    const pagos = pagosBreakdown || (mode === 'emitida' ? aplicarPagoAFactura(pagoRecibido, this.total) : pagoRecibido);
     const totalCredito = Number(pagos.credito || 0);
-    const change = Number((paid - this.total).toFixed(2));
-    const formaPago = this.facturaForm.value.formaPago || 'efectivo';
+    const change = Number((paid - (this.total - totalCredito)).toFixed(2));
     const estadoPago: Factura['estadoPago'] = mode !== 'emitida'
       ? 'pendiente'
       : totalCredito > 0 && paid > 0
@@ -1228,14 +1868,16 @@ export class FacturacionPage implements OnInit, OnDestroy {
           ? 'credito'
           : 'pagada';
     return {
+      cuentaAbiertaId: this.cuentaActiva?.id,
+      cuentaAbiertaVersion: this.cuentaActiva?.version,
       numeroFactura: '',
       ncf: '',
       tipoComprobante: this.facturaForm.value.tipoComprobante || 'B02',
-      clienteId: cliente?.id,
-      clienteNombre: cliente?.nombreCompleto || 'Cliente general',
+      clienteId: this.cuentaActiva ? this.cuentaActiva.clienteId || undefined : cliente?.id,
+      clienteNombre: this.cuentaActiva?.clienteNombre || cliente?.nombreCompleto || 'Cliente general',
       clienteTelefono: cliente?.telefono,
       clienteCorreo: cliente?.correo,
-      clienteRncCedula: (cliente as any)?.rncCedula,
+      clienteRncCedula: (cliente as any)?.rnc || (cliente as any)?.rncCedula,
       artistaId: this.selectedCita?.artistaId || userId,
       artistaNombre: this.selectedCita?.artistaNombre || 'Sistema',
       citaId: this.facturaForm.value.citaId || undefined,
@@ -1249,6 +1891,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       origen: this.facturaForm.value.origen || 'manual',
       formaPago,
       pagos: {
+        montosAplicados: true,
         efectivo: Number(pagos.efectivo || 0),
         tarjeta: Number(pagos.tarjeta || 0),
         transferencia: Number(pagos.transferencia || 0),
@@ -1256,11 +1899,11 @@ export class FacturacionPage implements OnInit, OnDestroy {
         totalPagadoAhora: Number(pagos.totalPagadoAhora || 0),
         totalCredito,
       },
-      totalPagado: Number(pagos.totalPagadoAhora || paid || (mode === 'emitida' ? this.total : 0)),
-      montoPagado: Number(pagos.totalPagadoAhora || paid || (mode === 'emitida' ? this.total : 0)),
+      totalPagado: Number(pagos.totalPagadoAhora ?? 0),
+      montoPagado: paid,
       devuelta: mode === 'emitida' ? Math.max(0, change) : 0,
       cambio: mode === 'emitida' ? Math.max(0, change) : 0,
-      fechaPago: mode === 'emitida' ? today : undefined,
+      fechaPago: mode === 'emitida' && Number(pagos.totalPagadoAhora || 0) > 0 ? today : undefined,
       estadoPago,
       estadoFiscal: 'pendiente',
       preparadoParaECF: true,
@@ -1319,16 +1962,28 @@ export class FacturacionPage implements OnInit, OnDestroy {
     } finally {
       await this.dismissLoading();
       this.turnoActionLoading = false;
+      this.catalogFocusPending = true;
+      this.focusCatalogSearchIfReady();
     }
   }
 
-  abrirModalCierreTurno(): void {
-    if (!this.turnoActivo || this.turnoActivo.estado !== 'abierto') return;
-    this.cierreTurnoForm.patchValue({
-      efectivoContado: this.efectivoEsperadoCierre,
-      observacionCierre: '',
-    });
-    this.showCierreTurnoModal = true;
+  async abrirModalCierreTurno(): Promise<void> {
+    if (!this.turnoActivo || this.turnoActivo.estado !== 'abierto' || this.turnoActionLoading) return;
+    this.turnoActionLoading = true;
+    try {
+      // El resumen puede haber quedado anterior a las últimas ventas del POS.
+      // Mostrar el cierre únicamente después de consultar sus facturas actuales.
+      await this.cargarTotalesTurno();
+      this.cierreTurnoForm.reset({
+        usarDesglose: true,
+        incluirFondoInicial: false,
+        cantidades: this.denominacionesCierre.map(() => 0),
+        efectivoContado: 0,
+        observacionCierre: '',
+      });
+      this.showCierreTurnoModal = true;
+    } catch { await this.toastService.error('No se pudo actualizar el resumen del cierre. Verifica la conexión y vuelve a intentarlo.'); }
+    finally { this.turnoActionLoading = false; }
   }
 
   cerrarModalCierreTurno(): void {
@@ -1348,17 +2003,16 @@ export class FacturacionPage implements OnInit, OnDestroy {
 
     try {
       this.turnoActionLoading = true;
-      const turnoCerrado = this.turnoActivo;
-      const totalesCierre = { ...this.turnoTotales };
-      const efectivoContado = this.parseMoneyInput(this.cierreTurnoForm.value.efectivoContado);
+      const efectivoContado = this.totalContadoCierre;
       const observacionCierre = String(this.cierreTurnoForm.value.observacionCierre || '');
-      await this.turnosCajaService.cerrarTurno(
+      const turnoCerrado = await this.turnosCajaService.cerrarTurno(
         this.turnoActivo,
         efectivoContado,
         observacionCierre,
+        this.cierreTurnoForm.controls.usarDesglose.value ? this.desgloseCierre : undefined,
+        this.cierreTurnoForm.controls.incluirFondoInicial.value,
       );
       this.showCierreTurnoModal = false;
-      await this.presentPostTurnoCloseActions(turnoCerrado, totalesCierre, efectivoContado, observacionCierre);
       await this.toastService.success('Turno cerrado correctamente.');
       this.turnoActivo = null;
       this.turnoTotales = {
@@ -1369,6 +2023,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
         totalCredito: 0,
         cantidadFacturas: 0,
       };
+      await this.presentPostTurnoCloseActions(turnoCerrado, turnoCerrado, efectivoContado, observacionCierre);
     } catch (error) {
       console.error('[Facturacion] cerrarTurno error:', error);
       await this.toastService.error('No fue posible cerrar el turno.');
@@ -1396,6 +2051,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       this.turnoActivo = null;
     } finally {
       this.turnoLoading = false;
+      this.focusCatalogSearchIfReady();
     }
   }
 
@@ -1421,6 +2077,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   private tryApplyAgendaContext(): void {
+    if (this.cuentaActiva) return;
     const citaId = this.route.snapshot.queryParamMap.get('citaId');
     if (!citaId || this.selectedCita?.id === citaId) return;
     const modo = this.route.snapshot.queryParamMap.get('modo');
@@ -1447,7 +2104,7 @@ export class FacturacionPage implements OnInit, OnDestroy {
       header: 'Factura emitida',
       message: 'La factura fue emitida correctamente. Puedes imprimir el ticket o abrir el PDF.',
       buttons: [
-        { text: 'Imprimir ticket', handler: () => this.pdfFacturaService.imprimirTicket80mm(factura) },
+        { text: `Imprimir (${this.printerConfigurationLabel})`, handler: () => void this.imprimirFacturaConfigurada(factura) },
         { text: 'Abrir PDF', handler: () => this.pdfFacturaService.abrirFacturaPdf(factura) },
         { text: 'Descargar PDF', handler: () => this.pdfFacturaService.descargarFacturaPdf(factura) },
         { text: 'Cerrar', role: 'cancel' },
@@ -1476,17 +2133,26 @@ export class FacturacionPage implements OnInit, OnDestroy {
     efectivoContado: number,
     observacionCierre: string,
   ): Promise<void> {
+    const configuration = await this.printerConfigurationService.load();
     const alert = await this.alertCtrl.create({
       header: 'Cierre de turno completado',
       message: 'El turno se cerró correctamente. Puedes imprimir, abrir o descargar el ticket de cierre.',
       buttons: [
-        { text: 'Imprimir ticket', handler: () => this.pdfFacturaService.imprimirCierreTurno(turno, totales, efectivoContado, observacionCierre) },
-        { text: 'Abrir PDF', handler: () => this.pdfFacturaService.abrirCierreTurno(turno, totales, efectivoContado, observacionCierre) },
-        { text: 'Descargar PDF', handler: () => this.pdfFacturaService.descargarCierreTurno(turno, totales, efectivoContado, observacionCierre) },
+        { text: `Imprimir (${this.printerConfigurationLabel})`, handler: () => void this.imprimirCuadreConfigurado(turno) },
+        { text: 'Abrir PDF', handler: () => this.pdfFacturaService.abrirCierreTurno(turno, totales, efectivoContado, observacionCierre, configuration.format) },
+        { text: 'Descargar PDF', handler: () => this.pdfFacturaService.descargarCierreTurno(turno, totales, efectivoContado, observacionCierre, configuration.format) },
         { text: 'Cerrar', role: 'cancel' },
       ],
     });
     await alert.present();
+  }
+
+  private async imprimirCuadreConfigurado(turno: TurnoCaja): Promise<void> {
+    try {
+      await this.invoicePrintingService.printShiftClose(turno);
+    } catch (error) {
+      await this.toastService.error(this.invoicePrintingService.getFriendlyError(error));
+    }
   }
 
   private isOnline(): boolean {
@@ -1559,17 +2225,28 @@ export class FacturacionPage implements OnInit, OnDestroy {
   }
 
   private resetFacturaActual(): void {
+    this.cuentaActiva = null;
+    this.cuentaPendiente = undefined;
+    this.cuentaEstado = 'guardada';
+    this.cuentaError = '';
     this.cartItems = [];
     this.selectedCliente = undefined;
     this.selectedCita = undefined;
     this.selectedCitaModo = 'total';
-    this.facturaForm.patchValue({
+    this.facturaForm.reset({
       clienteId: '',
       citaId: '',
       descuentoGlobal: 0,
       origen: 'manual',
       formaPago: 'efectivo',
       tipoComprobante: 'B02',
+    });
+    this.cobroForm.reset({
+      montoPagado: 0,
+      efectivo: 0,
+      tarjeta: 0,
+      transferencia: 0,
+      credito: 0,
     });
     this.closeCobroModal();
   }

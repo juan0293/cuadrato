@@ -1,64 +1,50 @@
-<ion-content class="profile-page">
-  <ion-button class="menu-fab-btn" fill="solid" (click)="openMenu()" aria-label="Abrir menú">
-    <ion-icon name="menu-outline"></ion-icon>
-  </ion-button>
+<ion-content class="profile-page" [class.theme-light]="shellTheme === 'light'" [class.theme-dark]="shellTheme === 'dark'">
+  <div class="profile-shell" *ngIf="profile$ | async as profile">
+    <header class="profile-header">
+      <div class="page-title"><span class="title-icon"><ion-icon name="person-circle-outline"></ion-icon></span><div><span class="eyebrow">Cuenta · Identidad</span><h1>Mi perfil</h1><p>Consulta tu información, nivel de acceso y preferencias de cuenta.</p></div></div>
+      <ion-button class="theme-toggle" fill="outline" (click)="toggleShellTheme()" [attr.aria-label]="shellTheme === 'light' ? 'Activar modo oscuro' : 'Activar modo claro'" [attr.aria-pressed]="shellTheme === 'dark'"><ion-icon slot="start" [name]="shellTheme === 'light' ? 'moon-outline' : 'sunny-outline'"></ion-icon>{{ shellTheme === 'light' ? 'Modo oscuro' : 'Modo claro' }}</ion-button>
+    </header>
 
-  <div class="profile-shell ion-padding" *ngIf="profile$ | async as profile">
-    <section class="profile-header">
-      <h1>Mi perfil</h1>
-      <p>Gestiona tu identidad y acceso dentro del sistema</p>
-    </section>
-
-    <section class="profile-card">
+    <section class="profile-overview-card">
       <div class="avatar-area">
-        <img *ngIf="profile.photoURL; else fallbackAvatar" [src]="profile.photoURL" [alt]="profile.nombre" class="profile-avatar" />
-        <ng-template #fallbackAvatar>
-          <div class="profile-avatar profile-avatar-fallback">{{ getInitials(profile) }}</div>
-        </ng-template>
-
-        <input #photoInput type="file" accept="image/*" capture="environment" hidden (change)="onPhotoSelected($event)" />
-        <ion-button class="btn-secondary" fill="outline" [disabled]="isUploadingPhoto" (click)="photoInput.click()">
-          {{ isUploadingPhoto ? 'Subiendo...' : 'Cambiar foto' }}
-        </ion-button>
+        <div class="avatar-frame">
+          <img *ngIf="profile.photoURL; else fallbackAvatar" [src]="profile.photoURL" [alt]="profile.nombre" class="profile-avatar" />
+          <ng-template #fallbackAvatar><div class="profile-avatar profile-avatar-fallback">{{ getInitials(profile) }}</div></ng-template>
+          <span class="status-dot" [class.is-inactive]="!isProfileActive(profile)" [attr.title]="isProfileActive(profile) ? 'Usuario activo' : 'Usuario inactivo'"></span>
+        </div>
+        <input #photoInput type="file" accept="image/png,image/jpeg,image/webp" capture="environment" hidden (change)="onPhotoSelected($event)" />
+        <ion-button class="btn-secondary photo-button" fill="outline" [disabled]="isUploadingPhoto" (click)="photoInput.click()"><ion-spinner *ngIf="isUploadingPhoto" name="crescent"></ion-spinner><ion-icon *ngIf="!isUploadingPhoto" slot="start" name="camera-outline"></ion-icon>{{ isUploadingPhoto ? 'Subiendo…' : 'Cambiar foto' }}</ion-button>
+        <small>PNG, JPG o WebP con buena iluminación.</small>
       </div>
 
+      <div class="identity-summary">
+        <span class="eyebrow">Perfil actual</span>
+        <h2>{{ profile.displayName || profile.nombre }}</h2>
+        <p>{{ profile.email }}</p>
+        <div class="identity-badges"><span class="role-badge"><ion-icon name="shield-checkmark-outline"></ion-icon>{{ identityLabel(profile) }}</span><span class="status-badge" [class.is-inactive]="!isProfileActive(profile)"><i></i>{{ isProfileActive(profile) ? 'Activo' : 'Inactivo' }}</span></div>
+      </div>
+    </section>
+
+    <section class="profile-section">
+      <div class="section-head"><span class="section-icon"><ion-icon name="id-card-outline"></ion-icon></span><div><span class="eyebrow">Información personal</span><h2>Datos de la cuenta</h2><p>Información vinculada a tu identidad dentro de la empresa.</p></div></div>
       <div class="profile-data">
-        <article class="profile-row">
-          <span>Nombre</span>
-          <strong>{{ profile.displayName || profile.nombre }}</strong>
-        </article>
-        <article class="profile-row">
-          <span>Correo</span>
-          <strong>{{ profile.email }}</strong>
-        </article>
-        <article class="profile-row">
-          <span>Rol</span>
-          <strong>{{ identityLabel(profile) }}</strong>
-        </article>
-        <article class="profile-row">
-          <span>Estado</span>
-          <strong>{{ profile.activo ? 'Activo' : 'Inactivo' }}</strong>
-        </article>
-        <article class="profile-row">
-          <span>Teléfono</span>
-          <strong>{{ profile.telefono || '-' }}</strong>
-        </article>
+        <article class="profile-row"><span>Nombre completo</span><strong>{{ profile.displayName || profile.nombre }}</strong></article>
+        <article class="profile-row"><span>Correo electrónico</span><strong>{{ profile.email }}</strong></article>
+        <article class="profile-row"><span>Teléfono</span><strong>{{ profile.telefono || 'No registrado' }}</strong></article>
+        <article class="profile-row"><span>Rol operativo</span><strong>{{ identityLabel(profile) }}</strong></article>
+        <article class="profile-row"><span>Estado de acceso</span><strong>{{ isProfileActive(profile) ? 'Activo' : 'Inactivo' }}</strong></article>
+        <article class="profile-row"><span>Empresa</span><strong>{{ profile.companyId || 'Empresa principal' }}</strong></article>
       </div>
     </section>
 
-    <section class="profile-card profile-card--actions" *ngIf="canManageCompany$ | async">
-      <div class="profile-actions-copy">
-        <h2>Datos de empresa</h2>
-        <p>Actualiza el nombre comercial, logo y datos fiscales que usan facturas y compras.</p>
-      </div>
-      <div class="profile-actions-cta">
-        <ion-button class="btn-secondary" fill="outline" (click)="goCompanyProfile()">
-          <ion-icon slot="start" name="business-outline"></ion-icon>
-          Gestionar datos de empresa
-        </ion-button>
-      </div>
+    <section class="profile-section company-card" *ngIf="canManageCompany$ | async">
+      <div class="section-head"><span class="section-icon"><ion-icon name="business-outline"></ion-icon></span><div><span class="eyebrow">Configuración institucional</span><h2>Datos de empresa</h2><p>Gestiona el nombre comercial, logo y datos fiscales utilizados en documentos.</p></div></div>
+      <ion-button class="btn-primary" (click)="goCompanyProfile()"><ion-icon slot="start" name="settings-outline"></ion-icon>Gestionar datos de empresa</ion-button>
     </section>
 
-    <ion-button class="btn-danger" fill="clear" (click)="logout()">Cerrar sesión</ion-button>
+    <section class="profile-section session-card">
+      <div class="section-head"><span class="section-icon danger-icon"><ion-icon name="log-out-outline"></ion-icon></span><div><span class="eyebrow danger-eyebrow">Sesión</span><h2>Cerrar sesión</h2><p>Finaliza de forma segura la sesión activa en este dispositivo.</p></div></div>
+      <ion-button class="btn-danger" fill="outline" (click)="logout()"><ion-icon slot="start" name="log-out-outline"></ion-icon>Cerrar sesión</ion-button>
+    </section>
   </div>
 </ion-content>

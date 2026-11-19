@@ -42,10 +42,6 @@ export class ProductoServicioFormPage implements OnInit, OnDestroy {
   precioCompraInvalid = false;
   precioVentaDisplay = '';
   precioVentaInvalid = false;
-  proveedorModalOpen = false;
-  proveedorQuery = '';
-  proveedoresCache: Proveedor[] = [];
-  filteredProveedores: Proveedor[] = [];
   private readonly sub = new Subscription();
 
   readonly indicadores = this.catalogoFiscalService.getIndicadoresFacturacion();
@@ -107,12 +103,6 @@ export class ProductoServicioFormPage implements OnInit, OnDestroy {
       this.rulesBound = true;
     }
 
-    this.sub.add(
-      this.proveedoresActivos$.subscribe((items) => {
-        this.proveedoresCache = items || [];
-        this.applyProveedorFilter();
-      }),
-    );
   }
 
   ngOnDestroy(): void {
@@ -133,19 +123,19 @@ export class ProductoServicioFormPage implements OnInit, OnDestroy {
   }
 
   private bindReactiveRules(): void {
-    this.form.controls.tipoItem.valueChanges.subscribe((tipoItem) => {
+    this.sub.add(this.form.controls.tipoItem.valueChanges.subscribe((tipoItem) => {
       if (tipoItem === 'servicio') {
         this.form.patchValue({ manejaInventario: false, stockActual: 0, stockMinimo: 0, stockMaximo: 0 }, { emitEvent: false });
       }
-    });
+    }));
 
-    this.form.controls.indicadorFacturacion.valueChanges.subscribe((indicador) => {
+    this.sub.add(this.form.controls.indicadorFacturacion.valueChanges.subscribe((indicador) => {
       const mapped = mapIndicadorFacturacion(indicador);
       this.form.patchValue(mapped, { emitEvent: false });
-    });
+    }));
 
-    this.form.controls.precioCompra.valueChanges.subscribe(() => this.autoRecalculatePrecioVenta());
-    this.form.controls.utilidadPorcentaje.valueChanges.subscribe(() => this.autoRecalculatePrecioVenta());
+    this.sub.add(this.form.controls.precioCompra.valueChanges.subscribe(() => this.autoRecalculatePrecioVenta()));
+    this.sub.add(this.form.controls.utilidadPorcentaje.valueChanges.subscribe(() => this.autoRecalculatePrecioVenta()));
   }
 
   private async loadItem(id: string): Promise<void> {
@@ -302,31 +292,6 @@ export class ProductoServicioFormPage implements OnInit, OnDestroy {
       proveedorTelefono: proveedor.telefono || '',
       proveedorEmail: proveedor.email || '',
     });
-  }
-
-  openProveedorModal(): void {
-    this.proveedorModalOpen = true;
-    this.proveedorQuery = '';
-    this.applyProveedorFilter();
-  }
-
-  closeProveedorModal(): void {
-    this.proveedorModalOpen = false;
-  }
-
-  onProveedorSearch(event: Event): void {
-    const value = String((event as CustomEvent).detail?.value || '');
-    this.proveedorQuery = value;
-    this.applyProveedorFilter();
-  }
-
-  selectProveedorFromModal(proveedor: Proveedor): void {
-    this.onProveedorSelected(proveedor);
-    this.closeProveedorModal();
-  }
-
-  get selectedProveedorLabel(): string {
-    return this.form.controls.proveedorNombre.value || 'Selecciona un proveedor';
   }
 
   onPrecioCompraFocus(): void {
@@ -539,15 +504,4 @@ export class ProductoServicioFormPage implements OnInit, OnDestroy {
     return Number.isInteger(numberValue) ? String(numberValue) : String(numberValue);
   }
 
-  private applyProveedorFilter(): void {
-    const q = this.proveedorQuery.trim().toLowerCase();
-    if (!q) {
-      this.filteredProveedores = [...this.proveedoresCache];
-      return;
-    }
-    this.filteredProveedores = this.proveedoresCache.filter((item) =>
-      [item.nombre, item.rnc, item.telefono, item.email]
-        .some((value) => String(value || '').toLowerCase().includes(q)),
-    );
-  }
 }

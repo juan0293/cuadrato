@@ -2,6 +2,11 @@
   <ion-menu menuId="admin-menu" contentId="admin-main" type="overlay" swipeGesture="true">
     <ion-content class="admin-menu-content">
       <section class="menu-shell">
+        <header class="menu-brand">
+          <span class="brand-icon"><ion-icon name="apps-outline"></ion-icon></span>
+          <div><p class="menu-kicker">CUADRATO</p><h2>Centro de gestión</h2><span>Operación interna del estudio</span></div>
+        </header>
+
         <section class="menu-user" *ngIf="profile$ | async as profile">
           <div class="menu-user-avatar-wrap">
             <img *ngIf="profile.photoURL; else initialsAvatar" [src]="profile.photoURL" [alt]="profile.nombre" class="menu-user-avatar" />
@@ -12,14 +17,9 @@
           <div class="menu-user-copy">
             <strong>{{ profile.displayName || profile.nombre }}</strong>
             <span>{{ profile.email }}</span>
+            <small>{{ getRoleLabel(profile.rol || profile.role) }}</small>
           </div>
         </section>
-
-        <header class="menu-brand">
-          <p class="menu-kicker">Vargas TattooApp</p>
-          <h2>Centro de gestión</h2>
-          <span>Operación interna del estudio</span>
-        </header>
 
         <ng-container *ngIf="menuState$ | async as menuState">
           <div class="menu-loading-card" *ngIf="menuState.isLoading">
@@ -30,6 +30,7 @@
             </div>
           </div>
 
+          <div class="menu-section-label" *ngIf="!menuState.isLoading && menuState.hasProfile"><span>Navegación principal</span><small>{{ menuItems.length }} módulos</small></div>
           <ion-list class="menu-list" lines="none" *ngIf="!menuState.isLoading && menuState.hasProfile; else noModules">
             <ng-container *ngFor="let item of menuItems">
               <ion-menu-toggle autoHide="true" *ngIf="canAccess(item, menuState.currentRole); else lockedItem">
@@ -60,7 +61,8 @@
         </ng-container>
 
         <div class="menu-footer">
-          <span>Control de acceso y operación</span>
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          <div><strong>Acceso protegido</strong><span>Permisos según tu rol operativo</span></div>
         </div>
       </section>
     </ion-content>

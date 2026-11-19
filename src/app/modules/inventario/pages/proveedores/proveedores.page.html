@@ -1,90 +1,159 @@
-<ion-content class="crud-page">
+<ion-content class="crud-page inventario-module-page">
   <div class="shell ion-padding">
-    <section class="header">
-      <div class="header-copy">
-        <h1>Gestión de proveedores</h1>
-        <p>Administra contactos, condiciones de pago y trazabilidad de compras desde un solo lugar.</p>
+    <header class="header">
+      <div class="page-title">
+        <span class="title-icon" aria-hidden="true"><ion-icon name="people-outline"></ion-icon></span>
+        <div>
+          <span class="eyebrow">Inventario · Compras</span>
+          <h1>Proveedores</h1>
+          <p>Administra los contactos y las condiciones comerciales de tus proveedores.</p>
+        </div>
       </div>
-      <div class="header-actions">
-        <ion-button class="btn-secondary" fill="outline" (click)="closeOrBack()">
-          <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
-          {{ modalMode ? 'Cerrar y volver al formulario' : 'Volver a compras' }}
-        </ion-button>
+      <ion-button class="btn-secondary" fill="outline" (click)="closeOrBack()">
+        <ion-icon slot="start" name="arrow-back-outline"></ion-icon>
+        {{ modalMode ? 'Cerrar' : 'Volver a compras' }}
+      </ion-button>
+    </header>
+
+    <section class="card provider-list-card">
+      <div class="section-head">
+        <div class="section-title">
+          <span class="section-icon" aria-hidden="true"><ion-icon name="business-outline"></ion-icon></span>
+          <div>
+            <h2>Directorio de proveedores</h2>
+            <p>Consulta su información, condición de pago y estado actual.</p>
+          </div>
+        </div>
       </div>
+
+      <ion-searchbar class="provider-search" placeholder="Buscar por nombre, RNC, teléfono o correo"
+        [debounce]="200" (ionInput)="onSearch($event)"></ion-searchbar>
+
+      <ng-container *ngIf="proveedores$ | async as items">
+        <ng-container *ngIf="filtered(items) as filteredItems">
+          <div class="results-row">
+            <span>{{ filteredItems.length }} {{ filteredItems.length === 1 ? 'proveedor' : 'proveedores' }}</span>
+            <span *ngIf="query">para “{{ query }}”</span>
+          </div>
+
+          <div class="table-wrap desktop-providers" *ngIf="filteredItems.length; else emptyProviders">
+            <table>
+              <thead>
+                <tr>
+                  <th>Proveedor</th><th>Identificación</th><th>Contacto</th><th>Condición</th><th>Estado</th>
+                  <th class="actions-heading">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let item of filteredItems; trackBy: trackByProveedor">
+                  <td>
+                    <div class="provider-identity">
+                      <span class="provider-avatar" aria-hidden="true">{{ item.nombre.charAt(0) | uppercase }}</span>
+                      <div><strong>{{ item.nombre }}</strong><small>{{ item.email || 'Sin correo registrado' }}</small></div>
+                    </div>
+                  </td>
+                  <td>{{ item.rnc || 'No registrada' }}</td>
+                  <td>{{ item.telefono || 'No registrado' }}</td>
+                  <td>
+                    <ion-chip class="condition-chip" [class.credit-chip]="item.condicionesPagoDefault === 'credito'">
+                      <ion-icon [name]="item.condicionesPagoDefault === 'credito' ? 'calendar-outline' : 'cash-outline'"></ion-icon>
+                      <ion-label>{{ item.condicionesPagoDefault === 'credito' ? ((item.diasCreditoDefault || 0) + ' días') : 'Contado' }}</ion-label>
+                    </ion-chip>
+                  </td>
+                  <td><span class="status-badge" [class.inactive]="!item.activo"><span class="status-dot"></span>{{ item.activo ? 'Activo' : 'Inactivo' }}</span></td>
+                  <td>
+                    <div class="row-actions">
+                      <ion-button fill="clear" size="small" (click)="edit(item)" [attr.aria-label]="'Editar ' + item.nombre">
+                        <ion-icon slot="icon-only" name="create-outline"></ion-icon>
+                      </ion-button>
+                      <ion-button fill="clear" size="small" (click)="toggle(item)" [color]="item.activo ? 'danger' : 'success'"
+                        [attr.aria-label]="(item.activo ? 'Inactivar ' : 'Activar ') + item.nombre">
+                        <ion-icon slot="icon-only" [name]="item.activo ? 'pause-circle-outline' : 'checkmark-circle-outline'"></ion-icon>
+                      </ion-button>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="provider-mobile-grid" *ngIf="filteredItems.length">
+            <article class="provider-mobile-card" *ngFor="let item of filteredItems; trackBy: trackByProveedor">
+              <div class="mobile-card-head">
+                <div class="provider-identity">
+                  <span class="provider-avatar" aria-hidden="true">{{ item.nombre.charAt(0) | uppercase }}</span>
+                  <div><strong>{{ item.nombre }}</strong><small>{{ item.rnc || 'Sin identificación' }}</small></div>
+                </div>
+                <span class="status-badge" [class.inactive]="!item.activo"><span class="status-dot"></span>{{ item.activo ? 'Activo' : 'Inactivo' }}</span>
+              </div>
+              <div class="mobile-details">
+                <span><ion-icon name="call-outline"></ion-icon>{{ item.telefono || 'Sin teléfono' }}</span>
+                <span><ion-icon name="mail-outline"></ion-icon>{{ item.email || 'Sin correo' }}</span>
+                <span><ion-icon name="wallet-outline"></ion-icon>{{ item.condicionesPagoDefault === 'credito' ? ((item.diasCreditoDefault || 0) + ' días de crédito') : 'Pago de contado' }}</span>
+              </div>
+              <div class="mobile-actions">
+                <ion-button fill="outline" size="small" (click)="edit(item)"><ion-icon slot="start" name="create-outline"></ion-icon>Editar</ion-button>
+                <ion-button fill="clear" size="small" (click)="toggle(item)" [color]="item.activo ? 'danger' : 'success'">{{ item.activo ? 'Inactivar' : 'Activar' }}</ion-button>
+              </div>
+            </article>
+          </div>
+        </ng-container>
+      </ng-container>
+
+      <ng-template #emptyProviders>
+        <div class="empty-state">
+          <span class="empty-icon"><ion-icon name="search-outline"></ion-icon></span>
+          <h3>No encontramos proveedores</h3>
+          <p>Prueba con otro nombre, identificación, teléfono o correo.</p>
+        </div>
+      </ng-template>
     </section>
 
-    <section class="card">
-      <h2>Listado de proveedores</h2>
-      <p>Ubica rápidamente proveedores activos, crédito disponible y datos de contacto.</p>
-      <ion-searchbar color="dark" placeholder="Buscar por nombre, RNC, teléfono o email..."
-        (ionInput)="onSearch($event)"></ion-searchbar>
-
-      <div class="table-wrap" *ngIf="proveedores$ | async as items">
-        <table>
-          <thead>
-            <tr>
-              <th>Proveedor</th>
-              <th>RNC</th>
-              <th>Contacto</th>
-              <th>Condición</th>
-              <th>Estado</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of filtered(items)">
-              <td>{{ item.nombre }}</td>
-              <td>{{ item.rnc || '-' }}</td>
-              <td>{{ item.telefono || item.email || '-' }}</td>
-              <td><ion-chip [color]="item.condicionesPagoDefault === 'credito' ? 'warning' : 'primary'"><ion-label>{{
-                    item.condicionesPagoDefault || 'contado' }}</ion-label></ion-chip></td>
-              <td><ion-chip [color]="item.activo ? 'success' : 'medium'"><ion-label>{{ item.activo ? 'Activo' :
-                    'Inactivo' }}</ion-label></ion-chip></td>
-              <td><ion-button fill="clear" (click)="edit(item)">Editar</ion-button><ion-button fill="clear"
-                  (click)="toggle(item)">{{ item.activo ? 'Inactivar' : 'Activar' }}</ion-button></td>
-            </tr>
-          </tbody>
-        </table>
+    <section id="provider-form" class="card provider-form-card" [formGroup]="form">
+      <div class="section-head form-heading">
+        <div class="section-title">
+          <span class="section-icon form-icon" aria-hidden="true"><ion-icon [name]="editingId ? 'create-outline' : 'person-add-outline'"></ion-icon></span>
+          <div>
+            <span class="eyebrow">{{ editingId ? 'Modo edición' : 'Nuevo registro' }}</span>
+            <h2>{{ editingId ? 'Editar proveedor' : 'Registrar proveedor' }}</h2>
+            <p>{{ editingId ? 'Actualiza los datos y condiciones del proveedor seleccionado.' : 'Completa sus datos operativos y financieros.' }}</p>
+          </div>
+        </div>
+        <span class="form-mode-badge">{{ editingId ? 'Editando' : 'Nuevo' }}</span>
       </div>
-    </section>
 
-    <section class="card" [formGroup]="form">
-      <h2>{{ editingId ? 'Editar proveedor' : 'Nuevo proveedor' }}</h2>
-      <p>{{ editingId ? 'Actualiza las condiciones del proveedor seleccionado.' : 'Registra un proveedor con sus datos operativos y financieros.' }}</p>
-      <div class="grid">
-        <ion-item><ion-label position="stacked">Nombre</ion-label><ion-input
-            formControlName="nombre"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Tipo identificación</ion-label><ion-select
-            formControlName="tipoIdentificacion"><ion-select-option
-              value="rnc">RNC</ion-select-option><ion-select-option
-              value="cedula">Cédula</ion-select-option><ion-select-option
-              value="pasaporte">Pasaporte</ion-select-option><ion-select-option
-              value="otro">Otro</ion-select-option></ion-select></ion-item>
-        <ion-item><ion-label position="stacked">RNC / Identificación</ion-label><ion-input
-            formControlName="rnc"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Teléfono</ion-label><ion-input
-            formControlName="telefono"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Email</ion-label><ion-input
-            formControlName="email"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Dirección</ion-label><ion-input
-            formControlName="direccion"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Condición pago</ion-label><ion-select
-            formControlName="condicionesPagoDefault"><ion-select-option
-              value="contado">Contado</ion-select-option><ion-select-option
-              value="credito">Crédito</ion-select-option></ion-select></ion-item>
-        <ion-item><ion-label position="stacked">Días crédito</ion-label><ion-input type="number"
-            formControlName="diasCreditoDefault"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Moneda</ion-label><ion-select
-            formControlName="monedaDefault"><ion-select-option value="DOP">DOP</ion-select-option><ion-select-option
-              value="USD">USD</ion-select-option><ion-select-option
-              value="EUR">EUR</ion-select-option><ion-select-option
-              value="CAD">CAD</ion-select-option><ion-select-option
-              value="GBP">GBP</ion-select-option></ion-select></ion-item>
+      <div class="form-section">
+        <div class="form-section-title"><ion-icon name="id-card-outline"></ion-icon><h3>Identificación y contacto</h3></div>
+        <div class="grid identity-grid">
+          <ion-item><ion-label position="stacked">Nombre <span class="required">*</span></ion-label><ion-input formControlName="nombre" placeholder="Nombre comercial o razón social"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Tipo de identificación</ion-label><ion-select formControlName="tipoIdentificacion" interface="popover"><ion-select-option value="rnc">RNC</ion-select-option><ion-select-option value="cedula">Cédula</ion-select-option><ion-select-option value="pasaporte">Pasaporte</ion-select-option><ion-select-option value="otro">Otro</ion-select-option></ion-select></ion-item>
+          <ion-item><ion-label position="stacked">RNC / Identificación</ion-label><ion-input formControlName="rnc" placeholder="Número de identificación"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Teléfono</ion-label><ion-input type="tel" formControlName="telefono" placeholder="(000) 000-0000"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Correo electrónico</ion-label><ion-input type="email" formControlName="email" placeholder="contacto@proveedor.com"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Dirección</ion-label><ion-input formControlName="direccion" placeholder="Dirección principal"></ion-input></ion-item>
+        </div>
       </div>
-      <ion-item><ion-label>Activo</ion-label><ion-toggle formControlName="activo"></ion-toggle></ion-item>
+
+      <div class="form-section">
+        <div class="form-section-title"><ion-icon name="card-outline"></ion-icon><h3>Condiciones comerciales</h3></div>
+        <div class="grid commercial-grid">
+          <ion-item><ion-label position="stacked">Condición de pago</ion-label><ion-select formControlName="condicionesPagoDefault" interface="popover"><ion-select-option value="contado">Contado</ion-select-option><ion-select-option value="credito">Crédito</ion-select-option></ion-select></ion-item>
+          <ion-item><ion-label position="stacked">Días de crédito</ion-label><ion-input type="number" min="0" formControlName="diasCreditoDefault"></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Moneda predeterminada</ion-label><ion-select formControlName="monedaDefault" interface="popover"><ion-select-option value="DOP">DOP · Peso dominicano</ion-select-option><ion-select-option value="USD">USD · Dólar estadounidense</ion-select-option><ion-select-option value="EUR">EUR · Euro</ion-select-option><ion-select-option value="CAD">CAD · Dólar canadiense</ion-select-option><ion-select-option value="GBP">GBP · Libra esterlina</ion-select-option></ion-select></ion-item>
+        </div>
+      </div>
+
+      <ion-item class="status-control" lines="none">
+        <div class="status-control-copy">
+          <ion-icon name="shield-checkmark-outline"></ion-icon>
+          <div><ion-label>Proveedor activo</ion-label><small>Permite seleccionarlo en nuevas compras y órdenes.</small></div>
+        </div>
+        <ion-toggle slot="end" formControlName="activo" aria-label="Estado activo del proveedor"></ion-toggle>
+      </ion-item>
+
       <div class="actions">
-        <ion-button fill="outline" color="danger" (click)="cancel()">Limpiar</ion-button>
-        <ion-button class="btn-primary" (click)="save()">Guardar</ion-button>
+        <ion-button class="clear-button" fill="outline" (click)="cancel()"><ion-icon slot="start" name="refresh-outline"></ion-icon>{{ editingId ? 'Cancelar edición' : 'Limpiar' }}</ion-button>
+        <ion-button class="btn-primary" (click)="save()" [disabled]="form.invalid"><ion-icon slot="start" name="save-outline"></ion-icon>{{ editingId ? 'Guardar cambios' : 'Guardar proveedor' }}</ion-button>
       </div>
     </section>
   </div>

@@ -6,6 +6,7 @@ import { ToastService } from '../../../core/services/toast.service';
 import { roleLabel } from '../helpers/usuarios.helper';
 import { UsuarioModel, UserRole, UserStatus } from '../models/usuario.model';
 import { UsuariosService } from '../services/usuarios.service';
+import { UsuariosThemeService } from '../services/usuarios-theme.service';
 
 @Component({
   standalone: false,
@@ -21,6 +22,7 @@ export class UsuariosPage {
   selectedUser: UsuarioModel | null = null;
   isModalOpen = false;
   isViewMode = false;
+  saving = false;
   private currentCompanyId = '';
   private readonly searchTerm$ = new BehaviorSubject<string>('');
   private readonly roleFilter$ = new BehaviorSubject<'all' | UserRole>('all');
@@ -62,7 +64,20 @@ export class UsuariosPage {
     private readonly usuariosService: UsuariosService,
     private readonly authService: AuthService,
     private readonly toastService: ToastService,
+    private readonly themeService: UsuariosThemeService,
   ) {}
+
+  get usersTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  get hasActiveFilters(): boolean {
+    return Boolean(this.searchTerm.trim() || this.roleFilter !== 'all');
+  }
+
+  toggleUsersTheme(): void {
+    this.themeService.toggle();
+  }
 
   roleLabel = roleLabel;
 
@@ -93,6 +108,13 @@ export class UsuariosPage {
     if (!value) return;
     this.roleFilter = value as 'all' | UserRole;
     this.roleFilter$.next(this.roleFilter);
+  }
+
+  clearFilters(): void {
+    this.searchTerm = '';
+    this.roleFilter = 'all';
+    this.searchTerm$.next('');
+    this.roleFilter$.next('all');
   }
 
   async canCreate(): Promise<boolean> {
@@ -171,7 +193,12 @@ export class UsuariosPage {
   }
 
   async saveUser(): Promise<void> {
-    if (this.userForm.invalid || this.isViewMode) return;
+    if (this.saving || this.isViewMode) return;
+    if (this.userForm.invalid) {
+      this.userForm.markAllAsTouched();
+      await this.toastService.error('Completa correctamente los campos obligatorios.');
+      return;
+    }
 
     const raw = this.userForm.getRawValue();
     const companyId = raw.companyId || this.currentCompanyId;
@@ -180,29 +207,55 @@ export class UsuariosPage {
       return;
     }
 
-    if (!this.selectedUser?.id) {
-      await this.usuariosService.createUser({
+    this.saving = true;
+    try {
+      if (!this.selectedUser?.id) {
+        const password = raw.password.trim();
+        await this.usuariosService.createUser({
+          companyId,
+          displayName: raw.displayName.trim(),
+          email: raw.email.trim().toLowerCase(),
+          role: raw.role,
+          status: raw.status,
+          ...(password ? { password } : {}),
+        });
+        await this.toastService.success('Usuario creado correctamente.');
+        this.closeModal();
+        return;
+      }
+
+      await this.usuariosService.updateUser({
+        userId: this.selectedUser.id,
         companyId,
         displayName: raw.displayName.trim(),
-        email: raw.email.trim().toLowerCase(),
         role: raw.role,
         status: raw.status,
-        password: raw.password?.trim() || undefined,
       });
-      await this.toastService.success('Usuario creado correctamente.');
+      await this.toastService.success('Usuario actualizado correctamente.');
       this.closeModal();
-      return;
+    } catch (error) {
+      console.error('Error guardando usuario', error);
+      await this.toastService.error('No fue posible guardar el usuario.');
+    } finally {
+      this.saving = false;
     }
+  }
 
-    await this.usuariosService.updateUser({
-      userId: this.selectedUser.id,
-      companyId,
-      displayName: raw.displayName.trim(),
-      role: raw.role,
-      status: raw.status,
-    });
-    await this.toastService.success('Usuario actualizado correctamente.');
-    this.closeModal();
+  countActive(users: UsuarioModel[]): number {
+    return users.filter((user) => this.statusLabel(user) === 'Activo').length;
+  }
+
+  countAdmins(users: UsuarioModel[]): number {
+    return users.filter((user) => ['superadmin', 'admin'].includes(this.getRoleKey(user))).length;
+  }
+
+  countArtists(users: UsuarioModel[]): number {
+    return users.filter((user) => ['artist', 'artista'].includes(this.getRoleKey(user))).length;
+  }
+
+  getInitials(user: UsuarioModel): string {
+    const name = String(user.displayName || user.nombre || user.email || '').trim();
+    return name.split(/\s+/).slice(0, 2).map((part) => part.charAt(0)).join('').toUpperCase() || 'US';
   }
 
   statusColor(user: UsuarioModel): string {

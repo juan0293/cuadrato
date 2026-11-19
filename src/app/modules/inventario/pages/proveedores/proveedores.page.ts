@@ -65,6 +65,10 @@ export class ProveedoresPage {
     this.query = String(target?.value || '');
   }
 
+  trackByProveedor(_: number, item: Proveedor): string {
+    return item.id || item.nombre;
+  }
+
   edit(item: Proveedor): void {
     this.editingId = item.id;
     this.form.patchValue({
@@ -78,6 +82,10 @@ export class ProveedoresPage {
       diasCreditoDefault: item.diasCreditoDefault || 0,
       monedaDefault: item.monedaDefault || 'DOP',
       activo: item.activo,
+    });
+
+    requestAnimationFrame(() => {
+      document.getElementById('provider-form')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
 

@@ -1,7 +1,10 @@
-import { AfterViewInit, Component, ElementRef, Input, OnChanges, ViewChild } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { AfterViewInit, Component, ElementRef, HostListener, Inject, Input, OnChanges, OnDestroy, ViewChild } from '@angular/core';
 import { Chart, ChartConfiguration, registerables } from 'chart.js';
 
 Chart.register(...registerables);
+
+export interface FinanceChartSeries { label: string; data: Array<number | null>; color: string; }
 
 @Component({
   selector: 'app-finance-chart',
@@ -9,15 +12,19 @@ Chart.register(...registerables);
   styleUrls: ['./finance-chart.component.scss'],
   standalone: false,
 })
-export class FinanceChartComponent implements AfterViewInit, OnChanges {
-  @Input() type: 'bar' | 'pie' = 'bar';
+export class FinanceChartComponent implements AfterViewInit, OnChanges, OnDestroy {
+  @Input() type: 'bar' | 'pie' | 'line' = 'bar';
   @Input() labels: string[] = [];
   @Input() datasetLabel = '';
-  @Input() data: number[] = [];
+  @Input() data: Array<number | null> = [];
+  @Input() series: FinanceChartSeries[] = [];
+  @Input() ariaLabel = 'Gráfico financiero';
   @Input() palette: 'default' | 'artist-vivid' | 'category-vivid' = 'default';
 
   @ViewChild('canvasRef') canvasRef?: ElementRef<HTMLCanvasElement>;
   private chart?: Chart;
+
+  constructor(@Inject(DOCUMENT) private readonly document: Document) {}
 
   ngAfterViewInit(): void {
     this.renderChart();
@@ -27,17 +34,31 @@ export class FinanceChartComponent implements AfterViewInit, OnChanges {
     this.renderChart();
   }
 
+  ngOnDestroy(): void { this.chart?.destroy(); }
+
+  @HostListener('window:finanzas-theme-change')
+  onFinanceThemeChange(): void {
+    this.renderChart();
+  }
+
   private renderChart(): void {
     const canvas = this.canvasRef?.nativeElement;
     if (!canvas) return;
 
     this.chart?.destroy();
+    const isDark = this.document.body.classList.contains('finanzas-dark-theme');
+    const textColor = isDark ? '#dbe6ff' : '#475467';
+    const gridColor = isDark ? 'rgba(148, 163, 184, .18)' : 'rgba(71, 84, 103, .12)';
 
     const config: ChartConfiguration = {
       type: this.type,
       data: {
         labels: this.labels,
-        datasets: [
+        datasets: this.series.length ? this.series.map(series => ({
+          label: series.label, data: series.data, borderColor: series.color,
+          backgroundColor: series.color, borderWidth: 2, pointRadius: 2,
+          tension: 0.2, spanGaps: false,
+        })) : [
           {
             label: this.datasetLabel,
             data: this.data,
@@ -57,10 +78,15 @@ export class FinanceChartComponent implements AfterViewInit, OnChanges {
           legend: {
             display: true,
             labels: {
-              color: '#dbe6ff',
+              color: textColor,
             },
           },
+          tooltip: { callbacks: { label: (context) => `${context.dataset.label || context.label}: ${new Intl.NumberFormat('es-DO', { style: 'currency', currency: 'DOP' }).format(Number(context.parsed.y ?? context.parsed))}` } },
         },
+        scales: this.type !== 'pie' ? {
+          x: { ticks: { color: textColor }, grid: { color: gridColor } },
+          y: { beginAtZero: true, ticks: { color: textColor }, grid: { color: gridColor } },
+        } : undefined,
       },
     };
 

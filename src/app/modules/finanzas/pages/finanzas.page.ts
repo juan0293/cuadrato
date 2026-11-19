@@ -1,11 +1,10 @@
 import { Component } from '@angular/core';
 import { AlertController, LoadingController } from '@ionic/angular';
-import { Observable, combineLatest, map } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, combineLatest, map, of, shareReplay, startWith, switchMap } from 'rxjs';
 import * as XLSX from 'xlsx';
-import { endOfDay, endOfMonth, endOfWeek, endOfYear, startOfDay, startOfMonth, startOfWeek, startOfYear } from 'date-fns';
 import { formatCurrencyDOP } from '../../../core/utils/currency.utils';
 import { agruparPorCategoria } from '../helpers/finanzas.helper';
-import { FiltroPeriodoFinanciero, MovimientoFinanciero } from '../models/movimiento-financiero.model';
+import { MovimientoFinanciero } from '../models/movimiento-financiero.model';
 import { FinanzasService } from '../services/finanzas.service';
 import { totalGastos } from '../utils/finance-calculation.utils';
 import { UsuariosService } from '../../usuarios/services/usuarios.service';
@@ -18,8 +17,14 @@ import { TurnoCaja, TurnoTotales } from '../../facturacion/models/turno-caja.mod
 import { TurnosCajaService } from '../../facturacion/services/turnos-caja.service';
 import { FacturacionService } from '../../facturacion/services/facturacion.service';
 import { Factura } from '../../facturacion/models/factura.model';
+import { FinanzasTheme, FinanzasThemeService } from '../services/finanzas-theme.service';
+import { InvoicePrintingService } from '../../facturacion/services/invoice-printing.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { buildExecutiveDashboard, ExecutiveDashboard, inFinanceRange } from '../helpers/executive-finance.helper';
+import { desglosarPagosFactura } from '../../facturacion/helpers/pagos-factura.helper';
 
 interface FinanzasViewModel {
+  executive: ExecutiveDashboard;
   movimientos: MovimientoFinanciero[];
   ingresos: number;
   gastos: number;
@@ -78,15 +83,18 @@ interface FinanzasViewModel {
   styleUrls: ['./finanzas.page.scss'],
 })
 export class FinanzasPage {
-  periodo: FiltroPeriodoFinanciero = 'mensual';
+  financeTheme: FinanzasTheme;
+  private readonly rangoInicial = this.getMesActualRango();
+  fechaDesde = this.rangoInicial.desde;
+  fechaHasta = this.rangoInicial.hasta;
   latestRecientes: MovimientoFinanciero[] = [];
   recientesPage = 1;
   recientesPageSize = 10;
   readonly recientesPageSizeOptions = [5, 10, 20, 50];
   turnoSearch = '';
   turnoEstado: 'todos' | 'abierto' | 'cerrado' = 'todos';
-  turnoFechaDesde = this.getSemanaActualRango().desde;
-  turnoFechaHasta = this.getSemanaActualRango().hasta;
+  turnoFechaDesde = this.rangoInicial.desde;
+  turnoFechaHasta = this.rangoInicial.hasta;
   turnoCaja = '';
   turnoUsuario = '';
   turnoPage = 1;
@@ -96,13 +104,27 @@ export class FinanzasPage {
   turnoDetalleOpen = false;
   turnoFacturasOpen = false;
   turnoFacturasSeleccionadas: Factura[] = [];
-  vm$: Observable<FinanzasViewModel> = this.buildViewModel(
-    this.finanzasService.byPeriodo(this.periodo),
-    this.usuariosService.list(),
-    this.cuentasPorPagarService.listEnriquecida(),
-    this.cuentasPorCobrarService.listEnriquecida(),
-    this.turnosCajaService.list(),
-    this.facturacionService.getFacturas(),
+  facturasExpandidas: string[] = [];
+  printingTurno = false;
+  dashboardError = '';
+  private readonly rangeChanges$ = new BehaviorSubject(0);
+  private readonly reloadDashboard$ = new BehaviorSubject(0);
+  // Un único conjunto de suscripciones por carga. Cambiar fechas solo recalcula
+  // datos ya recibidos; comparar el período anterior no consulta Firestore otra vez.
+  vm$: Observable<FinanzasViewModel | null> = this.reloadDashboard$.pipe(
+    switchMap(() => this.buildViewModel(
+      this.finanzasService.list(), this.usuariosService.list(),
+      this.cuentasPorPagarService.listEnriquecida(), this.cuentasPorCobrarService.listEnriquecida(),
+      this.turnosCajaService.list(), this.facturacionService.getFacturas(),
+    ).pipe(
+      startWith(null),
+      catchError((error) => {
+        console.error('[Finanzas] dashboard:', error);
+        this.dashboardError = 'No pudimos cargar la información financiera. Verifica tu conexión y tus permisos.';
+        return of(null);
+      }),
+    )),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   constructor(
@@ -114,28 +136,64 @@ export class FinanzasPage {
     private readonly facturacionService: FacturacionService,
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
-  ) {}
+    private readonly finanzasThemeService: FinanzasThemeService,
+    private readonly invoicePrintingService: InvoicePrintingService,
+    private readonly toastService: ToastService,
+  ) {
+    this.financeTheme = this.finanzasThemeService.theme;
+  }
 
-  changePeriodo(periodo: string | number | undefined): void {
-    if (!periodo) return;
-    this.periodo = periodo as FiltroPeriodoFinanciero;
-    this.vm$ = this.buildViewModel(
-      this.finanzasService.byPeriodo(this.periodo),
-      this.usuariosService.list(),
-      this.cuentasPorPagarService.listEnriquecida(),
-      this.cuentasPorCobrarService.listEnriquecida(),
-      this.turnosCajaService.list(),
-      this.facturacionService.getFacturas(),
-    );
+  toggleFinanceTheme(): void {
+    this.financeTheme = this.finanzasThemeService.toggle();
+  }
+
+  onFechaDesdeChange(value: string | null | undefined): void {
+    this.fechaDesde = String(value || '');
+    if (this.fechaDesde && this.fechaHasta && this.fechaDesde > this.fechaHasta) {
+      this.fechaHasta = this.fechaDesde;
+    }
+    this.refreshViewModel();
+  }
+
+  onFechaHastaChange(value: string | null | undefined): void {
+    this.fechaHasta = String(value || '');
+    if (this.fechaDesde && this.fechaHasta && this.fechaHasta < this.fechaDesde) {
+      this.fechaDesde = this.fechaHasta;
+    }
+    this.refreshViewModel();
+  }
+
+  mostrarMesActual(): void {
+    const rango = this.getMesActualRango();
+    this.fechaDesde = rango.desde;
+    this.fechaHasta = rango.hasta;
+    this.refreshViewModel();
+  }
+
+  private refreshViewModel(): void {
+    this.recientesPage = 1;
+    this.rangeChanges$.next(this.rangeChanges$.value + 1);
+  }
+
+  reintentarDashboard(): void {
+    this.dashboardError = '';
+    this.reloadDashboard$.next(this.reloadDashboard$.value + 1);
   }
 
   formatCurrency = formatCurrencyDOP;
 
   getPeriodoTitulo(): string {
-    if (this.periodo === 'diario') return 'hoy';
-    if (this.periodo === 'semanal') return 'de la semana';
-    if (this.periodo === 'mensual') return 'del mes';
-    return 'del anio';
+    return 'del rango';
+  }
+
+  getRangoTitulo(): string {
+    if (!this.fechaDesde && !this.fechaHasta) return 'Todos los registros';
+    const formatter = new Intl.DateTimeFormat('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
+    const desde = this.fechaDesde ? this.parseDateSafe(`${this.fechaDesde}T00:00:00`) : null;
+    const hasta = this.fechaHasta ? this.parseDateSafe(`${this.fechaHasta}T00:00:00`) : null;
+    if (desde && hasta) return `${formatter.format(desde)} – ${formatter.format(hasta)}`;
+    if (desde) return `Desde ${formatter.format(desde)}`;
+    return hasta ? `Hasta ${formatter.format(hasta)}` : 'Todos los registros';
   }
 
   getTipoBadgeClass(tipo: MovimientoFinanciero['tipo']): string {
@@ -216,9 +274,10 @@ export class FinanzasPage {
     turnos$: Observable<TurnoCaja[]>,
     facturas$: Observable<Factura[]>,
   ): Observable<FinanzasViewModel> {
-    return combineLatest([source$, usuarios$, cuentasPorPagar$, cuentasPorCobrar$, turnos$, facturas$]).pipe(
-      map(([items, usuarios, cuentasPorPagar, cuentasPorCobrar, turnos, facturas]) => {
-        const facturasPeriodo = this.filtrarFacturasContablesPorPeriodo(facturas || [], this.periodo);
+    return combineLatest([source$, usuarios$, cuentasPorPagar$, cuentasPorCobrar$, turnos$, facturas$, this.rangeChanges$]).pipe(
+      map(([allMovements, usuarios, cuentasPorPagar, cuentasPorCobrar, turnos, facturas]) => {
+        const items = allMovements.filter(item => inFinanceRange(item.fecha, this.fechaDesde, this.fechaHasta));
+        const facturasPeriodo = this.filtrarFacturasContablesPorRango(facturas || []);
         const turnosEnriquecidos = this.enriquecerTurnosConFacturas(turnos || [], facturas || []);
         const actividadReciente = this.buildActividadReciente(items, facturasPeriodo);
         const ventasFacturadas = this.calcularVentasFacturadas(facturasPeriodo);
@@ -237,6 +296,7 @@ export class FinanzasPage {
         const topCategoria = Object.entries(groupedGastos).sort(([, a], [, b]) => b - a)[0]?.[0] || 'Sin datos';
 
         return {
+          executive: buildExecutiveDashboard(facturas || [], allMovements, this.fechaDesde, this.fechaHasta),
           movimientos: items,
           ingresos,
           gastos,
@@ -305,11 +365,13 @@ export class FinanzasPage {
       if (q && !text.includes(q)) return false;
       if (caja && !this.normalize(t.cajaNombre).includes(caja)) return false;
       if (usuario && !this.normalize(t.usuarioNombre).includes(usuario)) return false;
-      const fecha = this.parseDateSafe(t.fechaApertura);
+      const fecha = this.parseDateSafe(t.fechaApertura || t.createdAt);
       if (from && (!fecha || fecha < from)) return false;
       if (to && (!fecha || fecha > to)) return false;
       return true;
-    }).sort((a, b) => (this.parseDateSafe(b.fechaApertura)?.getTime() || 0) - (this.parseDateSafe(a.fechaApertura)?.getTime() || 0));
+    }).sort((a, b) =>
+      (this.parseDateSafe(b.fechaApertura || b.createdAt)?.getTime() || 0)
+      - (this.parseDateSafe(a.fechaApertura || a.createdAt)?.getTime() || 0));
   }
 
   getTurnosResumen(vm: FinanzasViewModel): FinanzasViewModel['turnos'] {
@@ -358,6 +420,18 @@ export class FinanzasPage {
 
   onTurnoFechaHastaChange(value: string | null | undefined): void {
     this.turnoFechaHasta = String(value || '');
+    this.turnoPage = 1;
+  }
+
+  get hasTurnoFilters(): boolean {
+    return Boolean(this.turnoSearch.trim() || this.turnoEstado !== 'todos' || this.turnoFechaDesde || this.turnoFechaHasta);
+  }
+
+  clearTurnoFilters(): void {
+    this.turnoSearch = '';
+    this.turnoEstado = 'todos';
+    this.turnoFechaDesde = '';
+    this.turnoFechaHasta = '';
     this.turnoPage = 1;
   }
 
@@ -414,27 +488,57 @@ export class FinanzasPage {
     return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }
 
-  abrirDetalleTurno(turno: TurnoCaja): void {
+  abrirDetalleTurno(turno: TurnoCaja, vm: FinanzasViewModel): void {
     this.selectedTurno = turno;
+    this.cargarFacturasDelTurno(turno, vm);
     this.turnoDetalleOpen = true;
   }
 
   cerrarDetalleTurno(): void {
     this.turnoDetalleOpen = false;
     this.selectedTurno = null;
+    this.turnoFacturasSeleccionadas = [];
+    this.facturasExpandidas = [];
   }
 
   verFacturasTurno(turno: TurnoCaja, vm: FinanzasViewModel): void {
     this.selectedTurno = turno;
-    this.turnoFacturasSeleccionadas = (vm.facturasRaw || [])
-      .filter((f) => String(f.turnoId || '') === String(turno.id || ''))
-      .sort((a, b) => this.parseFecha(b.fecha || b.creadoEn) - this.parseFecha(a.fecha || a.creadoEn));
+    this.cargarFacturasDelTurno(turno, vm);
     this.turnoFacturasOpen = true;
+  }
+
+  private cargarFacturasDelTurno(turno: TurnoCaja, vm: FinanzasViewModel): void {
+    this.turnoFacturasSeleccionadas = (vm.facturasRaw || [])
+      .filter((f) => !!turno.id && f.turnoId === turno.id)
+      .sort((a, b) => this.parseFecha(b.fecha || b.creadoEn) - this.parseFecha(a.fecha || a.creadoEn));
+    this.facturasExpandidas = this.turnoFacturasSeleccionadas.map((f, index) => f.id || String(index));
   }
 
   cerrarFacturasTurno(): void {
     this.turnoFacturasOpen = false;
     this.turnoFacturasSeleccionadas = [];
+    this.facturasExpandidas = [];
+    this.selectedTurno = null;
+  }
+
+  async imprimirTurno(turno: TurnoCaja): Promise<void> {
+    if (this.printingTurno) return;
+    if (turno.estado !== 'cerrado') {
+      await this.toastService.error('Cierra el turno antes de imprimir su cuadre.');
+      return;
+    }
+    this.printingTurno = true;
+    try {
+      await this.invoicePrintingService.printShiftClose(turno);
+    } catch (error) {
+      await this.toastService.error(this.invoicePrintingService.getFriendlyError(error));
+    } finally {
+      this.printingTurno = false;
+    }
+  }
+
+  getFacturaPagoDetalle(factura: Factura) {
+    return this.getFacturaPaymentBreakdown(factura);
   }
 
   async cerrarTurnoDesdeFinanzas(turno: TurnoCaja): Promise<void> {
@@ -451,7 +555,7 @@ export class FinanzasPage {
 
     const prompt = await this.alertCtrl.create({
       header: 'Cerrar turno',
-      message: 'Registra el efectivo contado para cerrar el turno.',
+      message: 'Registra únicamente el efectivo de las ventas. El fondo inicial se cuenta aparte; tarjetas, transferencias y crédito no se suman al efectivo esperado.',
       inputs: [
         { name: 'efectivoContado', type: 'number', placeholder: 'Efectivo contado' },
         { name: 'observacionCierre', type: 'text', placeholder: 'Observación de cierre (opcional)' },
@@ -487,7 +591,8 @@ export class FinanzasPage {
       const d = (value as any).toDate();
       return Number.isNaN(d.getTime()) ? null : d;
     }
-    const parsed = new Date(String(value));
+    const raw = String(value).trim();
+    const parsed = new Date(/^\d{4}-\d{2}-\d{2}$/.test(raw) ? `${raw}T00:00:00` : raw);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
@@ -623,21 +728,17 @@ export class FinanzasPage {
     return ['emitida', 'pagada'].includes(String(factura.estado || '').toLowerCase()) && String(factura.estado || '').toLowerCase() !== 'anulada';
   }
 
-  private filtrarFacturasContablesPorPeriodo(facturas: Factura[], periodo: FiltroPeriodoFinanciero): Factura[] {
-    const interval = this.getPeriodoInterval(periodo);
+  private filtrarFacturasContablesPorRango(facturas: Factura[]): Factura[] {
+    const desde = this.fechaDesde ? this.parseDateSafe(`${this.fechaDesde}T00:00:00`) : null;
+    const hasta = this.fechaHasta ? this.parseDateSafe(`${this.fechaHasta}T23:59:59.999`) : null;
     return facturas.filter((factura) => {
       if (!this.esFacturaContable(factura)) return false;
       const fecha = this.parseDateSafe(factura.fecha || factura.creadoEn);
       if (!fecha) return false;
-      return fecha >= interval.start && fecha <= interval.end;
+      if (desde && fecha < desde) return false;
+      if (hasta && fecha > hasta) return false;
+      return true;
     });
-  }
-
-  private getPeriodoInterval(periodo: FiltroPeriodoFinanciero, baseDate = new Date()): { start: Date; end: Date } {
-    if (periodo === 'diario') return { start: startOfDay(baseDate), end: endOfDay(baseDate) };
-    if (periodo === 'semanal') return { start: startOfWeek(baseDate, { weekStartsOn: 1 }), end: endOfWeek(baseDate, { weekStartsOn: 1 }) };
-    if (periodo === 'mensual') return { start: startOfMonth(baseDate), end: endOfMonth(baseDate) };
-    return { start: startOfYear(baseDate), end: endOfYear(baseDate) };
   }
 
   private enriquecerTurnosConFacturas(turnos: TurnoCaja[], facturas: Factura[]): TurnoCaja[] {
@@ -659,13 +760,14 @@ export class FinanzasPage {
       });
 
     return turnos.map((turno) => {
+      // Un cierre es una fotografía contable: reimprimir debe conservar los
+      // importes, el conteo y la diferencia registrados al cerrar la caja.
+      if (turno.estado === 'cerrado') return { ...turno };
       const totales = totalesPorTurno.get(String(turno.id || '')) || this.createEmptyTurnoTotales();
       const montoInicial = this.toNumberSafe(turno.montoInicial);
-      const efectivoEsperado = Number((montoInicial + totales.totalEfectivo).toFixed(2));
-      const efectivoContado = turno.estado === 'cerrado' ? this.toNumberSafe(turno.efectivoContado) : null;
-      const diferencia = turno.estado === 'cerrado' && efectivoContado !== null
-        ? Number((efectivoContado - efectivoEsperado).toFixed(2))
-        : this.toNumberSafe(turno.diferencia);
+      const efectivoEsperado = Number(((turno.fondoInicialIncluidoEnConteo === true ? montoInicial : 0) + totales.totalEfectivo).toFixed(2));
+      const efectivoContado = null;
+      const diferencia = this.toNumberSafe(turno.diferencia);
 
       return {
         ...turno,
@@ -683,24 +785,7 @@ export class FinanzasPage {
   }
 
   private getFacturaPaymentBreakdown(factura: Factura): { efectivo: number; tarjeta: number; transferencia: number; credito: number } {
-    const pagos = factura.pagos;
-    if (pagos) {
-      return {
-        efectivo: this.toNumber(pagos.efectivo),
-        tarjeta: this.toNumber(pagos.tarjeta),
-        transferencia: this.toNumber(pagos.transferencia),
-        credito: this.toNumber(pagos.credito ?? pagos.totalCredito),
-      };
-    }
-
-    const total = this.toNumber(factura.total);
-    const formaPago = this.normalize(factura.formaPago);
-    return {
-      efectivo: formaPago === 'efectivo' ? total : 0,
-      tarjeta: formaPago === 'tarjeta' ? total : 0,
-      transferencia: formaPago === 'transferencia' ? total : 0,
-      credito: formaPago === 'credito' ? total : 0,
-    };
+    return desglosarPagosFactura(factura);
   }
 
   private createEmptyTurnoTotales(): TurnoTotales {
@@ -857,21 +942,14 @@ export class FinanzasPage {
     return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   }
 
-  private getSemanaActualRango(): { desde: string; hasta: string } {
+  private getMesActualRango(): { desde: string; hasta: string } {
     const now = new Date();
-    const day = now.getDay(); // 0 domingo, 1 lunes, ..., 6 sabado
-    const diffToMonday = day === 0 ? -6 : 1 - day;
-    const monday = new Date(now);
-    monday.setDate(now.getDate() + diffToMonday);
-    monday.setHours(0, 0, 0, 0);
-
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
     return {
-      desde: this.toInputDate(monday),
-      hasta: this.toInputDate(sunday),
+      desde: this.toInputDate(firstDay),
+      hasta: this.toInputDate(lastDay),
     };
   }
 

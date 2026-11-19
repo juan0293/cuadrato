@@ -6,6 +6,7 @@ import { UsuariosService } from '../services/usuarios.service';
 import { normalizeEmail, phoneValidator } from '../utils/usuarios.utils';
 import { UsuarioModel } from '../models/usuario.model';
 import { ToastService } from '../../../core/services/toast.service';
+import { UsuariosThemeService } from '../services/usuarios-theme.service';
 
 @Component({
   standalone: false,
@@ -15,6 +16,8 @@ import { ToastService } from '../../../core/services/toast.service';
 })
 export class UsuarioFormPage implements OnInit {
   userId: string | null = null;
+  saving = false;
+  private existingUser: UsuarioModel | null = null;
 
   readonly form = this.fb.nonNullable.group({
     nombre: ['', [Validators.required, Validators.minLength(3)]],
@@ -30,13 +33,23 @@ export class UsuarioFormPage implements OnInit {
     private readonly router: Router,
     private readonly usuariosService: UsuariosService,
     private readonly toastService: ToastService,
+    private readonly themeService: UsuariosThemeService,
   ) {}
+
+  get usersTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleUsersTheme(): void {
+    this.themeService.toggle();
+  }
 
   async ngOnInit(): Promise<void> {
     this.userId = this.route.snapshot.paramMap.get('id');
     if (!this.userId) return;
 
     const user = await firstValueFrom(this.usuariosService.getById(this.userId));
+    this.existingUser = user;
     this.form.patchValue({
       nombre: user.nombre,
       email: user.email,
@@ -51,29 +64,43 @@ export class UsuarioFormPage implements OnInit {
    * el control operativo/roles, no la creación automatizada de credenciales Auth.
    */
   async save(): Promise<void> {
+    if (this.saving) return;
     if (this.form.invalid) {
-      await this.toastService.error('Formulario inválido.');
+      this.form.markAllAsTouched();
+      await this.toastService.error('Completa correctamente los campos obligatorios.');
       return;
     }
 
     const raw = this.form.getRawValue();
+    const telefono = raw.telefono.trim();
     const payload: UsuarioModel = {
       nombre: raw.nombre.trim(),
       email: normalizeEmail(raw.email),
       rol: raw.rol,
-      telefono: raw.telefono?.trim() || undefined,
+      ...(telefono ? { telefono } : {}),
       activo: raw.activo,
-      fechaCreacion: new Date().toISOString(),
+      fechaCreacion: this.existingUser?.fechaCreacion || new Date().toISOString(),
     };
 
-    if (this.userId) {
-      await this.usuariosService.update(this.userId, payload);
-      await this.toastService.success('Usuario actualizado.');
-    } else {
-      await this.usuariosService.create(payload);
-      await this.toastService.success('Usuario creado.');
+    this.saving = true;
+    try {
+      if (this.userId) {
+        await this.usuariosService.update(this.userId, payload);
+        await this.toastService.success('Usuario actualizado.');
+      } else {
+        await this.usuariosService.create(payload);
+        await this.toastService.success('Usuario creado.');
+      }
+      await this.router.navigateByUrl('/admin/usuarios');
+    } catch (error) {
+      console.error('Error guardando usuario interno', error);
+      await this.toastService.error('No fue posible guardar el usuario.');
+    } finally {
+      this.saving = false;
     }
+  }
 
-    await this.router.navigateByUrl('/admin/usuarios');
+  cancel(): void {
+    void this.router.navigateByUrl('/admin/usuarios');
   }
 }

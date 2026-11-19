@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { CompanyProfile } from '../../../../core/models/company-profile.model';
 import { CompanyProfileService } from '../../../../core/services/company-profile.service';
 import { ToastService } from '../../../../core/services/toast.service';
+import { AdminShellThemeService } from '../../../../core/services/admin-shell-theme.service';
 
 @Component({
   selector: 'app-company-profile',
@@ -35,7 +36,16 @@ export class CompanyProfilePage implements OnInit {
     private readonly router: Router,
     private readonly companyProfileService: CompanyProfileService,
     private readonly toastService: ToastService,
+    private readonly themeService: AdminShellThemeService,
   ) {}
+
+  get shellTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleShellTheme(): void {
+    this.themeService.toggle();
+  }
 
   async ngOnInit(): Promise<void> {
     await this.loadProfile();
@@ -94,14 +104,19 @@ export class CompanyProfilePage implements OnInit {
     this.isSaving = true;
     try {
       const raw = this.form.getRawValue();
+      const rnc = raw.rnc.trim();
+      const telefono = raw.telefono.trim();
+      const direccion = raw.direccion.trim();
+      const logoUrl = raw.logoUrl.trim();
+      const logoStoragePath = raw.logoStoragePath.trim();
       await this.companyProfileService.saveCurrentProfile({
         companyTitle: raw.companyTitle.trim(),
         ticketSubtitle: raw.ticketSubtitle.trim(),
-        rnc: raw.rnc.trim() || undefined,
-        telefono: raw.telefono.trim() || undefined,
-        direccion: raw.direccion.trim() || undefined,
-        logoUrl: raw.logoUrl.trim() || undefined,
-        logoStoragePath: raw.logoStoragePath.trim() || undefined,
+        ...(rnc ? { rnc } : {}),
+        ...(telefono ? { telefono } : {}),
+        ...(direccion ? { direccion } : {}),
+        ...(logoUrl ? { logoUrl } : {}),
+        ...(logoStoragePath ? { logoStoragePath } : {}),
       });
       await this.toastService.success('Datos de empresa actualizados.');
       await this.loadProfile();

@@ -1,249 +1,104 @@
-<ion-content class="finance-movements-page">
-  <div class="shell ion-padding">
-    <section class="header">
-      <div class="header-copy">
-        <h1>Movimientos financieros</h1>
-        <p>Controla ingresos, gastos y flujo financiero en tiempo real.</p>
-        <small>{{ fechaActualLabel }}</small>
+<ion-content class="finance-movements-page finanzas-module-page"
+  [class.theme-light]="financeTheme === 'light'" [class.theme-dark]="financeTheme === 'dark'">
+  <div class="shell movements-shell">
+    <header class="finance-page-header card-premium">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="swap-vertical-outline" aria-hidden="true"></ion-icon></span>
+        <div><span class="eyebrow">Finanzas · Operaciones</span><h1>Movimientos financieros</h1><p>Controla ingresos, gastos y flujo financiero desde una vista conciliada.</p></div>
       </div>
       <div class="header-actions">
-        <ion-button class="btn-secondary" fill="outline" routerLink="/admin/finanzas">
-          <ion-icon name="arrow-back-outline" slot="start"></ion-icon>
-          Volver a finanzas
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleFinanceTheme()" [attr.aria-label]="financeTheme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'" [attr.aria-pressed]="financeTheme === 'dark'">
+          <ion-icon slot="start" [name]="financeTheme === 'dark' ? 'sunny-outline' : 'moon-outline'"></ion-icon>{{ financeTheme === 'dark' ? 'Modo claro' : 'Modo oscuro' }}
         </ion-button>
-        <ion-button class="btn-primary" routerLink="/admin/finanzas/movimientos/nuevo">
-          <ion-icon name="add-outline" slot="start"></ion-icon>
-          Registrar movimiento
-        </ion-button>
+        <ion-button class="btn-outline" fill="outline" routerLink="/admin/finanzas"><ion-icon name="arrow-back-outline" slot="start"></ion-icon>Volver a finanzas</ion-button>
+        <ion-button class="btn-primary" routerLink="/admin/finanzas/movimientos/nuevo"><ion-icon name="add-outline" slot="start"></ion-icon>Registrar movimiento</ion-button>
       </div>
-    </section>
+    </header>
 
-    <section class="hero card">
-      <div>
-        <h2>Dashboard financiero ejecutivo</h2>
-        <p>Monitorea balance, tendencias y categorías clave desde una vista conciliada con facturación real.</p>
-      </div>
-      <ion-chip [color]="balanceNeto >= 0 ? 'success' : 'danger'">
-        <ion-icon [name]="balanceNeto >= 0 ? 'trending-up-outline' : 'trending-down-outline'"></ion-icon>
-        <ion-label>{{ flujoFinanciero }}</ion-label>
-      </ion-chip>
-    </section>
-
-       <section class="card filters">
-      <div class="section-head">
-        <h3>Filtros inteligentes</h3>
-        <p>Aplica filtros por rango, tipo, categoría, método y responsable.</p>
-      </div>
-
-      <div class="quick-chips">
-        <ion-chip [outline]="selectedQuickFilter !== 'hoy'" (click)="applyQuickFilter('hoy')"><ion-label>Hoy</ion-label></ion-chip>
-        <ion-chip [outline]="selectedQuickFilter !== 'semana'" (click)="applyQuickFilter('semana')"><ion-label>Semana</ion-label></ion-chip>
-        <ion-chip [outline]="selectedQuickFilter !== 'mes'" (click)="applyQuickFilter('mes')"><ion-label>Mes</ion-label></ion-chip>
-        <ion-chip [outline]="selectedQuickFilter !== 'ingresos'" (click)="applyQuickFilter('ingresos')"><ion-label>Ingresos</ion-label></ion-chip>
-        <ion-chip [outline]="selectedQuickFilter !== 'gastos'" (click)="applyQuickFilter('gastos')"><ion-label>Gastos</ion-label></ion-chip>
-      </div>
-
-      <div class="filter-grid filter-grid-search">
-        <ion-searchbar
-        mode="ios"
-        color="light"
-          placeholder="Búsqueda global: categoría, descripción, método, responsable"
-          [value]="query"
-          (ionInput)="onSearch($any($event.detail).value)">
-        </ion-searchbar>
-      </div>
-
-      <div class="filter-grid filter-grid-top">
-        <ion-item>
-          <ion-label>Tipo</ion-label>
-          <ion-select [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover" >
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option value="ingreso">Ingresos</ion-select-option>
-            <ion-select-option value="gasto">Gastos</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-label>Categoría</ion-label>
-          <ion-select [value]="filtroCategoria" (ionChange)="onCategoriaChange($any($event.detail).value)" interface="popover">
-            <ion-select-option value="todas">Todas</ion-select-option>
-            <ion-select-option *ngFor="let categoria of categoriasDisponibles" [value]="categoria">{{ categoria }}</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-label>Método de pago</ion-label>
-          <ion-select [value]="filtroMetodoPago" (ionChange)="onMetodoPagoChange($any($event.detail).value)" interface="popover">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option *ngFor="let metodo of metodosPagoDisponibles" [value]="metodo">{{ metodo }}</ion-select-option>
-          </ion-select>
-        </ion-item>
-      </div>
-
-      <div class="filter-grid filter-grid-bottom">
-        <ion-item>
-          <ion-label>Usuario</ion-label>
-          <ion-select [value]="filtroUsuario" (ionChange)="onUsuarioChange($any($event.detail).value)" interface="popover">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option *ngFor="let user of usuariosDisponibles" [value]="user">{{ getUsuarioNombre(user) }}</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-label>Estado</ion-label>
-          <ion-select [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option *ngFor="let estado of estadosDisponibles" [value]="estado">{{ estado }}</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Fecha desde</ion-label>
-          <ion-input type="date" [value]="filtroFechaDesde" (ionInput)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
-        </ion-item>
-        <ion-item>
-          <ion-label position="stacked">Fecha hasta</ion-label>
-          <ion-input type="date" [value]="filtroFechaHasta" (ionInput)="onFechaHastaChange($any($event.detail).value)"></ion-input>
-        </ion-item>
-      </div>
-    </section>
-
-    <section class="kpis">
-      <article class="kpi-card"><span>Ingresos totales</span><strong>{{ formatCurrency(totalIngresos) }}</strong><small>Facturación real más ingresos manuales</small></article>
-      <article class="kpi-card"><span>Ventas facturadas</span><strong>{{ formatCurrency(ventasFacturadas) }}</strong><small>Emitidas y pagadas del periodo</small></article>
-      <article class="kpi-card"><span>Otros ingresos</span><strong>{{ formatCurrency(otrosIngresos) }}</strong><small>Entradas manuales no vinculadas a facturas</small></article>
-      <article class="kpi-card"><span>Gastos totales</span><strong>{{ formatCurrency(totalGastos) }}</strong><small>Salidas acumuladas</small></article>
-      <article class="kpi-card"><span>Balance neto</span><strong [class.negative]="balanceNeto < 0">{{ formatCurrency(balanceNeto) }}</strong><small>Resultado conciliado del periodo</small></article>
-      <article class="kpi-card"><span>Movimientos del día</span><strong>{{ movimientosHoy }}</strong><small>Actividad diaria</small></article>
-      <article class="kpi-card"><span>Movimientos del mes</span><strong>{{ movimientosMes }}</strong><small>Periodo vigente</small></article>
-      <article class="kpi-card"><span>Promedio diario</span><strong>{{ formatCurrency(promedioDiario) }}</strong><small>Ritmo operativo</small></article>
-      <article class="kpi-card"><span>Último movimiento</span><strong>{{ ultimoMovimientoLabel }}</strong><small>Trazabilidad reciente</small></article>
-      <article class="kpi-card"><span>Balance disponible</span><strong [class.negative]="balanceDisponible < 0">{{ formatCurrency(balanceDisponible) }}</strong><small>Flujo disponible</small></article>
-      <article class="kpi-card"><span>Top gasto</span><strong>{{ categoriaTopGasto }}</strong><small>Categoría con mayor salida</small></article>
-      <article class="kpi-card"><span>Top ingreso</span><strong>{{ categoriaTopIngreso }}</strong><small>Categoría con mayor entrada</small></article>
-    </section>
-
- 
-
-    <section class="charts-grid" *ngIf="!loading && !loadError && hasData">
-      <section class="card chart-card">
-        <div class="section-head">
-          <h3>Ingresos vs Gastos</h3>
-          <p>Comparativo consolidado del período filtrado.</p>
-        </div>
-        <div class="chart-wrap"><canvas #ingresosVsGastosCanvas></canvas></div>
-      </section>
-
-      <section class="card chart-card">
-        <div class="section-head">
-          <h3>Distribución por categoría</h3>
-          <p>Peso relativo de cada categoría financiera.</p>
-        </div>
-        <div class="chart-wrap"><canvas #categoriasCanvas></canvas></div>
-      </section>
-
-      <section class="card chart-card chart-wide">
-        <div class="section-head">
-          <h3>Tendencia financiera (30 días)</h3>
-          <p>Evolución de entradas y salidas con enfoque gerencial.</p>
-        </div>
-        <div class="chart-wrap"><canvas #tendenciaCanvas></canvas></div>
-      </section>
-    </section>
-
-    <section class="card" *ngIf="!loading && !loadError && hasData">
-      <div class="section-head section-head--actions">
-        <div>
-          <h3>Movimientos recientes</h3>
-          <p>Detalle operativo de los registros financieros.</p>
-        </div>
-        <ion-button fill="outline" size="small" (click)="exportarExcelMovimientosRecientes()">Exportar Excel</ion-button>
-      </div>
-
-      <div class="desktop-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Fecha</th>
-              <th>Tipo</th>
-              <th>Categoría</th>
-              <th>Descripción</th>
-              <th>Método de pago</th>
-              <th class="num">Monto</th>
-              <th>Usuario</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let item of pagedMovimientos">
-              <td>{{ formatDate(item.fecha) }}</td>
-              <td>
-                <ion-chip [color]="item.tipo === 'ingreso' ? 'success' : 'danger'">
-                  <ion-label>{{ item.tipo | titlecase }}</ion-label>
-                </ion-chip>
-              </td>
-              <td>{{ item.categoria || '—' }}</td>
-              <td>{{ item.descripcion || '—' }}</td>
-              <td>{{ getMetodoPago(item) }}</td>
-              <td class="num total" [class.negative]="item.tipo === 'gasto'">{{ formatCurrency(item.monto) }}</td>
-              <td>{{ getUsuarioNombre(item.creadoPor) }}</td>
-              <td>
-                <ion-chip [color]="estadoColor(item)">
-                  <ion-label>{{ getEstado(item) }}</ion-label>
-                </ion-chip>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <div class="table-pagination">
-        <div class="page-size">
-          <span>Filas por página</span>
-          <ion-select interface="popover" [value]="pageSize" (ionChange)="onPageSizeChange($any($event.detail).value)">
-            <ion-select-option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</ion-select-option>
-          </ion-select>
-        </div>
-        <div class="page-controls">
-          <ion-button size="small" fill="outline" [disabled]="!canGoPrev" (click)="prevPage()">Anterior</ion-button>
-          <span>Página {{ page }} de {{ totalPages }}</span>
-          <ion-button size="small" fill="outline" [disabled]="!canGoNext" (click)="nextPage()">Siguiente</ion-button>
-        </div>
-      </div>
-
-      <div class="mobile-cards">
-        <article class="movement-card" *ngFor="let item of pagedMovimientos">
-          <header>
-            <h3>{{ item.categoria || 'Sin categoría' }}</h3>
-            <ion-chip [color]="item.tipo === 'ingreso' ? 'success' : 'danger'">
-              <ion-label>{{ item.tipo | titlecase }}</ion-label>
-            </ion-chip>
-          </header>
-          <p>{{ item.descripcion || 'Sin descripción' }}</p>
-          <small>{{ formatDateTime(item.fecha) }}</small>
-          <div class="meta">
-            <span>{{ getMetodoPago(item) }}</span>
-            <span>{{ getUsuarioNombre(item.creadoPor) }}</span>
+    <section class="section-block movements-filter-section">
+      <section class="card-premium filters movements-filters">
+        <div class="filters-header">
+          <div>
+            <span class="section-kicker">Consulta de movimientos</span>
+            <h2>Filtra los movimientos</h2>
+            <p>Selecciona uno o varios criterios para obtener una vista más precisa.</p>
           </div>
-          <div class="totals">
-            <strong [class.negative]="item.tipo === 'gasto'">{{ formatCurrency(item.monto) }}</strong>
+          <div class="filters-status-actions">
+            <div class="filter-result">
+              <span class="filter-status-label">Resultados</span>
+              <strong>{{ movimientosFiltrados.length }} {{ movimientosFiltrados.length === 1 ? 'movimiento' : 'movimientos' }}</strong>
+            </div>
+            <ion-button class="clear-filters-button" fill="clear" (click)="clearFilters()" [disabled]="!hasActiveFilters"><ion-icon slot="start" name="close-circle-outline"></ion-icon>Quitar filtros</ion-button>
           </div>
-        </article>
+        </div>
+        <div class="finance-filter-grid movements-filter-grid">
+          <div class="finance-filter-field"><span>Tipo de movimiento</span><ion-item><ion-select aria-label="Tipo de movimiento" [value]="filtroTipo" (ionChange)="onTipoChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos los tipos</ion-select-option><ion-select-option value="ingreso">Ingresos</ion-select-option><ion-select-option value="gasto">Gastos</ion-select-option></ion-select></ion-item></div>
+          <div class="finance-filter-field"><span>Categoría</span><ion-item><ion-select aria-label="Categoría" [value]="filtroCategoria" (ionChange)="onCategoriaChange($any($event.detail).value)" interface="popover"><ion-select-option value="todas">Todas las categorías</ion-select-option><ion-select-option *ngFor="let categoria of categoriasDisponibles" [value]="categoria">{{ categoria }}</ion-select-option></ion-select></ion-item></div>
+          <div class="finance-filter-field"><span>Forma de pago</span><ion-item><ion-select aria-label="Forma de pago" [value]="filtroMetodoPago" (ionChange)="onMetodoPagoChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todas las formas</ion-select-option><ion-select-option *ngFor="let metodo of metodosPagoDisponibles" [value]="metodo">{{ metodo }}</ion-select-option></ion-select></ion-item></div>
+          <div class="finance-filter-field"><span>Registrado por</span><ion-item><ion-select aria-label="Usuario que registró el movimiento" [value]="filtroUsuario" (ionChange)="onUsuarioChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos los usuarios</ion-select-option><ion-select-option *ngFor="let user of usuariosDisponibles" [value]="user">{{ getUsuarioNombre(user) }}</ion-select-option></ion-select></ion-item></div>
+          <div class="finance-filter-field"><span>Estado del registro</span><ion-item><ion-select aria-label="Estado del registro" [value]="filtroEstado" (ionChange)="onEstadoChange($any($event.detail).value)" interface="popover"><ion-select-option value="todos">Todos los estados</ion-select-option><ion-select-option *ngFor="let estado of estadosDisponibles" [value]="estado">{{ estado }}</ion-select-option></ion-select></ion-item></div>
+          <div class="finance-filter-field"><span>Desde</span><ion-item><ion-input aria-label="Fecha inicial" type="date" [value]="filtroFechaDesde" [max]="filtroFechaHasta || undefined" (ionChange)="onFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item></div>
+          <div class="finance-filter-field"><span>Hasta</span><ion-item><ion-input aria-label="Fecha final" type="date" [value]="filtroFechaHasta" [min]="filtroFechaDesde || undefined" (ionChange)="onFechaHastaChange($any($event.detail).value)"></ion-input></ion-item></div>
+        </div>
+        <div class="filter-feedback"><ion-icon name="information-circle-outline"></ion-icon><span>El resumen, los gráficos y el listado se actualizan automáticamente.</span></div>
+      </section>
+    </section>
+
+    <section class="finanzas-hero card-premium movements-hero">
+      <div class="hero-top">
+        <div class="hero-copy"><span class="hero-eyebrow">Resumen general</span><h2>Control ejecutivo de movimientos</h2><p>Consulta el comportamiento financiero según el rango y los filtros seleccionados.</p></div>
+        <span class="period-badge"><ion-icon name="calendar-outline"></ion-icon>{{ fechaActualLabel | titlecase }}</span>
+      </div>
+      <div class="hero-highlights">
+        <article class="hero-stat"><span>Balance filtrado</span><strong [class.is-success]="balanceNeto >= 0" [class.is-danger]="balanceNeto < 0">{{ formatCurrency(balanceNeto) }}</strong><small>Ingresos menos gastos en la consulta actual.</small></article>
+        <article class="hero-stat"><span>Flujo financiero</span><strong [class.is-success]="balanceNeto > 0" [class.is-danger]="balanceNeto < 0">{{ flujoFinanciero }}</strong><small>Estado calculado a partir del balance neto.</small></article>
+        <article class="hero-stat"><span>Registros encontrados</span><strong>{{ movimientosFiltrados.length }}</strong><small>Movimientos que cumplen los filtros activos.</small></article>
       </div>
     </section>
 
-    <section class="card" *ngIf="loading">
-      <app-skeleton-card></app-skeleton-card>
+    <section class="section-block">
+      <div class="section-title"><span class="section-kicker">Resumen ejecutivo</span><h2>Indicadores de la consulta</h2><p>Lectura rápida de entradas, salidas, balance y comportamiento operativo.</p></div>
+      <div class="kpis movements-kpis">
+        <article class="kpi-card"><ion-icon name="cash-outline"></ion-icon><span>Ingresos totales</span><strong class="is-success">{{ formatCurrency(totalIngresos) }}</strong><small>Facturación real más ingresos manuales</small></article>
+        <article class="kpi-card"><ion-icon name="receipt-outline"></ion-icon><span>Ventas facturadas</span><strong class="is-success">{{ formatCurrency(ventasFacturadas) }}</strong><small>Facturas emitidas y pagadas</small></article>
+        <article class="kpi-card"><ion-icon name="add-circle-outline"></ion-icon><span>Otros ingresos</span><strong>{{ formatCurrency(otrosIngresos) }}</strong><small>Entradas manuales no facturadas</small></article>
+        <article class="kpi-card"><ion-icon name="trending-down-outline"></ion-icon><span>Gastos totales</span><strong class="is-danger">{{ formatCurrency(totalGastos) }}</strong><small>Salidas acumuladas</small></article>
+        <article class="kpi-card"><ion-icon name="scale-outline"></ion-icon><span>Balance neto</span><strong [class.is-success]="balanceNeto >= 0" [class.is-danger]="balanceNeto < 0">{{ formatCurrency(balanceNeto) }}</strong><small>Resultado conciliado</small></article>
+        <article class="kpi-card"><ion-icon name="today-outline"></ion-icon><span>Movimientos del día</span><strong>{{ movimientosHoy }}</strong><small>Actividad de hoy</small></article>
+        <article class="kpi-card"><ion-icon name="calendar-outline"></ion-icon><span>Movimientos del mes</span><strong>{{ movimientosMes }}</strong><small>Actividad del mes vigente</small></article>
+        <article class="kpi-card"><ion-icon name="calculator-outline"></ion-icon><span>Promedio diario</span><strong>{{ formatCurrency(promedioDiario) }}</strong><small>Ritmo operativo</small></article>
+        <article class="kpi-card"><ion-icon name="time-outline"></ion-icon><span>Último movimiento</span><strong>{{ ultimoMovimientoLabel }}</strong><small>Trazabilidad reciente</small></article>
+        <article class="kpi-card"><ion-icon name="wallet-outline"></ion-icon><span>Balance disponible</span><strong [class.is-success]="balanceDisponible >= 0" [class.is-danger]="balanceDisponible < 0">{{ formatCurrency(balanceDisponible) }}</strong><small>Flujo disponible</small></article>
+        <article class="kpi-card"><ion-icon name="arrow-down-circle-outline"></ion-icon><span>Top gasto</span><strong>{{ categoriaTopGasto }}</strong><small>Categoría con mayor salida</small></article>
+        <article class="kpi-card"><ion-icon name="arrow-up-circle-outline"></ion-icon><span>Top ingreso</span><strong>{{ categoriaTopIngreso }}</strong><small>Categoría con mayor entrada</small></article>
+      </div>
     </section>
 
-    <section class="card" *ngIf="loadError">
-      <app-empty-state
-        title="No pudimos cargar los movimientos financieros"
-        message="Intenta nuevamente para visualizar el dashboard.">
-      </app-empty-state>
+    <section class="section-block" *ngIf="!loading && !loadError && hasData">
+      <div class="section-title"><span class="section-kicker">Analítica visual</span><h2>Composición y tendencia financiera</h2><p>Compara entradas y salidas e identifica las categorías con mayor impacto.</p></div>
+      <div class="charts-grid">
+        <section class="card-premium chart-card"><div class="section-head"><h3>Ingresos vs. gastos</h3><p>Comparativo consolidado de la consulta.</p></div><div class="chart-wrap"><canvas #ingresosVsGastosCanvas></canvas></div></section>
+        <section class="card-premium chart-card"><div class="section-head"><h3>Distribución por categoría</h3><p>Peso relativo de cada categoría financiera.</p></div><div class="chart-wrap"><canvas #categoriasCanvas></canvas></div></section>
+        <section class="card-premium chart-card chart-wide"><div class="section-head"><h3>Tendencia financiera</h3><p>Evolución de entradas y salidas durante los últimos 30 días.</p></div><div class="chart-wrap"><canvas #tendenciaCanvas></canvas></div></section>
+      </div>
     </section>
 
-    <section class="card" *ngIf="!loading && !loadError && !hasData">
-      <app-empty-state
-        title="Sin movimientos financieros"
-        message="Registra tu primer ingreso o gasto para iniciar el control gerencial.">
-      </app-empty-state>
+    <section class="section-block" *ngIf="!loading && !loadError && hasData">
+      <div class="section-title movements-list-title"><div><span class="section-kicker">Control operativo</span><h2>Detalle de movimientos</h2><p>Revisa los registros financieros que cumplen la consulta actual.</p></div><ion-button fill="outline" size="small" (click)="exportarExcelMovimientosRecientes()"><ion-icon slot="start" name="download-outline"></ion-icon>Exportar Excel</ion-button></div>
+      <section class="card-premium movements-table-card">
+        <div class="desktop-table movements-table">
+          <table><thead><tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Descripción</th><th>Método de pago</th><th class="num">Monto</th><th>Usuario</th><th>Estado</th></tr></thead>
+          <tbody><tr *ngFor="let item of pagedMovimientos"><td>{{ formatDate(item.fecha) }}</td><td><span [class]="item.tipo === 'ingreso' ? 'mov-badge mov-badge--ingreso' : 'mov-badge mov-badge--gasto'">{{ item.tipo | titlecase }}</span></td><td>{{ item.categoria || '—' }}</td><td>{{ item.descripcion || '—' }}</td><td>{{ getMetodoPago(item) }}</td><td class="num total" [class.is-danger]="item.tipo === 'gasto'" [class.is-success]="item.tipo === 'ingreso'">{{ formatCurrency(item.monto) }}</td><td>{{ getUsuarioNombre(item.creadoPor) }}</td><td><ion-chip [color]="estadoColor(item)"><ion-label>{{ getEstado(item) }}</ion-label></ion-chip></td></tr></tbody></table>
+        </div>
+        <div class="mobile-cards">
+          <article class="movement-card" *ngFor="let item of pagedMovimientos"><header><div><span [class]="item.tipo === 'ingreso' ? 'mov-badge mov-badge--ingreso' : 'mov-badge mov-badge--gasto'">{{ item.tipo | titlecase }}</span><h3>{{ item.categoria || 'Sin categoría' }}</h3></div><strong [class.is-danger]="item.tipo === 'gasto'" [class.is-success]="item.tipo === 'ingreso'">{{ formatCurrency(item.monto) }}</strong></header><p>{{ item.descripcion || 'Sin descripción' }}</p><small>{{ formatDateTime(item.fecha) }}</small><div class="meta"><span><ion-icon name="card-outline"></ion-icon>{{ getMetodoPago(item) }}</span><span><ion-icon name="person-outline"></ion-icon>{{ getUsuarioNombre(item.creadoPor) }}</span></div></article>
+        </div>
+        <div class="table-pagination"><span>Mostrando {{ pagedMovimientos.length }} de {{ movimientosFiltrados.length }}</span><div class="table-pagination__controls"><ion-item lines="none"><ion-label>Filas</ion-label><ion-select interface="popover" [value]="pageSize" (ionChange)="onPageSizeChange($any($event.detail).value)"><ion-select-option *ngFor="let size of pageSizeOptions" [value]="size">{{ size }}</ion-select-option></ion-select></ion-item><ion-button size="small" fill="outline" [disabled]="!canGoPrev" (click)="prevPage()">Anterior</ion-button><span>Página {{ page }} de {{ totalPages }}</span><ion-button size="small" fill="outline" [disabled]="!canGoNext" (click)="nextPage()">Siguiente</ion-button></div></div>
+      </section>
     </section>
+
+    <section class="card-premium state-card" *ngIf="loading"><app-skeleton-card></app-skeleton-card></section>
+    <section class="card-premium state-card" *ngIf="loadError"><app-empty-state title="No pudimos cargar los movimientos financieros" message="Intenta nuevamente para visualizar el dashboard."></app-empty-state></section>
+    <section class="card-premium state-card" *ngIf="!loading && !loadError && !hasData"><app-empty-state title="Sin movimientos financieros" message="No encontramos registros con los filtros seleccionados."></app-empty-state></section>
   </div>
 </ion-content>

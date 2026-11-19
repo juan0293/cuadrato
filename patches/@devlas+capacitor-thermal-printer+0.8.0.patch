@@ -1,0 +1,129 @@
+diff --git a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/AndroidManifest.xml b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/AndroidManifest.xml
+index b78cf05..2075c35 100644
+--- a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/AndroidManifest.xml
++++ b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/AndroidManifest.xml
+@@ -20,5 +20,8 @@
+     <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
++    <uses-permission
++        android:name="android.permission.BLUETOOTH_SCAN"
++        android:usesPermissionFlags="neverForLocation" />
+ 
+ </manifest>
+diff --git a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt
+index 14f9f02..8884940 100644
+--- a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt
++++ b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/BluetoothTransport.kt
+@@ -1,8 +1,15 @@
+ package app.devlas.plugins.thermalprinter
+ 
+ import android.annotation.SuppressLint
++import android.Manifest
++import android.bluetooth.BluetoothAdapter
++import android.bluetooth.BluetoothDevice
+ import android.bluetooth.BluetoothManager
++import android.bluetooth.BluetoothSocket
+ import android.content.Context
++import android.content.pm.PackageManager
++import android.os.Build
++import androidx.core.content.ContextCompat
+ import com.getcapacitor.JSArray
+ import com.getcapacitor.JSObject
+ import java.io.IOException
+@@ -66,9 +73,8 @@ class BluetoothTransport(private val context: Context) {
+             PrinterStatus.N_PAPER,
+         )
+         try {
+-            a.cancelDiscovery()
+-            device.createRfcommSocketToServiceRecord(SPP_UUID).use { socket ->
+-                socket.connect()
++            cancelDiscoveryIfPermitted(a)
++            connectCompatible(device).use { socket ->
+                 val out = socket.outputStream
+                 val input = socket.inputStream
+ 
+@@ -99,9 +105,8 @@ class BluetoothTransport(private val context: Context) {
+             throw PrinterException("not_found", "Dirección Bluetooth inválida: $address")
+         }
+         try {
+-            a.cancelDiscovery() // discovery activo degrada la conexión SPP
+-            device.createRfcommSocketToServiceRecord(SPP_UUID).use { socket ->
+-                socket.connect()
++            cancelDiscoveryIfPermitted(a) // discovery activo degrada la conexión SPP
++            connectCompatible(device).use { socket ->
+                 val out = socket.outputStream
+                 var offset = 0
+                 while (offset < bytes.size) {
+@@ -120,4 +125,55 @@ class BluetoothTransport(private val context: Context) {
+             throw PrinterException("connect_failed", "No se pudo imprimir en $address: ${e.message}")
+         }
+     }
++
++    /**
++     * Varias térmicas económicas publican un SDP incompleto o sólo el servicio
++     * PnP aunque internamente escuchen ESC/POS por RFCOMM. Android permite
++     * intentar primero SPP inseguro (el enlace ya fue emparejado), luego SPP
++     * seguro y, como último recurso, el canal RFCOMM 1 usado por estos módulos.
++     */
++    @SuppressLint("MissingPermission", "DiscouragedPrivateApi")
++    private fun connectCompatible(device: BluetoothDevice): BluetoothSocket {
++        val factories: List<() -> BluetoothSocket> = listOf(
++            { device.createInsecureRfcommSocketToServiceRecord(SPP_UUID) },
++            { device.createRfcommSocketToServiceRecord(SPP_UUID) },
++            {
++                val method = device.javaClass.getMethod(
++                    "createRfcommSocket",
++                    Int::class.javaPrimitiveType,
++                )
++                method.invoke(device, 1) as BluetoothSocket
++            },
++        )
++        var lastError: Throwable? = null
++        for (factory in factories) {
++            val socket = try {
++                factory()
++            } catch (error: Throwable) {
++                lastError = error
++                continue
++            }
++            try {
++                socket.connect()
++                return socket
++            } catch (error: Throwable) {
++                lastError = error
++                runCatching { socket.close() }
++            }
++        }
++        throw IOException("No fue posible abrir SPP/RFCOMM compatible", lastError)
++    }
++
++    /**
++     * Android 12+ protege incluso cancelDiscovery() con BLUETOOTH_SCAN. No se
++     * debe convertir una denegación de SCAN en un falso error de CONNECT: si el
++     * permiso no está disponible, la conexión RFCOMM todavía puede intentarse.
++     */
++    @SuppressLint("MissingPermission")
++    private fun cancelDiscoveryIfPermitted(adapter: BluetoothAdapter) {
++        val canCancel = Build.VERSION.SDK_INT < Build.VERSION_CODES.S ||
++            ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) ==
++            PackageManager.PERMISSION_GRANTED
++        if (canCancel) adapter.cancelDiscovery()
++    }
+ }
+diff --git a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/ThermalPrinterPlugin.kt b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/ThermalPrinterPlugin.kt
+index f00d5fa..cbe35fb 100644
+--- a/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/ThermalPrinterPlugin.kt
++++ b/node_modules/@devlas/capacitor-thermal-printer/android/src/main/java/app/devlas/plugins/thermalprinter/ThermalPrinterPlugin.kt
+@@ -23,7 +23,10 @@ import java.util.concurrent.Executors
+ @CapacitorPlugin(
+     name = "ThermalPrinter",
+     permissions = [
+-        Permission(alias = "bluetooth", strings = [Manifest.permission.BLUETOOTH_CONNECT])
++        Permission(
++            alias = "bluetooth",
++            strings = [Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.BLUETOOTH_SCAN],
++        )
+     ]
+ )
+ class ThermalPrinterPlugin : Plugin() {

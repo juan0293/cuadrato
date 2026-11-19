@@ -10,9 +10,10 @@ import { FacturaStatusChipComponent } from './components/factura-status-chip/fac
 import { FacturaItemRowComponent } from './components/factura-item-row/factura-item-row.component';
 import { CuentasPorCobrarPage } from './pages/cuentas-por-cobrar/cuentas-por-cobrar.page';
 import { CompanyProfilePage } from './pages/company-profile/company-profile.page';
+import { PrinterSettingsComponent } from './components/printer-settings/printer-settings.component';
 
 @NgModule({
-  declarations: [FacturacionPage, FacturaFormPage, FacturaStatusChipComponent, FacturaItemRowComponent, CuentasPorCobrarPage, CompanyProfilePage],
+  declarations: [FacturacionPage, FacturaFormPage, FacturaStatusChipComponent, FacturaItemRowComponent, CuentasPorCobrarPage, CompanyProfilePage, PrinterSettingsComponent],
   imports: [CommonModule, FormsModule, ReactiveFormsModule, IonicModule, SharedModule, FacturacionRoutingModule],
 })
 export class FacturacionModule {}

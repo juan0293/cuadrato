@@ -1,32 +1,42 @@
 <ion-app>
-  <section class="app-boot-overlay" *ngIf="showBootOverlay">
+  <section
+    class="app-boot-overlay"
+    *ngIf="showBootOverlay"
+    [class.theme-light]="shellTheme === 'light'"
+    [class.theme-dark]="shellTheme === 'dark'"
+    role="status"
+    aria-live="polite"
+    aria-label="Cargando aplicación"
+  >
     <article class="app-boot-card">
-      <div class="app-boot-logo-wrap">
-        <img src="./assets/icon/cuadrato.png" alt="CuadraTó" class="app-boot-logo" />
-      </div>
+      <header class="app-boot-header">
+        <div class="app-boot-identity">
+          <span class="app-boot-logo-wrap"><img src="./assets/icon/cuadrato.png" alt="" class="app-boot-logo" /></span>
+          <div><span class="app-boot-eyebrow">CuadraTó · Gestión</span><strong>Centro administrativo</strong></div>
+        </div>
+        <span class="app-boot-stage"><ion-spinner name="crescent"></ion-spinner>{{ bootStage }}</span>
+      </header>
 
-      <div class="app-boot-brand" aria-live="polite">
-        <span class="app-boot-kicker">CuadraTó</span>
-        <span class="app-boot-stage">{{ bootStage }}</span>
-        <h1>Preparando tu negocio</h1>
+      <div class="app-boot-copy">
+        <span class="app-boot-icon"><ion-icon name="briefcase" size="large"></ion-icon></span>
+        <h1>Preparando tu espacio de trabajo</h1>
         <p>{{ bootMessage }}</p>
       </div>
 
       <div class="app-boot-alert" *ngIf="isOffline">
         <ion-icon name="cloud-offline-outline"></ion-icon>
-        <span>Sin conexión. Usaremos la información disponible localmente.</span>
+        <div><strong>Trabajando sin conexión</strong><span>Usaremos temporalmente la información disponible en este dispositivo.</span></div>
       </div>
 
-      <div class="app-boot-progress" aria-hidden="true">
-        <div class="app-boot-bar"></div>
-      </div>
+      <div class="app-boot-progress" aria-hidden="true"><span class="app-boot-bar"></span></div>
 
-      <div class="app-boot-skeleton" aria-hidden="true">
-        <span></span>
-        <span></span>
-        <span></span>
-      </div>
+      <footer class="app-boot-footer">
+        <ion-icon name="shield-checkmark-outline"></ion-icon>
+        <span>Validando sesión y permisos de acceso</span>
+      </footer>
     </article>
   </section>
+
+
   <ion-router-outlet [swipeGesture]="false"></ion-router-outlet>
 </ion-app>

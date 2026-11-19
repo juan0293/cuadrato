@@ -195,6 +195,21 @@ export class ComprasPage implements OnInit, OnDestroy {
     return this.page < this.totalPages;
   }
 
+  get hasActiveFilters(): boolean {
+    return Boolean(
+      this.query.trim()
+      || this.filtroProveedorId
+      || this.filtroFechaDesde
+      || this.filtroFechaHasta
+      || this.filtroEstado !== 'todos'
+      || this.filtroCondicion !== 'todas'
+    );
+  }
+
+  trackByCompra(_: number, compra: Compra): string {
+    return compra.id || `${compra.proveedorNombre}-${compra.numeroFactura}-${compra.fechaEmision}`;
+  }
+
   prevPage(): void {
     if (!this.canGoPrev) return;
     this.page -= 1;
@@ -209,6 +224,16 @@ export class ComprasPage implements OnInit, OnDestroy {
     const parsed = Number(value);
     this.pageSize = this.pageSizeOptions.includes(parsed) ? parsed : 10;
     this.page = 1;
+  }
+
+  clearFilters(): void {
+    this.query = '';
+    this.filtroEstado = 'todos';
+    this.filtroCondicion = 'todas';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
+    this.filtroProveedorId = '';
+    this.applyFilters();
   }
 
   /**

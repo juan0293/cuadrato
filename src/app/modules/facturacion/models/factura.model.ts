@@ -1,6 +1,10 @@
 import { FacturaItem } from './factura-item.model';
 
 export interface Factura {
+  cuentaAbiertaId?: string;
+  cuentaAbiertaVersion?: number;
+  // Solo en memoria para renderizar precuentas; nunca se persiste como factura.
+  tipoDocumento?: 'precuenta';
   id?: string;
   numero: string;
   numeroFactura?: string;
@@ -24,6 +28,7 @@ export interface Factura {
   origen?: 'manual' | 'agenda';
   formaPago?: 'efectivo' | 'tarjeta' | 'transferencia' | 'mixto' | 'credito';
   pagos?: {
+    montosAplicados?: boolean;
     efectivo: number;
     tarjeta: number;
     transferencia: number;

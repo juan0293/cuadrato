@@ -9,10 +9,9 @@ import { UsuariosService } from '../../usuarios/services/usuarios.service';
 import { UsuarioModel } from '../../usuarios/models/usuario.model';
 import { FacturacionService } from '../../facturacion/services/facturacion.service';
 import { Factura } from '../../facturacion/models/factura.model';
+import { FinanzasTheme, FinanzasThemeService } from '../services/finanzas-theme.service';
 
 Chart.register(...registerables);
-
-type FiltroRapido = 'hoy' | 'semana' | 'mes' | 'ingresos' | 'gastos';
 
 interface MovimientoFinancieroView extends MovimientoFinanciero {
   metodoPago?: string;
@@ -28,20 +27,18 @@ interface MovimientoFinancieroView extends MovimientoFinanciero {
   styleUrls: ['./movimientos-financieros.page.scss'],
 })
 export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDestroy {
+  financeTheme: FinanzasTheme;
   @ViewChild('ingresosVsGastosCanvas') ingresosVsGastosCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('categoriasCanvas') categoriasCanvas?: ElementRef<HTMLCanvasElement>;
   @ViewChild('tendenciaCanvas') tendenciaCanvas?: ElementRef<HTMLCanvasElement>;
 
   loading = true;
   loadError = false;
-  selectedQuickFilter: FiltroRapido | null = null;
-
   movimientos: MovimientoFinancieroView[] = [];
   movimientosFiltrados: MovimientoFinancieroView[] = [];
   facturas: Factura[] = [];
   usuarios: UsuarioModel[] = [];
 
-  query = '';
   filtroTipo: 'todos' | 'ingreso' | 'gasto' = 'todos';
   filtroCategoria = 'todas';
   filtroMetodoPago = 'todos';
@@ -67,7 +64,15 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
     private readonly finanzasService: FinanzasService,
     private readonly usuariosService: UsuariosService,
     private readonly facturacionService: FacturacionService,
-  ) {}
+    private readonly finanzasThemeService: FinanzasThemeService,
+  ) {
+    this.financeTheme = this.finanzasThemeService.theme;
+  }
+
+  toggleFinanceTheme(): void {
+    this.financeTheme = this.finanzasThemeService.toggle();
+    this.scheduleChartRefresh(0);
+  }
 
   ngOnInit(): void {
     this.setDefaultMonthRange();
@@ -119,6 +124,12 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
   @HostListener('window:resize')
   onWindowResize(): void {
     this.scheduleChartRefresh(120);
+  }
+
+  @HostListener('window:finanzas-theme-change')
+  onFinanceThemeChange(): void {
+    this.financeTheme = this.finanzasThemeService.theme;
+    this.scheduleChartRefresh(0);
   }
 
   get fechaActualLabel(): string {
@@ -278,9 +289,12 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
     return this.movimientosFiltrados.length > 0;
   }
 
-  onSearch(value: string | null | undefined): void {
-    this.query = String(value || '');
-    this.applyFilters();
+  get hasActiveFilters(): boolean {
+    return Boolean(
+      this.filtroFechaDesde || this.filtroFechaHasta
+      || this.filtroTipo !== 'todos' || this.filtroCategoria !== 'todas'
+      || this.filtroMetodoPago !== 'todos' || this.filtroUsuario !== 'todos' || this.filtroEstado !== 'todos'
+    );
   }
 
   onTipoChange(value: 'todos' | 'ingreso' | 'gasto'): void {
@@ -318,39 +332,14 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
     this.applyFilters();
   }
 
-  applyQuickFilter(filter: FiltroRapido): void {
-    const now = new Date();
-    this.selectedQuickFilter = this.selectedQuickFilter === filter ? null : filter;
-    if (!this.selectedQuickFilter) {
-      this.filtroFechaDesde = '';
-      this.filtroFechaHasta = '';
-      this.filtroTipo = 'todos';
-      this.applyFilters();
-      return;
-    }
-
-    if (filter === 'hoy') {
-      const d = now.toISOString().slice(0, 10);
-      this.filtroFechaDesde = d;
-      this.filtroFechaHasta = d;
-      this.filtroTipo = 'todos';
-    } else if (filter === 'semana') {
-      const from = new Date(now);
-      from.setDate(now.getDate() - 6);
-      this.filtroFechaDesde = from.toISOString().slice(0, 10);
-      this.filtroFechaHasta = now.toISOString().slice(0, 10);
-      this.filtroTipo = 'todos';
-    } else if (filter === 'mes') {
-      const from = new Date(now.getFullYear(), now.getMonth(), 1);
-      const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      this.filtroFechaDesde = from.toISOString().slice(0, 10);
-      this.filtroFechaHasta = to.toISOString().slice(0, 10);
-      this.filtroTipo = 'todos';
-    } else if (filter === 'ingresos') {
-      this.filtroTipo = 'ingreso';
-    } else if (filter === 'gastos') {
-      this.filtroTipo = 'gasto';
-    }
+  clearFilters(): void {
+    this.filtroTipo = 'todos';
+    this.filtroCategoria = 'todas';
+    this.filtroMetodoPago = 'todos';
+    this.filtroUsuario = 'todos';
+    this.filtroEstado = 'todos';
+    this.filtroFechaDesde = '';
+    this.filtroFechaHasta = '';
     this.applyFilters();
   }
 
@@ -417,19 +406,14 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
   }
 
   private applyFilters(): void {
-    const q = this.query.trim().toLowerCase();
     this.movimientosFiltrados = this.movimientos.filter((item) => {
       const tipo = String(item.tipo || '').toLowerCase();
       const categoria = String(item.categoria || '');
-      const descripcion = String(item.descripcion || '');
       const creadoPor = String(item.creadoPor || '');
-      const creadoPorLabel = this.getUsuarioNombre(creadoPor);
       const metodo = this.getMetodoPago(item);
       const estado = this.getEstado(item);
-      const numeroFactura = String(item.numeroFactura || '');
       const date = this.parseDate(item.fecha);
 
-      const matchesText = !q || [categoria, descripcion, creadoPor, creadoPorLabel, metodo, estado, numeroFactura].some((v) => v.toLowerCase().includes(q));
       const matchesTipo = this.filtroTipo === 'todos' || tipo === this.filtroTipo;
       const matchesCategoria = this.filtroCategoria === 'todas' || categoria === this.filtroCategoria;
       const matchesMetodo = this.filtroMetodoPago === 'todos' || metodo === this.filtroMetodoPago;
@@ -438,7 +422,7 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
       const fromOk = !this.filtroFechaDesde || (!!date && date >= new Date(`${this.filtroFechaDesde}T00:00:00`));
       const toOk = !this.filtroFechaHasta || (!!date && date <= new Date(`${this.filtroFechaHasta}T23:59:59`));
 
-      return matchesText && matchesTipo && matchesCategoria && matchesMetodo && matchesUsuario && matchesEstado && fromOk && toOk;
+      return matchesTipo && matchesCategoria && matchesMetodo && matchesUsuario && matchesEstado && fromOk && toOk;
     });
 
     this.page = 1;
@@ -473,6 +457,10 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
       options: {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
+        scales: {
+          x: { ticks: { color: this.chartTextColor }, grid: { color: this.chartGridColor } },
+          y: { ticks: { color: this.chartTextColor }, grid: { color: this.chartGridColor } },
+        },
       },
     };
     this.ingresosVsGastosChart = new Chart(canvas, config);
@@ -500,7 +488,7 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
           {
             data: values,
             backgroundColor: ['#3B82F6', '#38BDF8', '#34D399', '#F59E0B', '#F87171', '#A78BFA', '#22D3EE', '#94A3B8'],
-            borderColor: 'rgba(255,255,255,0.2)',
+            borderColor: this.financeTheme === 'dark' ? 'rgba(255,255,255,0.2)' : '#ffffff',
             borderWidth: 1,
           },
         ],
@@ -509,7 +497,7 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
         maintainAspectRatio: false,
         plugins: {
           legend: {
-            labels: { color: '#E5EDFF', boxWidth: 12 },
+            labels: { color: this.chartTextColor, boxWidth: 12 },
           },
         },
       },
@@ -550,7 +538,11 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
       options: {
         maintainAspectRatio: false,
         plugins: {
-          legend: { labels: { color: '#E5EDFF', boxWidth: 12 } },
+          legend: { labels: { color: this.chartTextColor, boxWidth: 12 } },
+        },
+        scales: {
+          x: { ticks: { color: this.chartTextColor }, grid: { color: this.chartGridColor } },
+          y: { ticks: { color: this.chartTextColor }, grid: { color: this.chartGridColor } },
         },
       },
     };
@@ -569,6 +561,14 @@ export class MovimientosFinancierosPage implements OnInit, AfterViewInit, OnDest
     this.chartRefreshTimer = setTimeout(() => {
       this.refreshChartsIfReady();
     }, delayMs);
+  }
+
+  private get chartTextColor(): string {
+    return this.financeTheme === 'dark' ? '#e5edff' : '#475467';
+  }
+
+  private get chartGridColor(): string {
+    return this.financeTheme === 'dark' ? 'rgba(148, 163, 184, .18)' : 'rgba(71, 84, 103, .12)';
   }
 
   getMetodoPago(item: MovimientoFinancieroView): string {

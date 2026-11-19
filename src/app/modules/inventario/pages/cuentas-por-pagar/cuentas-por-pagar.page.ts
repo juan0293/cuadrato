@@ -6,6 +6,7 @@ import { Subscription, firstValueFrom } from 'rxjs';
 import { AuthService } from '../../../../core/services/auth.service';
 import { CuentaPorPagar, CuentaPorPagarKpis, EstadoCuentaPorPagar, PagoCuentaPorPagar } from '../../models/cuenta-por-pagar.model';
 import { CuentasPorPagarService } from '../../services/cuentas-por-pagar.service';
+import { InventarioThemeService } from '../../services/inventario-theme.service';
 
 @Component({
   selector: 'app-cuentas-por-pagar',
@@ -63,7 +64,20 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
     private readonly actionSheetCtrl: ActionSheetController,
     private readonly fb: FormBuilder,
     private readonly router: Router,
+    private readonly themeService: InventarioThemeService,
   ) {}
+
+  get inventoryTheme(): 'light' | 'dark' {
+    return this.themeService.theme;
+  }
+
+  toggleInventoryTheme(): void {
+    this.themeService.toggle();
+  }
+
+  get hasActiveFilters(): boolean {
+    return Boolean(this.searchTerm.trim() || this.filtroEstado !== 'todos' || this.fechaDesde || this.fechaHasta || this.soloVencidas || this.soloProximas);
+  }
 
   ngOnInit(): void {
     this.sub.add(
@@ -197,7 +211,10 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
   }
 
   async crearCuenta(): Promise<void> {
-    if (this.saving || this.nuevaCuentaForm.invalid) {
+    if (this.saving) return;
+
+    if (this.nuevaCuentaForm.invalid) {
+      this.nuevaCuentaForm.markAllAsTouched();
       await this.showToast('Completa los campos obligatorios de la cuenta.', 'danger');
       return;
     }
@@ -227,6 +244,7 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
         fechaVencimiento: new Date(raw.fechaVencimiento).toISOString(),
         estado: 'pendiente',
         moneda: raw.moneda,
+        ...(raw.nota.trim() ? { nota: raw.nota.trim() } : {}),
         creadoPor: user?.uid || 'sistema',
         fechaCreacion: new Date().toISOString(),
       };
@@ -244,7 +262,12 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
   }
 
   async registrarPago(): Promise<void> {
-    if (!this.cuentaSeleccionada || this.saving || this.pagoForm.invalid) return;
+    if (!this.cuentaSeleccionada || this.saving) return;
+    if (this.pagoForm.invalid) {
+      this.pagoForm.markAllAsTouched();
+      await this.showToast('Completa los campos obligatorios del pago.', 'danger');
+      return;
+    }
 
     const raw = this.pagoForm.getRawValue();
     const monto = this.toNumber(raw.monto);
@@ -278,8 +301,8 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
         monto,
         metodoPago: raw.metodoPago,
         fechaPago: new Date(raw.fechaPago).toISOString(),
-        referencia: raw.referencia || undefined,
-        nota: raw.nota || undefined,
+        ...(raw.referencia.trim() ? { referencia: raw.referencia.trim() } : {}),
+        ...(raw.nota.trim() ? { nota: raw.nota.trim() } : {}),
         creadoPor: user?.uid || 'sistema',
         fechaCreacion: new Date().toISOString(),
       };
@@ -299,6 +322,7 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
 
   async anularCuenta(cuenta: CuentaPorPagar): Promise<void> {
     const alert = await this.alertCtrl.create({
+      cssClass: 'inventory-confirm-alert',
       header: 'Anular cuenta por pagar',
       message: 'Esta cuenta dejará de formar parte de los pendientes financieros. Esta acción no elimina el registro.',
       inputs: [{ name: 'motivo', type: 'text', placeholder: 'Motivo de anulación (opcional)' }],
@@ -311,10 +335,11 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
             if (!cuenta.id) return;
             try {
               const user = await firstValueFrom(this.authService.user$);
+              const motivo = String(data?.motivo || '').trim();
               await this.cuentasService.update(cuenta.id, {
                 estado: 'anulada',
                 fechaAnulacion: new Date().toISOString(),
-                motivoAnulacion: String(data?.motivo || '').trim() || undefined,
+                ...(motivo ? { motivoAnulacion: motivo } : {}),
                 anuladoPor: user?.uid || 'sistema',
               });
               await this.showToast('Cuenta anulada correctamente.', 'success');
@@ -343,8 +368,11 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
   async openMobileActions(cuenta: CuentaPorPagar): Promise<void> {
     const buttons: Array<{ text: string; icon: string; role?: string; handler?: () => void }> = [
       { text: 'Ver detalle', icon: 'eye-outline', handler: () => this.goToDetail(cuenta.id) },
-      { text: 'Registrar pago', icon: 'cash-outline', handler: () => this.abrirPago(cuenta) },
     ];
+
+    if (cuenta.estado !== 'anulada' && cuenta.estado !== 'pagada' && this.toNumber(cuenta.balancePendiente) > 0) {
+      buttons.push({ text: 'Registrar pago', icon: 'cash-outline', handler: () => this.abrirPago(cuenta) });
+    }
 
     if (this.toNumber(cuenta.balancePendiente) <= 0) {
       buttons.push({ text: 'Marcar pagada', icon: 'checkmark-done-outline', handler: () => this.marcarComoPagada(cuenta) });
@@ -357,6 +385,7 @@ export class CuentasPorPagarPage implements OnInit, OnDestroy {
     buttons.push({ text: 'Cerrar', icon: 'close-outline', role: 'cancel' });
 
     const sheet = await this.actionSheetCtrl.create({
+      cssClass: 'inventory-actions-sheet',
       header: 'Opciones de la cuenta',
       buttons,
     });

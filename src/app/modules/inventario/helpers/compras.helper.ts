@@ -37,6 +37,7 @@ export const mapProductoToCompraItem = (
     utilidadId: utilidad?.id || producto.utilidadId,
     utilidadNombre: utilidad?.nombre || producto.utilidadNombre,
     utilidadPorcentaje: Number(utilidad?.porcentaje ?? producto.utilidadPorcentaje ?? 0),
+    precioVenta: Number(producto.precioVenta ?? 0),
     precioVentaSugerido: calculateSalePrice(precioCompra, Number(utilidad?.porcentaje ?? producto.utilidadPorcentaje ?? 0)),
     descuento,
     indicadorBienServicioECF: producto.indicadorBienServicioECF,

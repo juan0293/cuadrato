@@ -1,0 +1,19 @@
+:host { display: block; margin-block: 16px; color: var(--fin-text); }
+.executive { display: grid; gap: 14px; }
+h2, h3, p { margin: 0; }
+h2 { font-size: 21px; margin-block: 5px; } h3 { font-size: 16px; }
+header p, small { color: var(--fin-muted); font-size: 12px; line-height: 1.5; }
+.metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.metric { display: grid; align-content: start; gap: 8px; padding: 16px; border: 1px solid var(--fin-border); border-radius: 10px; background: var(--fin-surface); min-width: 0; }
+.metric > span { font-size: 12px; font-weight: 700; }
+.metric > strong { font-size: clamp(18px, 2vw, 26px); overflow-wrap: anywhere; }
+.negative { color: var(--fin-danger); }
+.variation { font-size: 12px; padding-top: 8px; border-top: 1px solid var(--fin-border); }
+.context { display: grid; gap: 7px; padding: 14px; border: 1px solid var(--fin-border); border-radius: 10px; background: var(--fin-surface-soft); font-size: 12px; line-height: 1.5; }
+summary { cursor: pointer; font-weight: 600; } details.context p { margin-top: 8px; }
+.chart-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.chart-card:first-child { grid-column: 1 / -1; }
+.chart { height: 280px; min-width: 0; } app-finance-chart { display: block; height: 100%; }
+.empty { padding: 32px 12px; color: var(--fin-muted); text-align: center; font-size: 13px; }
+@media (max-width: 960px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .metric-grid, .chart-grid { grid-template-columns: 1fr; } .chart { height: 240px; } }

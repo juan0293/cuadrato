@@ -25,6 +25,9 @@ export class SearchableSelectComponent implements OnChanges {
   @Input() searchPlaceholder = 'Buscar...';
   @Input() initialVisibleLimit = 40;
   @Input() filteredVisibleLimit = 80;
+  @Input() modalCssClass = 'premium-select-modal';
+  @Input() modalIcon = 'list-outline';
+  @Input() modalEyebrow = 'Seleccionar registro';
 
   @Output() selected = new EventEmitter<any>();
   @Output() manage = new EventEmitter<void>();
@@ -44,6 +47,12 @@ export class SearchableSelectComponent implements OnChanges {
     this.isOpen = true;
     this.query = '';
     this.applyFilter();
+  }
+
+  async onModalDidPresent(event: Event): Promise<void> {
+    const modal = event.target as HTMLIonModalElement;
+    const searchbar = modal.querySelector('ion-searchbar');
+    await searchbar?.setFocus();
   }
 
   close(): void {
@@ -86,7 +95,13 @@ export class SearchableSelectComponent implements OnChanges {
 
   getMetaEntries(item: any): Array<{ key: string; value: string }> {
     return this.metaKeys
-      .map((key) => ({ key, value: String(item?.[key] ?? '').trim() }))
+      .map((key) => {
+        const rawValue = String(item?.[key] ?? '').trim();
+        const value = rawValue && key.toLowerCase().includes('porcentaje') && !rawValue.endsWith('%')
+          ? `${rawValue}%`
+          : rawValue;
+        return { key, value };
+      })
       .filter((entry) => !!entry.value);
   }
 

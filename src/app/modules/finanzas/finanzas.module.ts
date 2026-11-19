@@ -9,6 +9,8 @@ import { MovimientoFinancieroFormPage } from './pages/movimiento-financiero-form
 import { MovimientosFinancierosPage } from './pages/movimientos-financieros.page';
 import { KpiFinancieroCardComponent } from './components/kpi-financiero-card/kpi-financiero-card.component';
 import { FinanceChartComponent } from './components/finance-chart/finance-chart.component';
+import { FinanzasThemeService } from './services/finanzas-theme.service';
+import { FinanceExecutiveComponent } from './components/finance-executive/finance-executive.component';
 
 @NgModule({
   declarations: [
@@ -17,7 +19,12 @@ import { FinanceChartComponent } from './components/finance-chart/finance-chart.
     MovimientosFinancierosPage,
     KpiFinancieroCardComponent,
     FinanceChartComponent,
+    FinanceExecutiveComponent,
   ],
   imports: [CommonModule, ReactiveFormsModule, IonicModule, SharedModule, FinanzasRoutingModule],
 })
-export class FinanzasModule {}
+export class FinanzasModule {
+  constructor(themeService: FinanzasThemeService) {
+    themeService.initialize();
+  }
+}

@@ -1,103 +1,136 @@
-<ion-header class="ion-no-border finanzas-header">
-  <ion-toolbar class="finanzas-toolbar" mode="ios">
-    <div class="toolbar-inner">
-      <ion-title>Finanzas</ion-title>
-    </div>
-    <ion-buttons slot="end">
-        <ion-button routerLink="/admin/finanzas/movimientos/nuevo" fill="solid" color="primary">
-          <ion-icon slot="start" name="add"></ion-icon>
-          Movimiento</ion-button>
-      </ion-buttons>
-  </ion-toolbar>
-</ion-header>
+<ion-content [fullscreen]="true" class="finanzas-content finanzas-module-page"
+  [class.theme-light]="financeTheme === 'light'" [class.theme-dark]="financeTheme === 'dark'">
+  <div class="finanzas-shell" *ngIf="vm$ | async as vm; else dashboardState">
+    <header class="finance-page-header card-premium">
+      <div class="page-title">
+        <span class="title-icon"><ion-icon name="pie-chart-outline" aria-hidden="true"></ion-icon></span>
+        <div>
+          <span class="hero-eyebrow">Control financiero</span>
+          <h1>Finanzas</h1>
+          <p>Visión general de ingresos, gastos, caja, cobranza y rentabilidad.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <ion-button class="theme-toggle" fill="outline" (click)="toggleFinanceTheme()"
+          [attr.aria-label]="financeTheme === 'dark' ? 'Activar modo claro' : 'Activar modo oscuro'"
+          [attr.aria-pressed]="financeTheme === 'dark'">
+          <ion-icon slot="start" [name]="financeTheme === 'dark' ? 'sunny-outline' : 'moon-outline'"></ion-icon>
+          {{ financeTheme === 'dark' ? 'Modo claro' : 'Modo oscuro' }}
+        </ion-button>
+        <ion-button class="btn-outline" fill="outline" routerLink="/admin/finanzas/movimientos">
+          <ion-icon slot="start" name="swap-vertical-outline"></ion-icon>Ver movimientos
+        </ion-button>
+        <ion-button class="btn-primary" routerLink="/admin/finanzas/movimientos/nuevo">
+          <ion-icon slot="start" name="add-outline"></ion-icon>Nuevo movimiento
+        </ion-button>
+      </div>
+    </header>
 
-<ion-content [fullscreen]="true" class="finanzas-content">
-  <div class="finanzas-shell" *ngIf="vm$ | async as vm">
     <section class="finanzas-hero card-premium">
       <div class="hero-top">
         <div class="hero-copy">
-          <span class="hero-eyebrow">Centro financiero</span>
-          <h1>Dashboard financiero</h1>
-          <p>Monitorea caja, cobranza, pagos y rentabilidad con una lectura clara de la operación.</p>
+          <span class="hero-eyebrow">Resumen general</span>
+          <h2>Dashboard ejecutivo de finanzas</h2>
+          <p>Monitorea el resultado financiero y los compromisos del periodo seleccionado.</p>
         </div>
         <div class="hero-actions">
-          <ion-segment [value]="periodo" (ionChange)="changePeriodo($event.detail.value)">
-            <ion-segment-button value="diario"><ion-label>Diario</ion-label></ion-segment-button>
-            <ion-segment-button value="semanal"><ion-label>Semanal</ion-label></ion-segment-button>
-            <ion-segment-button value="mensual"><ion-label>Mensual</ion-label></ion-segment-button>
-            <ion-segment-button value="anual"><ion-label>Anual</ion-label></ion-segment-button>
-          </ion-segment>
-          <div class="hero-side-card">
-            <span class="hero-side-card__label">Vista activa</span>
-            <strong>{{ getPeriodoTitulo() | titlecase }}</strong>
-            <small>Actualiza los indicadores, gráficos y listados del tablero.</small>
+          <div class="dashboard-range" aria-label="Rango de fechas del dashboard">
+            <label class="dashboard-range__field">
+              <span>Desde</span>
+              <ion-item lines="none">
+                <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+                <ion-input aria-label="Fecha inicial del dashboard" type="date" [value]="fechaDesde"
+                  [max]="fechaHasta || undefined" (ionChange)="onFechaDesdeChange($any($event.detail).value)"></ion-input>
+              </ion-item>
+            </label>
+            <label class="dashboard-range__field">
+              <span>Hasta</span>
+              <ion-item lines="none">
+                <ion-icon slot="start" name="calendar-outline" aria-hidden="true"></ion-icon>
+                <ion-input aria-label="Fecha final del dashboard" type="date" [value]="fechaHasta"
+                  [min]="fechaDesde || undefined" (ionChange)="onFechaHastaChange($any($event.detail).value)"></ion-input>
+              </ion-item>
+            </label>
+            <ion-button class="current-month-button" fill="outline" (click)="mostrarMesActual()">
+              <ion-icon slot="start" name="today-outline"></ion-icon>Mes actual
+            </ion-button>
           </div>
-          <ion-button class="btn-movimientos" fill="outline" size="small" routerLink="/admin/finanzas/movimientos">Ver movimientos financieros</ion-button>
+          <span class="period-badge"><ion-icon name="calendar-outline"></ion-icon>{{ getRangoTitulo() }}</span>
         </div>
       </div>
 
       <div class="hero-highlights">
         <article class="hero-stat">
-          <span>Balance actual</span>
+          <span>Saldo operativo de referencia</span>
           <strong [class.is-success]="vm.balance >= 0" [class.is-danger]="vm.balance < 0">{{ formatCurrency(vm.balance) }}</strong>
-          <small>{{ vm.balance >= 0 ? 'Conciliado con facturas emitidas y gastos del periodo.' : 'Requiere revisión de gastos, cobros y facturación.' }}</small>
+          <small>Ventas con impuestos + otros ingresos − gastos. No representa ganancia ni caja disponible.</small>
         </article>
         <article class="hero-stat">
           <span>Cobranza pendiente</span>
           <strong>{{ formatCurrency(vm.cxc.totalPorCobrar) }}</strong>
-          <small>{{ vm.cxc.cuentasPendientes }} cuenta(s) activas por recuperar.</small>
+          <small>{{ vm.cxc.cuentasPendientes }} cuenta(s) activas por recuperar. Saldo actual, no limitado al período.</small>
         </article>
         <article class="hero-stat">
           <span>Compromisos por pagar</span>
           <strong>{{ formatCurrency(vm.cxp.totalPorPagar) }}</strong>
-          <small>{{ vm.cxp.facturasPendientes }} factura(s) pendientes con proveedores.</small>
+          <small>{{ vm.cxp.facturasPendientes }} factura(s) pendientes con proveedores. Saldo actual, no limitado al período.</small>
         </article>
       </div>
     </section>
 
+    <app-finance-executive [data]="vm.executive"></app-finance-executive>
+
     <section class="section-block">
       <div class="section-title">
         <span class="section-kicker">Resumen ejecutivo</span>
-        <h2>Indicadores clave del periodo</h2>
+        <h2>Indicadores operativos de referencia</h2>
         <p>Una lectura rápida del rendimiento financiero y el ritmo operativo.</p>
       </div>
-    <section class="kpi-grid">
+    <section class="kpi-grid executive-kpis">
       <article class="card-premium kpi-card">
+        <ion-icon name="trending-up-outline"></ion-icon>
         <span class="kpi-label">Ingresos {{ getPeriodoTitulo() }}</span>
         <strong class="kpi-value is-success">{{ formatCurrency(vm.ingresos) }}</strong>
         <small>Ventas facturadas y otros ingresos manuales del periodo.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="trending-down-outline"></ion-icon>
         <span class="kpi-label">Gastos {{ getPeriodoTitulo() }}</span>
         <strong class="kpi-value is-danger">{{ formatCurrency(vm.gastos) }}</strong>
         <small>Total ejecutado en operaciones.</small>
       </article>
       <article class="card-premium kpi-card">
-        <span class="kpi-label">Balance neto</span>
+        <ion-icon name="scale-outline"></ion-icon>
+        <span class="kpi-label">Saldo operativo</span>
         <strong class="kpi-value" [class.is-success]="vm.balance >= 0" [class.is-danger]="vm.balance < 0">{{ formatCurrency(vm.balance) }}</strong>
-        <small>Resultado conciliado entre ventas reales y gastos registrados.</small>
+        <small>Ventas con ITBIS + otros ingresos − gastos; no descuenta el costo de ventas.</small>
       </article>
       <article class="card-premium kpi-card">
-        <span class="kpi-label">Rentabilidad</span>
+        <ion-icon name="analytics-outline"></ion-icon>
+        <span class="kpi-label">Relación saldo / gastos</span>
         <strong class="kpi-value">{{ vm.rentabilidad | number: '1.0-2' }}%</strong>
-        <small>Margen estimado del periodo.</small>
+        <small>Fórmula operativa anterior; no es margen de ganancia.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="swap-vertical-outline"></ion-icon>
         <span class="kpi-label">Movimientos</span>
         <strong class="kpi-value">{{ vm.totalMovimientos }}</strong>
         <small>Registros contabilizados.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="calculator-outline"></ion-icon>
         <span class="kpi-label">Promedio por movimiento</span>
         <strong class="kpi-value">{{ formatCurrency(vm.promedioMovimiento) }}</strong>
         <small>Ticket financiero promedio.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="pricetag-outline"></ion-icon>
         <span class="kpi-label">Categoria principal</span>
         <strong class="kpi-value">{{ vm.topCategoriaGasto }}</strong>
         <small>Mayor concentracion de gastos.</small>
       </article>
       <article class="card-premium kpi-card">
+        <ion-icon name="time-outline"></ion-icon>
         <span class="kpi-label">Ultimo movimiento</span>
         <strong class="kpi-value">{{ vm.ultimoMovimiento?.descripcion || 'Sin datos' }}</strong>
         <small>{{ vm.ultimoMovimiento?.fecha ? (vm.ultimoMovimiento?.fecha | date: 'dd/MM/yyyy') : 'Aun no registrado' }}</small>
@@ -132,18 +165,17 @@
         </div>
       </ng-container>
 
+      <div class="turn-filter-head">
+        <div><span class="section-kicker">Consultar turnos</span><strong>{{ getTurnosFiltrados(vm).length }} resultado(s)</strong></div>
+        <ion-button class="clear-turn-filters" fill="clear" size="small" (click)="clearTurnoFilters()" [disabled]="!hasTurnoFilters">
+          <ion-icon slot="start" name="refresh-outline" color="danger"></ion-icon>Limpiar filtros
+        </ion-button>
+      </div>
       <div class="filtros-turnos">
-        <ion-searchbar placeholder="Buscar turno, caja o usuario…" [value]="turnoSearch" (ionInput)="onTurnoSearchChange($any($event.detail).value)"></ion-searchbar>
-        <ion-item>
-          <ion-label>Estado</ion-label>
-          <ion-select [value]="turnoEstado" (ionChange)="onTurnoEstadoChange($any($event.detail).value)">
-            <ion-select-option value="todos">Todos</ion-select-option>
-            <ion-select-option value="abierto">Abierto</ion-select-option>
-            <ion-select-option value="cerrado">Cerrado</ion-select-option>
-          </ion-select>
-        </ion-item>
-        <ion-item><ion-label position="stacked">Desde</ion-label><ion-input type="date" [value]="turnoFechaDesde" (ionInput)="onTurnoFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item>
-        <ion-item><ion-label position="stacked">Hasta</ion-label><ion-input type="date" [value]="turnoFechaHasta" (ionInput)="onTurnoFechaHastaChange($any($event.detail).value)"></ion-input></ion-item>
+        <div class="turn-filter-field turn-search-field"><span>Búsqueda general</span><ion-searchbar placeholder="Turno, caja o usuario" [value]="turnoSearch" (ionInput)="onTurnoSearchChange($any($event.detail).value)" debounce="250"></ion-searchbar></div>
+        <div class="turn-filter-field"><span>Estado</span><ion-item><ion-select aria-label="Estado del turno" [value]="turnoEstado" (ionChange)="onTurnoEstadoChange($any($event.detail).value)"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="abierto">Abierto</ion-select-option><ion-select-option value="cerrado">Cerrado</ion-select-option></ion-select></ion-item></div>
+        <div class="turn-filter-field"><span>Fecha desde</span><ion-item><ion-input aria-label="Fecha desde" type="date" [value]="turnoFechaDesde" (ionInput)="onTurnoFechaDesdeChange($any($event.detail).value)"></ion-input></ion-item></div>
+        <div class="turn-filter-field"><span>Fecha hasta</span><ion-item><ion-input aria-label="Fecha hasta" type="date" [value]="turnoFechaHasta" (ionInput)="onTurnoFechaHastaChange($any($event.detail).value)"></ion-input></ion-item></div>
       </div>
 
       <div class="panel-actions turnos-actions" *ngIf="getTurnosFiltrados(vm).length">
@@ -182,8 +214,9 @@
               <td>{{ t.cantidadFacturas }}</td>
               <td><span [class]="getTurnoEstadoClass(t.estado)">{{ getTurnoEstadoLabel(t.estado) }}</span></td>
               <td>
-                <ion-button size="small" fill="clear" (click)="abrirDetalleTurno(t)">Ver detalle</ion-button>
+                <ion-button size="small" fill="clear" (click)="abrirDetalleTurno(t, vm)">Ver detalle</ion-button>
                 <ion-button size="small" fill="clear" (click)="verFacturasTurno(t, vm)">Ver facturas</ion-button>
+                <ion-button *ngIf="t.estado === 'cerrado'" size="small" fill="clear" (click)="imprimirTurno(t)" [disabled]="printingTurno"><ion-icon name="print-outline" slot="start"></ion-icon>Imprimir cuadre</ion-button>
                 <ion-button *ngIf="t.estado === 'abierto'" size="small" fill="clear" color="warning" (click)="cerrarTurnoDesdeFinanzas(t)">Cerrar turno</ion-button>
               </td>
             </tr>
@@ -366,7 +399,7 @@
         </div>
       </div>
 
-      <div class="desktop-table" *ngIf="vm.recientes.length; else emptyMovimientos">
+      <div class="desktop-table recent-movements-table" *ngIf="vm.recientes.length; else emptyMovimientos">
         <table>
           <thead>
             <tr>
@@ -425,6 +458,19 @@
   </div>
 </ion-content>
 
+<ng-template #dashboardState>
+  <div class="finanzas-shell" role="status" aria-live="polite">
+    <section class="card-premium movimientos-panel" *ngIf="dashboardError; else loadingDashboard">
+      <h2>No se pudo cargar Finanzas</h2><p>{{ dashboardError }}</p>
+      <ion-button (click)="reintentarDashboard()">Reintentar</ion-button>
+    </section>
+    <ng-template #loadingDashboard>
+      <p><ion-spinner name="crescent"></ion-spinner> Preparando indicadores financieros…</p>
+      <app-skeleton-card [lines]="5"></app-skeleton-card>
+    </ng-template>
+  </div>
+</ng-template>
+
 <ng-template #emptyChartCategoria>
   <div class="empty-state-inline">No hay datos de gastos por categoria para este periodo.</div>
 </ng-template>
@@ -464,12 +510,90 @@
             <article class="card-premium kpi-card"><span class="kpi-label">Apertura</span><strong class="kpi-value">{{ formatDate(t.fechaApertura) }}</strong></article>
             <article class="card-premium kpi-card"><span class="kpi-label">Cierre</span><strong class="kpi-value">{{ formatDate(t.fechaCierre) }}</strong></article>
             <article class="card-premium kpi-card"><span class="kpi-label">Diferencia</span><strong class="kpi-value" [class]="getDiferenciaClass(t.diferencia)">{{ formatCurrency(t.diferencia || 0) }}</strong><small>{{ getDiferenciaLabel(t.diferencia) }}</small></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Monto inicial</span><strong class="kpi-value">{{ formatCurrency(t.montoInicial) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Efectivo esperado</span><strong class="kpi-value">{{ formatCurrency(t.efectivoEsperado) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Efectivo contado</span><strong class="kpi-value">{{ t.efectivoContado == null ? 'Pendiente' : formatCurrency(t.efectivoContado) }}</strong><small>{{ t.fondoInicialIncluidoEnConteo === false ? 'Fondo inicial contado aparte' : 'Incluye el fondo inicial' }}. Transferencias, tarjetas y crédito se concilian por separado.</small></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Ventas en efectivo</span><strong class="kpi-value">{{ formatCurrency(t.totalEfectivo) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Tarjeta</span><strong class="kpi-value">{{ formatCurrency(t.totalTarjeta) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Transferencia</span><strong class="kpi-value">{{ formatCurrency(t.totalTransferencia) }}</strong></article>
+            <article class="card-premium kpi-card"><span class="kpi-label">Crédito</span><strong class="kpi-value">{{ formatCurrency(t.totalCredito) }}</strong></article>
           </div>
+          <p *ngIf="t.observacionApertura"><strong>Observación de apertura:</strong> {{ t.observacionApertura }}</p>
+          <p *ngIf="t.observacionCierre"><strong>Observación de cierre:</strong> {{ t.observacionCierre }}</p>
+          <div class="desktop-table" *ngIf="t.desgloseEfectivo?.length">
+            <table><caption>Desglose de efectivo contado</caption><thead><tr><th>Denominación</th><th>Cantidad</th><th>Subtotal</th></tr></thead>
+              <tbody><tr *ngFor="let item of t.desgloseEfectivo"><td>{{ formatCurrency(item.denominacion) }}</td><td>{{ item.cantidad }}</td><td>{{ formatCurrency(item.denominacion * item.cantidad) }}</td></tr></tbody>
+            </table>
+          </div>
+          <ion-button *ngIf="t.estado === 'cerrado'" fill="outline" (click)="imprimirTurno(t)" [disabled]="printingTurno"><ion-icon name="print-outline" slot="start"></ion-icon>Imprimir cuadre</ion-button>
+          <h3>Facturas y productos del turno</h3>
+          <ng-container *ngTemplateOutlet="detalleFacturasTurno"></ng-container>
         </section>
       </div>
     </ion-content>
   </ng-template>
 </ion-modal>
+
+<ng-template #detalleFacturasTurno>
+  <ion-accordion-group *ngIf="turnoFacturasSeleccionadas.length; else sinFacturasTurno" [multiple]="true" [value]="facturasExpandidas">
+    <ion-accordion *ngFor="let f of turnoFacturasSeleccionadas; let i = index" [value]="f.id || '' + i">
+      <ion-item slot="header" lines="full">
+        <ion-label class="ion-text-wrap"><strong>{{ f.numero || f.numeroFactura || 'Sin número' }}</strong><p>{{ f.clienteNombre || 'Consumidor final' }} · {{ formatDate(f.fecha || f.creadoEn) }}</p></ion-label>
+        <ion-note slot="end">{{ formatCurrency(f.total) }}</ion-note>
+      </ion-item>
+      <article slot="content" class="invoice-full-detail">
+        <div class="invoice-data">
+          <p><strong>Cliente:</strong> {{ f.clienteNombre || 'Consumidor final' }}</p>
+          <p><strong>RNC/Cédula:</strong> {{ f.clienteRncCedula || '—' }}</p>
+          <p *ngIf="f.clienteTelefono"><strong>Teléfono:</strong> {{ f.clienteTelefono }}</p>
+          <p *ngIf="f.clienteCorreo"><strong>Correo:</strong> {{ f.clienteCorreo }}</p>
+          <p><strong>Comprobante:</strong> {{ f.tipoComprobante || '—' }} · {{ f.ncf || 'Sin NCF' }}</p>
+          <p><strong>Fecha:</strong> {{ formatDate(f.fecha || f.creadoEn) }}</p>
+          <p><strong>Estado:</strong> <span [class]="getEstadoFacturaClass(f.estado)">{{ f.estado }}</span></p>
+          <p><strong>Estado de pago:</strong> <span [class]="getEstadoPagoFacturaClass(f.estadoPago)">{{ f.estadoPago || 'No especificado' }}</span></p>
+          <p><strong>Forma de pago:</strong> {{ f.formaPago || '—' }}</p>
+          <p><strong>Responsable:</strong> {{ f.usuarioTurnoNombre || f.artistaNombre || '—' }}</p>
+          <p><strong>Turno / Caja:</strong> {{ f.turnoNumero || selectedTurno?.numeroTurno || '—' }} · {{ f.cajaNombre || selectedTurno?.cajaNombre || '—' }}</p>
+          <p *ngIf="f.estadoFiscal"><strong>Estado fiscal:</strong> {{ f.estadoFiscal }}</p>
+        </div>
+        <div class="desktop-table invoice-lines" *ngIf="f.items?.length; else facturaSinLineas">
+          <table>
+            <caption>Productos y servicios de la factura</caption>
+            <thead><tr><th>Código</th><th>Producto / Servicio</th><th>Cant.</th><th>Precio unitario</th><th>Descuento</th><th>Subtotal</th><th>ITBIS</th><th>Total</th></tr></thead>
+            <tbody>
+              <tr *ngFor="let item of f.items">
+                <td>{{ item.codigo || '—' }}</td><td>{{ item.descripcion }}<small *ngIf="item.tipo"> · {{ item.tipo }}</small></td>
+                <td class="is-right">{{ item.cantidad }}</td><td class="is-right">{{ formatCurrency(item.precioUnitario) }}</td>
+                <td class="is-right">{{ formatCurrency(item.descuento || 0) }}</td>
+                <td class="is-right">{{ formatCurrency(item.subtotal ?? (item.cantidad * item.precioUnitario - (item.descuento || 0))) }}</td>
+                <td class="is-right">{{ formatCurrency(item.itbis || 0) }} <small *ngIf="item.porcentajeItbis">({{ item.porcentajeItbis }}%)</small></td>
+                <td class="is-right"><strong>{{ formatCurrency(item.total) }}</strong></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ng-template #facturaSinLineas><p class="empty-state-inline">Esta factura no tiene líneas de productos registradas.</p></ng-template>
+        <div class="invoice-data invoice-summary">
+          <p><strong>Subtotal:</strong> {{ formatCurrency(f.subtotal) }}</p>
+          <p><strong>Descuento:</strong> {{ formatCurrency(f.descuentoTotal || 0) }}</p>
+          <p><strong>ITBIS:</strong> {{ formatCurrency(f.itbisTotal ?? f.impuesto) }}</p>
+          <p><strong>Total factura:</strong> {{ formatCurrency(f.total) }}</p>
+          <p><strong>Monto recibido:</strong> {{ formatCurrency(f.montoPagado ?? f.totalPagado ?? 0) }}</p>
+          <p><strong>Devuelta:</strong> {{ formatCurrency(f.devuelta ?? f.cambio ?? 0) }}</p>
+        </div>
+        <div class="invoice-data" *ngIf="getFacturaPagoDetalle(f) as pagos">
+          <p><strong>Efectivo:</strong> {{ formatCurrency(pagos.efectivo) }}</p>
+          <p><strong>Tarjeta:</strong> {{ formatCurrency(pagos.tarjeta) }}</p>
+          <p><strong>Transferencia:</strong> {{ formatCurrency(pagos.transferencia) }}</p>
+          <p><strong>Crédito registrado:</strong> {{ formatCurrency(pagos.credito) }}</p>
+        </div>
+        <p *ngIf="f.anuladaEn"><strong>Anulación:</strong> {{ formatDate(f.anuladaEn) }}</p>
+        <p *ngIf="f.motivoAnulacion"><strong>Motivo:</strong> {{ f.motivoAnulacion }}</p>
+      </article>
+    </ion-accordion>
+  </ion-accordion-group>
+  <ng-template #sinFacturasTurno><div class="empty-state-inline">No hay facturas asociadas a este turno.</div></ng-template>
+</ng-template>
 
 <ion-modal class="turno-modal" [isOpen]="turnoFacturasOpen" (didDismiss)="cerrarFacturasTurno()">
   <ng-template>
@@ -484,25 +608,7 @@
             </div>
             <ion-button fill="clear" (click)="cerrarFacturasTurno()">Cerrar listado</ion-button>
           </div>
-          <div class="desktop-table" *ngIf="turnoFacturasSeleccionadas.length; else emptyFacturasTurno">
-            <table>
-              <thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Forma pago</th><th>Total</th><th>Estado pago</th><th>Estado</th></tr></thead>
-              <tbody>
-                <tr *ngFor="let f of turnoFacturasSeleccionadas">
-                  <td>{{ f.numero }}</td>
-                  <td>{{ f.clienteNombre }}</td>
-                  <td>{{ formatDate(f.fecha || f.creadoEn) }}</td>
-                  <td>{{ f.formaPago || '—' }}</td>
-                  <td><strong>{{ formatCurrency(f.total) }}</strong></td>
-                  <td><span [class]="getEstadoPagoFacturaClass(f.estadoPago)">{{ f.estadoPago || '—' }}</span></td>
-                  <td><span [class]="getEstadoFacturaClass(f.estado)">{{ f.estado }}</span></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <ng-template #emptyFacturasTurno>
-            <div class="empty-state-inline">No hay facturas asociadas a este turno.</div>
-          </ng-template>
+          <ng-container *ngTemplateOutlet="detalleFacturasTurno"></ng-container>
         </section>
       </div>
     </ion-content>

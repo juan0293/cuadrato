@@ -1,7 +1,9 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
 import { FormBuilder, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { ActionSheetController } from '@ionic/angular';
+import { ActionSheetController, AlertController } from '@ionic/angular';
+import { SearchableSelectComponent } from '../../../../shared/components/searchable-select/searchable-select.component';
+import { OperationProgressComponent } from '../../../../shared/components/operation-progress/operation-progress.component';
 import { firstValueFrom, map, Observable, shareReplay, Subscription } from 'rxjs';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ToastService } from '../../../../core/services/toast.service';
@@ -45,6 +47,17 @@ type ProductoSeleccionableUi = ProductoServicio & {
   standalone: false,
 })
 export class CompraFormPage implements OnInit, OnDestroy {
+  @ViewChild('productoSelector') private productoSelector?: SearchableSelectComponent;
+  @ViewChild(OperationProgressComponent) private operationProgress?: OperationProgressComponent;
+  isSubmitting = false;
+  processingCompra = false;
+  processingStage = 'Registrando compra';
+  processingMessage = 'Estamos guardando la información de tu compra.';
+  private createdCompraId?: string;
+
+  get hasRegisteredCompra(): boolean {
+    return !!this.createdCompraId;
+  }
   readonly proveedoresActivos$: Observable<Proveedor[]> = this.proveedoresService.getProveedoresActivos().pipe(shareReplay({ bufferSize: 1, refCount: true }));
   readonly productosActivos$: Observable<ProductoServicio[]> = this.productosService.list().pipe(shareReplay({ bufferSize: 1, refCount: true }));
   readonly productosSeleccionables$: Observable<ProductoServicio[]> = this.productosActivos$.pipe(
@@ -93,6 +106,7 @@ export class CompraFormPage implements OnInit, OnDestroy {
     productoId: ['', Validators.required],
     cantidad: [1, [Validators.required, Validators.min(1)]],
     precioCompra: [0, [Validators.required, Validators.min(0)]],
+    precioVenta: [0, [Validators.required, Validators.min(0)]],
     utilidadId: [''],
     utilidadPorcentaje: [0],
     descuento: [0],
@@ -109,6 +123,7 @@ export class CompraFormPage implements OnInit, OnDestroy {
     private readonly toastService: ToastService,
     private readonly actionSheetCtrl: ActionSheetController,
     private readonly router: Router,
+    private readonly alertCtrl: AlertController,
   ) {}
 
   ngOnInit(): void {
@@ -150,6 +165,7 @@ export class CompraFormPage implements OnInit, OnDestroy {
     this.form.patchValue({
       productoId: producto.id || '',
       precioCompra: Number(producto.precioCompra ?? producto.ultimoCosto ?? 0),
+      precioVenta: Number(producto.precioVenta ?? 0),
       utilidadId: producto.utilidadId || '',
       utilidadPorcentaje: Number(producto.utilidadPorcentaje || 0),
     });
@@ -171,11 +187,21 @@ export class CompraFormPage implements OnInit, OnDestroy {
     return calculateSalePrice(Number(this.form.controls.precioCompra.value || 0), Number(this.form.controls.utilidadPorcentaje.value || 0));
   }
 
+  aplicarPrecioSugerido(): void {
+    this.form.controls.precioVenta.setValue(this.precioVentaSugeridoLinea);
+  }
+
+  aplicarPrecioSugeridoEdicion(): void {
+    if (!this.editingItem) return;
+    this.editingItem.precioVenta = calculateSalePrice(this.editingItem.costoUnitario, Number(this.editingItem.utilidadPorcentaje || 0));
+  }
+
   async onUtilidadSelected(utilidad: Utilidad): Promise<void> {
     this.form.patchValue({ utilidadId: utilidad.id || '', utilidadPorcentaje: utilidad.porcentaje });
   }
 
   async addItem(): Promise<void> {
+    if (this.isSubmitting) return;
     if (!this.form.controls.productoId.value) {
       await this.toastService.error('Selecciona un producto o servicio.');
       return;
@@ -202,7 +228,14 @@ export class CompraFormPage implements OnInit, OnDestroy {
       return;
     }
 
+    const precioVenta = Number(this.form.controls.precioVenta.value);
+    if (this.form.controls.precioVenta.invalid || !Number.isFinite(precioVenta) || precioVenta < 0) {
+      await this.toastService.error('Introduce un precio de venta válido, mayor o igual a cero.');
+      return;
+    }
+
     const draft = mapProductoToCompraItem(producto, cantidad, precioCompra, descuento, utilidad);
+    draft.precioVenta = precioVenta;
     draft.actualizarUtilidadProducto = true;
     draft.actualizarPrecioVentaProducto = true;
 
@@ -214,18 +247,20 @@ export class CompraFormPage implements OnInit, OnDestroy {
       productoId: '',
       cantidad: 1,
       precioCompra: 0,
+      precioVenta: 0,
       utilidadId: '',
       utilidadPorcentaje: 0,
       descuento: 0,
     });
     this.selectedProducto = null;
+    this.productoSelector?.open();
   }
 
   editCompraItem(index: number): void {
     const source = this.items[index];
     if (!source) return;
     this.editIndex = index;
-    this.editingItem = { ...source };
+    this.editingItem = { ...source, precioVenta: source.precioVenta ?? source.precioVentaSugerido ?? source.costoUnitario };
   }
 
   cancelEditCompraItem(): void {
@@ -238,6 +273,12 @@ export class CompraFormPage implements OnInit, OnDestroy {
 
     if (Number(this.editingItem.cantidad || 0) <= 0) {
       void this.toastService.error('La cantidad debe ser mayor a cero.');
+      return;
+    }
+
+    const precioVenta = this.editingItem.precioVenta;
+    if (precioVenta == null || !Number.isFinite(precioVenta) || precioVenta < 0) {
+      void this.toastService.error('Introduce un precio de venta válido, mayor o igual a cero.');
       return;
     }
 
@@ -428,40 +469,98 @@ export class CompraFormPage implements OnInit, OnDestroy {
   }
 
   async saveCompra(): Promise<void> {
-    const user = await firstValueFrom(this.authService.user$);
-    const payload = this.buildCompraPayload('borrador');
-    payload.creadoPor = user?.uid ?? 'sistema';
-
-    const validationErrors = this.validateCompraBeforeSave(payload, false);
-    if (validationErrors.length) {
-      await this.toastService.error(validationErrors[0]);
+    if (this.isSubmitting) return;
+    if (this.createdCompraId) {
+      await this.router.navigate(['/admin/inventario/compras', this.createdCompraId]);
       return;
     }
+    this.isSubmitting = true;
+    try {
+      const user = await firstValueFrom(this.authService.user$);
+      const payload = this.buildCompraPayload('borrador');
+      payload.creadoPor = user?.uid ?? 'sistema';
 
-    const id = await this.comprasService.createCompraBorrador(payload);
-    const compraGenerada: Compra = { ...payload, id };
-    await this.toastService.success('Compra guardada correctamente.');
-    await this.presentPdfOptions(compraGenerada);
-    await this.router.navigate(['/admin/inventario/compras', id]);
+      const validationErrors = this.validateCompraBeforeSave(payload, false);
+      if (validationErrors.length) {
+        await this.toastService.error(validationErrors[0]);
+        return;
+      }
+
+      const id = await this.comprasService.createCompraBorrador(payload);
+      this.createdCompraId = id;
+      const compraGenerada: Compra = { ...payload, id };
+      await this.toastService.success('Compra guardada correctamente.');
+      await this.presentPdfOptions(compraGenerada);
+      await this.router.navigate(['/admin/inventario/compras', id]);
+    } catch (error) {
+      console.error('[CompraForm] guardarCompra:', error);
+      await this.toastService.error('No fue posible completar el guardado. Verifica tu conexión.');
+    } finally {
+      this.isSubmitting = false;
+    }
   }
 
   async confirmarCompra(): Promise<void> {
-    const user = await firstValueFrom(this.authService.user$);
-    const payload = this.buildCompraPayload('borrador');
-    payload.creadoPor = user?.uid ?? 'sistema';
-
-    const validationErrors = this.validateCompraBeforeSave(payload, true);
-    if (validationErrors.length) {
-      await this.toastService.error(validationErrors[0]);
+    // Bloqueo sincrónico, antes del primer await y del diálogo de confirmación.
+    if (this.isSubmitting) return;
+    if (this.createdCompraId) {
+      await this.router.navigate(['/admin/inventario/compras', this.createdCompraId]);
       return;
     }
+    this.isSubmitting = true;
+    let confirmed = false;
+    try {
+      const user = await firstValueFrom(this.authService.user$);
+      const payload = this.buildCompraPayload('borrador');
+      payload.creadoPor = user?.uid ?? 'sistema';
 
-    const id = await this.comprasService.createCompraBorrador(payload);
-    await this.comprasService.confirmarCompra(id);
-    const compraConfirmada = await firstValueFrom(this.comprasService.getCompraById(id));
-    await this.toastService.success('Compra confirmada e inventario actualizado.');
-    await this.presentPdfOptions(compraConfirmada);
-    await this.router.navigate(['/admin/inventario/compras', id]);
+      const validationErrors = this.validateCompraBeforeSave(payload, true);
+      if (validationErrors.length) {
+        await this.toastService.error(validationErrors[0]);
+        return;
+      }
+
+      const alert = await this.alertCtrl.create({
+        header: 'Confirmar compra',
+        subHeader: payload.proveedorNombre,
+        message: `Se registrará una compra de ${this.formatMoney(payload.total)} con ${payload.items.length} línea(s). ${payload.afectaInventario ? 'Se actualizarán las existencias y los costos correspondientes.' : 'Esta compra no modificará las existencias.'} ${payload.condicionPago === 'credito' ? 'También se generará la cuenta por pagar.' : ''} ¿Deseas continuar?`,
+        backdropDismiss: false,
+        buttons: [
+          { text: 'Revisar compra', role: 'cancel' },
+          { text: 'Confirmar y registrar', role: 'confirm' },
+        ],
+      });
+      await alert.present();
+      const { role } = await alert.onDidDismiss();
+      if (role !== 'confirm') return;
+
+      this.processingStage = 'Registrando compra';
+      this.processingMessage = 'Estamos guardando el documento y su detalle comercial.';
+      this.processingCompra = true;
+      const id = await this.comprasService.createCompraBorrador(payload);
+      this.createdCompraId = id;
+      this.processingStage = 'Aplicando confirmación';
+      this.processingMessage = 'Estamos procesando los costos, las existencias y las obligaciones de pago de la compra.';
+      const compraConfirmada = await this.comprasService.confirmarCompra(id);
+      confirmed = true;
+      this.processingCompra = false;
+      await this.operationProgress?.hide();
+      await this.toastService.success('Compra confirmada e inventario actualizado.');
+      await this.presentPdfOptions(compraConfirmada);
+      await this.router.navigate(['/admin/inventario/compras', id]);
+    } catch (error) {
+      console.error('[CompraForm] confirmarCompra:', error);
+      this.processingCompra = false;
+      await this.operationProgress?.hide();
+      await this.toastService.error(confirmed
+        ? 'La compra quedó confirmada. Puedes consultar el documento desde Compras.'
+        : this.createdCompraId
+          ? 'La compra quedó registrada, pero no se pudo completar la confirmación. Abre su detalle y revisa el estado antes de continuar.'
+          : 'No fue posible registrar la compra. Verifica tu conexión e intenta nuevamente.');
+    } finally {
+      this.processingCompra = false;
+      this.isSubmitting = false;
+    }
   }
 
   private async presentPdfOptions(compra: Compra): Promise<void> {

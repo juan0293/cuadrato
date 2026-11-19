@@ -3,7 +3,8 @@ import { AngularFirestore } from '@angular/fire/compat/firestore';
 import firebase from 'firebase/compat/app';
 import { Observable } from 'rxjs';
 import { Factura } from '../models/factura.model';
-import { TurnoCaja, TurnoTotales } from '../models/turno-caja.model';
+import { DesgloseEfectivo, normalizarDesgloseEfectivo, totalDesgloseEfectivo, TurnoCaja, TurnoTotales } from '../models/turno-caja.model';
+import { desglosarPagosFactura, normalizarMetodoPagoFactura } from '../helpers/pagos-factura.helper';
 
 @Injectable({ providedIn: 'root' })
 export class TurnosCajaService {
@@ -13,7 +14,21 @@ export class TurnosCajaService {
   constructor(private readonly afs: AngularFirestore) {}
 
   list(): Observable<TurnoCaja[]> {
-    return this.afs.collection<TurnoCaja>(this.collectionPath).valueChanges({ idField: 'id' });
+    // Se usa el SDK directo para mantener la suscripción fuera de las APIs
+    // compat que pueden fallar con NG0203 al entrar a Finanzas por lazy loading.
+    return new Observable<TurnoCaja[]>((subscriber) => {
+      const unsubscribe = this.afs.firestore.collection(this.collectionPath).onSnapshot(
+        (snapshot) => {
+          subscriber.next(snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...(doc.data() as TurnoCaja),
+          })));
+        },
+        (error) => subscriber.error(error),
+      );
+
+      return () => unsubscribe();
+    });
   }
 
   async getTurnoAbierto(usuarioId: string, cajaId?: string): Promise<TurnoCaja | null> {
@@ -57,7 +72,8 @@ export class TurnosCajaService {
       fechaApertura: now,
       fechaCierre: null,
       montoInicial: Number(params.montoInicial || 0),
-      efectivoEsperado: Number(params.montoInicial || 0),
+      efectivoEsperado: 0,
+      fondoInicialIncluidoEnConteo: false,
       efectivoContado: null,
       diferencia: null,
       totalVentas: 0,
@@ -76,19 +92,23 @@ export class TurnosCajaService {
     return { id: docRef.id, ...payload };
   }
 
-  async cerrarTurno(turno: TurnoCaja, efectivoContado: number, observacionCierre?: string): Promise<void> {
-    if (!turno?.id || turno.estado !== 'abierto') return;
+  async cerrarTurno(turno: TurnoCaja, efectivoContado: number, observacionCierre?: string, desgloseEfectivo?: DesgloseEfectivo[], fondoInicialIncluidoEnConteo = false): Promise<TurnoCaja> {
+    if (!turno?.id || turno.estado !== 'abierto') throw new Error('SHIFT_NOT_OPEN');
     const totales = await this.calcularTotalesTurno(turno.id);
     const montoInicial = Number(turno.montoInicial || 0);
-    const esperado = Number((montoInicial + totales.totalEfectivo).toFixed(2));
-    const contado = Number(efectivoContado || 0);
+    const esperado = Number(((fondoInicialIncluidoEnConteo ? montoInicial : 0) + totales.totalEfectivo).toFixed(2));
+    const desglose = desgloseEfectivo ? normalizarDesgloseEfectivo(desgloseEfectivo) : undefined;
+    const contado = desglose ? totalDesgloseEfectivo(desglose) : Number(efectivoContado);
+    if (!Number.isFinite(contado) || contado < 0) throw new Error('INVALID_CASH_COUNT');
     const diferencia = Number((contado - esperado).toFixed(2));
+    const fechaCierre = firebase.firestore.Timestamp.now();
 
     await this.afs.firestore.collection(this.collectionPath).doc(turno.id).update({
-      fechaCierre: firebase.firestore.FieldValue.serverTimestamp(),
+      fechaCierre,
       estado: 'cerrado',
       efectivoEsperado: esperado,
       efectivoContado: contado,
+      fondoInicialIncluidoEnConteo,
       diferencia,
       totalVentas: totales.totalVentas,
       totalEfectivo: totales.totalEfectivo,
@@ -97,8 +117,12 @@ export class TurnosCajaService {
       totalCredito: totales.totalCredito,
       cantidadFacturas: totales.cantidadFacturas,
       observacionCierre: observacionCierre || '',
+      ...(desglose ? { desgloseEfectivo: desglose } : {}),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
+    return { ...turno, fechaCierre, id: turno.id, ...totales, estado: 'cerrado', efectivoEsperado: esperado,
+      efectivoContado: contado, fondoInicialIncluidoEnConteo, diferencia, observacionCierre: observacionCierre || '',
+      ...(desglose ? { desgloseEfectivo: desglose } : {}) } as TurnoCaja;
   }
 
   async calcularTotalesTurno(turnoId: string): Promise<TurnoTotales> {
@@ -115,26 +139,20 @@ export class TurnosCajaService {
       const factura = doc.data() as Factura;
       if (factura.estado === 'anulada') return;
       const total = Number(factura.total || 0);
-      const metodo = this.normalizarMetodoPago(factura.formaPago);
+      const pagos = desglosarPagosFactura(factura);
 
       acc.totalVentas = Number((acc.totalVentas + total).toFixed(2));
       acc.cantidadFacturas += 1;
-      if (metodo === 'efectivo') acc.totalEfectivo = Number((acc.totalEfectivo + total).toFixed(2));
-      if (metodo === 'tarjeta') acc.totalTarjeta = Number((acc.totalTarjeta + total).toFixed(2));
-      if (metodo === 'transferencia') acc.totalTransferencia = Number((acc.totalTransferencia + total).toFixed(2));
-      if (metodo === 'credito') acc.totalCredito = Number((acc.totalCredito + total).toFixed(2));
+      acc.totalEfectivo = Number((acc.totalEfectivo + pagos.efectivo).toFixed(2));
+      acc.totalTarjeta = Number((acc.totalTarjeta + pagos.tarjeta).toFixed(2));
+      acc.totalTransferencia = Number((acc.totalTransferencia + pagos.transferencia).toFixed(2));
+      acc.totalCredito = Number((acc.totalCredito + pagos.credito).toFixed(2));
     });
     return acc;
   }
 
   normalizarMetodoPago(value: unknown): 'efectivo' | 'tarjeta' | 'transferencia' | 'credito' | 'otro' {
-    const normalized = String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
-    if (!normalized) return 'otro';
-    if (['efectivo', 'cash'].includes(normalized)) return 'efectivo';
-    if (['tarjeta', 'card', 'credito-debito', 'debito', 'credito'].includes(normalized)) return 'tarjeta';
-    if (['transferencia', 'transfer'].includes(normalized)) return 'transferencia';
-    if (['credito', 'a credito'].includes(normalized)) return 'credito';
-    return 'otro';
+    return normalizarMetodoPagoFactura(value);
   }
 
   private generarNumeroTurno(): string {

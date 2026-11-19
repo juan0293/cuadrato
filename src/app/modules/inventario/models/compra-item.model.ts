@@ -21,6 +21,7 @@ export interface CompraItem {
   utilidadId?: string;
   utilidadNombre?: string;
   utilidadPorcentaje?: number;
+  precioVenta?: number;
   precioVentaSugerido?: number;
   actualizarPrecioVentaProducto?: boolean;
   actualizarUtilidadProducto?: boolean;
