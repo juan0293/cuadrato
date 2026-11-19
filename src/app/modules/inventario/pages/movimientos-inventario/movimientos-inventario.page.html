@@ -64,6 +64,7 @@
               <ion-select-option value="todos">Todos los tipos</ion-select-option>
               <ion-select-option value="entrada">Entrada</ion-select-option>
               <ion-select-option value="salida">Salida</ion-select-option>
+              <ion-select-option value="anulacion_compra">Anulación compra</ion-select-option>
               <ion-select-option value="ajuste">Ajuste</ion-select-option>
               <ion-select-option value="devolucion">Devolución</ion-select-option>
             </ion-select>
@@ -142,6 +143,7 @@
     </section>
 
     <section class="card" *ngIf="!loading && !loadError">
+      <p class="sale-price-note">El precio de venta corresponde al catálogo actual. El valor total de venta es cantidad × precio de venta; es una valoración de referencia, no una venta facturada.</p>
       <ng-container *ngIf="movimientosFiltrados.length > 0; else emptyState">
         <div class="desktop-table">
           <table>
@@ -153,7 +155,9 @@
                 <th>Código</th>
                 <th class="num">Cantidad</th>
                 <th class="num">Costo unitario</th>
+                <th class="num">Precio de venta</th>
                 <th class="num">Valor total</th>
+                <th class="num">Valor total de venta</th>
                 <th>Referencia</th>
                 <th>Responsable</th>
                 <th>Estado</th>
@@ -171,7 +175,9 @@
                 <td>{{ m.productoId || m.insumoId || '—' }}</td>
                 <td class="num">{{ m.cantidad }}</td>
                 <td class="num">{{ formatMoney(m.costoUnitario) }}</td>
+                <td class="num">{{ formatVenta(getPrecioVenta(m)) }}</td>
                 <td class="num"><strong>{{ formatMoney(getValorTotal(m)) }}</strong></td>
+                <td class="num"><strong>{{ formatVenta(getValorTotalVenta(m)) }}</strong></td>
                 <td>{{ m.referenciaId || m.referenciaTipo || '—' }}</td>
                 <td>{{ getResponsableNombre(m) }}</td>
                 <td>
@@ -209,7 +215,10 @@
             <p>{{ formatDate(m.fecha, true) }}</p>
             <div class="meta-grid">
               <span>Cantidad: <strong>{{ m.cantidad }}</strong></span>
+              <span>Costo unitario: <strong>{{ formatMoney(m.costoUnitario) }}</strong></span>
+              <span>Precio de venta actual: <strong>{{ formatVenta(getPrecioVenta(m)) }}</strong></span>
               <span>Valor: <strong>{{ formatMoney(getValorTotal(m)) }}</strong></span>
+              <span>Valor total de venta: <strong>{{ formatVenta(getValorTotalVenta(m)) }}</strong></span>
               <span>Responsable: <strong>{{ getResponsableNombre(m) }}</strong></span>
               <span>Referencia: <strong>{{ m.referenciaId || m.referenciaTipo || '—' }}</strong></span>
             </div>

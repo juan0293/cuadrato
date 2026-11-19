@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { AlertController, LoadingController } from '@ionic/angular';
-import { Observable, combineLatest, map } from 'rxjs';
+import { BehaviorSubject, Observable, catchError, combineLatest, map, of, shareReplay, startWith, switchMap } from 'rxjs';
 import * as XLSX from 'xlsx';
 import { formatCurrencyDOP } from '../../../core/utils/currency.utils';
 import { agruparPorCategoria } from '../helpers/finanzas.helper';
@@ -18,8 +18,13 @@ import { TurnosCajaService } from '../../facturacion/services/turnos-caja.servic
 import { FacturacionService } from '../../facturacion/services/facturacion.service';
 import { Factura } from '../../facturacion/models/factura.model';
 import { FinanzasTheme, FinanzasThemeService } from '../services/finanzas-theme.service';
+import { InvoicePrintingService } from '../../facturacion/services/invoice-printing.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { buildExecutiveDashboard, ExecutiveDashboard, inFinanceRange } from '../helpers/executive-finance.helper';
+import { desglosarPagosFactura } from '../../facturacion/helpers/pagos-factura.helper';
 
 interface FinanzasViewModel {
+  executive: ExecutiveDashboard;
   movimientos: MovimientoFinanciero[];
   ingresos: number;
   gastos: number;
@@ -99,13 +104,27 @@ export class FinanzasPage {
   turnoDetalleOpen = false;
   turnoFacturasOpen = false;
   turnoFacturasSeleccionadas: Factura[] = [];
-  vm$: Observable<FinanzasViewModel> = this.buildViewModel(
-    this.finanzasService.byRango(this.fechaDesde, this.fechaHasta),
-    this.usuariosService.list(),
-    this.cuentasPorPagarService.listEnriquecida(),
-    this.cuentasPorCobrarService.listEnriquecida(),
-    this.turnosCajaService.list(),
-    this.facturacionService.getFacturas(),
+  facturasExpandidas: string[] = [];
+  printingTurno = false;
+  dashboardError = '';
+  private readonly rangeChanges$ = new BehaviorSubject(0);
+  private readonly reloadDashboard$ = new BehaviorSubject(0);
+  // Un único conjunto de suscripciones por carga. Cambiar fechas solo recalcula
+  // datos ya recibidos; comparar el período anterior no consulta Firestore otra vez.
+  vm$: Observable<FinanzasViewModel | null> = this.reloadDashboard$.pipe(
+    switchMap(() => this.buildViewModel(
+      this.finanzasService.list(), this.usuariosService.list(),
+      this.cuentasPorPagarService.listEnriquecida(), this.cuentasPorCobrarService.listEnriquecida(),
+      this.turnosCajaService.list(), this.facturacionService.getFacturas(),
+    ).pipe(
+      startWith(null),
+      catchError((error) => {
+        console.error('[Finanzas] dashboard:', error);
+        this.dashboardError = 'No pudimos cargar la información financiera. Verifica tu conexión y tus permisos.';
+        return of(null);
+      }),
+    )),
+    shareReplay({ bufferSize: 1, refCount: true }),
   );
 
   constructor(
@@ -118,6 +137,8 @@ export class FinanzasPage {
     private readonly alertCtrl: AlertController,
     private readonly loadingCtrl: LoadingController,
     private readonly finanzasThemeService: FinanzasThemeService,
+    private readonly invoicePrintingService: InvoicePrintingService,
+    private readonly toastService: ToastService,
   ) {
     this.financeTheme = this.finanzasThemeService.theme;
   }
@@ -151,14 +172,12 @@ export class FinanzasPage {
 
   private refreshViewModel(): void {
     this.recientesPage = 1;
-    this.vm$ = this.buildViewModel(
-      this.finanzasService.byRango(this.fechaDesde, this.fechaHasta),
-      this.usuariosService.list(),
-      this.cuentasPorPagarService.listEnriquecida(),
-      this.cuentasPorCobrarService.listEnriquecida(),
-      this.turnosCajaService.list(),
-      this.facturacionService.getFacturas(),
-    );
+    this.rangeChanges$.next(this.rangeChanges$.value + 1);
+  }
+
+  reintentarDashboard(): void {
+    this.dashboardError = '';
+    this.reloadDashboard$.next(this.reloadDashboard$.value + 1);
   }
 
   formatCurrency = formatCurrencyDOP;
@@ -255,8 +274,9 @@ export class FinanzasPage {
     turnos$: Observable<TurnoCaja[]>,
     facturas$: Observable<Factura[]>,
   ): Observable<FinanzasViewModel> {
-    return combineLatest([source$, usuarios$, cuentasPorPagar$, cuentasPorCobrar$, turnos$, facturas$]).pipe(
-      map(([items, usuarios, cuentasPorPagar, cuentasPorCobrar, turnos, facturas]) => {
+    return combineLatest([source$, usuarios$, cuentasPorPagar$, cuentasPorCobrar$, turnos$, facturas$, this.rangeChanges$]).pipe(
+      map(([allMovements, usuarios, cuentasPorPagar, cuentasPorCobrar, turnos, facturas]) => {
+        const items = allMovements.filter(item => inFinanceRange(item.fecha, this.fechaDesde, this.fechaHasta));
         const facturasPeriodo = this.filtrarFacturasContablesPorRango(facturas || []);
         const turnosEnriquecidos = this.enriquecerTurnosConFacturas(turnos || [], facturas || []);
         const actividadReciente = this.buildActividadReciente(items, facturasPeriodo);
@@ -276,6 +296,7 @@ export class FinanzasPage {
         const topCategoria = Object.entries(groupedGastos).sort(([, a], [, b]) => b - a)[0]?.[0] || 'Sin datos';
 
         return {
+          executive: buildExecutiveDashboard(facturas || [], allMovements, this.fechaDesde, this.fechaHasta),
           movimientos: items,
           ingresos,
           gastos,
@@ -467,27 +488,57 @@ export class FinanzasPage {
     return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   }
 
-  abrirDetalleTurno(turno: TurnoCaja): void {
+  abrirDetalleTurno(turno: TurnoCaja, vm: FinanzasViewModel): void {
     this.selectedTurno = turno;
+    this.cargarFacturasDelTurno(turno, vm);
     this.turnoDetalleOpen = true;
   }
 
   cerrarDetalleTurno(): void {
     this.turnoDetalleOpen = false;
     this.selectedTurno = null;
+    this.turnoFacturasSeleccionadas = [];
+    this.facturasExpandidas = [];
   }
 
   verFacturasTurno(turno: TurnoCaja, vm: FinanzasViewModel): void {
     this.selectedTurno = turno;
-    this.turnoFacturasSeleccionadas = (vm.facturasRaw || [])
-      .filter((f) => String(f.turnoId || '') === String(turno.id || ''))
-      .sort((a, b) => this.parseFecha(b.fecha || b.creadoEn) - this.parseFecha(a.fecha || a.creadoEn));
+    this.cargarFacturasDelTurno(turno, vm);
     this.turnoFacturasOpen = true;
+  }
+
+  private cargarFacturasDelTurno(turno: TurnoCaja, vm: FinanzasViewModel): void {
+    this.turnoFacturasSeleccionadas = (vm.facturasRaw || [])
+      .filter((f) => !!turno.id && f.turnoId === turno.id)
+      .sort((a, b) => this.parseFecha(b.fecha || b.creadoEn) - this.parseFecha(a.fecha || a.creadoEn));
+    this.facturasExpandidas = this.turnoFacturasSeleccionadas.map((f, index) => f.id || String(index));
   }
 
   cerrarFacturasTurno(): void {
     this.turnoFacturasOpen = false;
     this.turnoFacturasSeleccionadas = [];
+    this.facturasExpandidas = [];
+    this.selectedTurno = null;
+  }
+
+  async imprimirTurno(turno: TurnoCaja): Promise<void> {
+    if (this.printingTurno) return;
+    if (turno.estado !== 'cerrado') {
+      await this.toastService.error('Cierra el turno antes de imprimir su cuadre.');
+      return;
+    }
+    this.printingTurno = true;
+    try {
+      await this.invoicePrintingService.printShiftClose(turno);
+    } catch (error) {
+      await this.toastService.error(this.invoicePrintingService.getFriendlyError(error));
+    } finally {
+      this.printingTurno = false;
+    }
+  }
+
+  getFacturaPagoDetalle(factura: Factura) {
+    return this.getFacturaPaymentBreakdown(factura);
   }
 
   async cerrarTurnoDesdeFinanzas(turno: TurnoCaja): Promise<void> {
@@ -504,7 +555,7 @@ export class FinanzasPage {
 
     const prompt = await this.alertCtrl.create({
       header: 'Cerrar turno',
-      message: 'Registra el efectivo contado para cerrar el turno.',
+      message: 'Registra únicamente el efectivo de las ventas. El fondo inicial se cuenta aparte; tarjetas, transferencias y crédito no se suman al efectivo esperado.',
       inputs: [
         { name: 'efectivoContado', type: 'number', placeholder: 'Efectivo contado' },
         { name: 'observacionCierre', type: 'text', placeholder: 'Observación de cierre (opcional)' },
@@ -709,13 +760,14 @@ export class FinanzasPage {
       });
 
     return turnos.map((turno) => {
+      // Un cierre es una fotografía contable: reimprimir debe conservar los
+      // importes, el conteo y la diferencia registrados al cerrar la caja.
+      if (turno.estado === 'cerrado') return { ...turno };
       const totales = totalesPorTurno.get(String(turno.id || '')) || this.createEmptyTurnoTotales();
       const montoInicial = this.toNumberSafe(turno.montoInicial);
-      const efectivoEsperado = Number((montoInicial + totales.totalEfectivo).toFixed(2));
-      const efectivoContado = turno.estado === 'cerrado' ? this.toNumberSafe(turno.efectivoContado) : null;
-      const diferencia = turno.estado === 'cerrado' && efectivoContado !== null
-        ? Number((efectivoContado - efectivoEsperado).toFixed(2))
-        : this.toNumberSafe(turno.diferencia);
+      const efectivoEsperado = Number(((turno.fondoInicialIncluidoEnConteo === true ? montoInicial : 0) + totales.totalEfectivo).toFixed(2));
+      const efectivoContado = null;
+      const diferencia = this.toNumberSafe(turno.diferencia);
 
       return {
         ...turno,
@@ -733,24 +785,7 @@ export class FinanzasPage {
   }
 
   private getFacturaPaymentBreakdown(factura: Factura): { efectivo: number; tarjeta: number; transferencia: number; credito: number } {
-    const pagos = factura.pagos;
-    if (pagos) {
-      return {
-        efectivo: this.toNumber(pagos.efectivo),
-        tarjeta: this.toNumber(pagos.tarjeta),
-        transferencia: this.toNumber(pagos.transferencia),
-        credito: this.toNumber(pagos.credito ?? pagos.totalCredito),
-      };
-    }
-
-    const total = this.toNumber(factura.total);
-    const formaPago = this.normalize(factura.formaPago);
-    return {
-      efectivo: formaPago === 'efectivo' ? total : 0,
-      tarjeta: formaPago === 'tarjeta' ? total : 0,
-      transferencia: formaPago === 'transferencia' ? total : 0,
-      credito: formaPago === 'credito' ? total : 0,
-    };
+    return desglosarPagosFactura(factura);
   }
 
   private createEmptyTurnoTotales(): TurnoTotales {

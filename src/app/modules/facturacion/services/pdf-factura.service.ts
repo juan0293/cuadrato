@@ -7,6 +7,7 @@ import { Factura } from '../models/factura.model';
 import { FacturaItem } from '../models/factura-item.model';
 import { TurnoCaja, TurnoTotales } from '../models/turno-caja.model';
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
+import { InvoicePrintFormat } from '../models/printer-configuration.model';
 
 @Injectable({ providedIn: 'root' })
 export class PdfFacturaService {
@@ -447,6 +448,46 @@ export class PdfFacturaService {
     this.descargarFacturaPdf(factura);
   }
 
+  async imprimirPrecuenta(documento: Factura, format: InvoicePrintFormat): Promise<void> {
+    this.configurarPdfMake();
+    await this.ensureLogoLoaded();
+    await pdfMake.createPdf(this.buildPrecuentaPdfDefinition(documento, format)).print();
+  }
+
+  buildPrecuentaPdfDefinition(documento: Factura, format: InvoicePrintFormat): TDocumentDefinitions {
+    const letter = format === 'letter';
+    const narrow = format === 'ticket58';
+    const fontSize = letter ? 10 : narrow ? 6.5 : 8;
+    const body: any[] = [[
+      { text: 'Producto / servicio', bold: true }, { text: 'Cant.', bold: true },
+      { text: 'Precio', bold: true }, { text: 'Total', bold: true },
+    ], ...documento.items.map(item => [item.descripcion, String(item.cantidad),
+      { text: this.formatDOP(item.precioUnitario), alignment: 'right' },
+      { text: this.formatDOP(this.getItemTotal(item)), alignment: 'right' },
+    ])];
+    return {
+      pageSize: letter ? 'LETTER' : { width: narrow ? 164.41 : 226.77, height: 'auto' },
+      pageMargins: letter ? [38, 36, 38, 36] : [7, 8, 7, 8],
+      defaultStyle: { fontSize },
+      content: [
+        ...(this.logoDataUrl ? [{ image: this.logoDataUrl, width: letter ? 70 : 42, alignment: 'center' as const, margin: [0, 0, 0, 5] as [number, number, number, number] }] : []),
+        { text: this.branding.companyTitle, bold: true, alignment: 'center', fontSize: fontSize + 3 },
+        { text: this.companyProfileService.buildContactLine(this.branding), alignment: 'center' },
+        { text: 'PRECUENTA — NO VÁLIDA COMO FACTURA', bold: true, alignment: 'center', margin: [0, 8, 0, 8] },
+        { text: `Cuenta: ${documento.cuentaAbiertaId || documento.numero}` },
+        { text: `Cliente: ${documento.clienteNombre}` },
+        { text: `Apertura: ${this.formatDate(documento.fecha)}`, margin: [0, 0, 0, 8] },
+        { table: { headerRows: 1, widths: ['*', narrow ? 15 : 25, narrow ? 35 : 50, narrow ? 35 : 50], body },
+          layout: 'lightHorizontalLines' },
+        { text: `Subtotal: ${this.formatDOP(documento.subtotal)}`, alignment: 'right', margin: [0, 8, 0, 0] },
+        { text: `Descuento global: ${this.formatDOP(documento.descuentoTotal || 0)}`, alignment: 'right' },
+        { text: `ITBIS: ${this.formatDOP(documento.itbisTotal ?? documento.impuesto)}`, alignment: 'right' },
+        { text: `TOTAL: ${this.formatDOP(documento.total)}`, bold: true, fontSize: fontSize + 3, alignment: 'right', margin: [0, 4, 0, 8] },
+        { text: 'Cuenta abierta. Pendiente de facturación. Este documento no acredita pago.', alignment: 'center' },
+      ],
+    };
+  }
+
   imprimirTicket80mm(factura: Factura): void {
     this.configurarPdfMake();
     void this.ensureLogoLoaded().finally(() => {
@@ -501,26 +542,29 @@ export class PdfFacturaService {
     });
   }
 
-  buildCierreTurnoPdfDefinition(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = ''): TDocumentDefinitions {
+  buildCierreTurnoPdfDefinition(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = '', format: InvoicePrintFormat = 'ticket80'): TDocumentDefinitions {
+    const letter = format === 'letter';
+    const small = format === 'ticket58';
     const montoInicial = this.toNumber(turno.montoInicial);
     const totalEfectivo = this.toNumber(totales.totalEfectivo);
-    const efectivoEsperado = Number((montoInicial + totalEfectivo).toFixed(2));
+    const incluyeFondo = turno.fondoInicialIncluidoEnConteo ?? turno.estado === 'cerrado';
+    const efectivoEsperado = turno.estado === 'cerrado' ? this.toNumber(turno.efectivoEsperado) : Number(((incluyeFondo ? montoInicial : 0) + totalEfectivo).toFixed(2));
     const contado = this.toNumber(efectivoContado);
     const diferencia = Number((contado - efectivoEsperado).toFixed(2));
     const apertura = this.formatDate(this.toDateLike(turno.fechaApertura));
-    const cierre = this.formatDate(new Date().toISOString());
+    const cierre = turno.fechaCierre ? this.formatDate(this.toDateLike(turno.fechaCierre)) : '—';
     const logoBlock: any[] = this.logoDataUrl
       ? [{
           image: this.logoDataUrl,
-          width: 46,
+          width: letter ? 82 : small ? 42 : 46,
           alignment: 'center' as const,
           margin: [0, 0, 0, 6] as [number, number, number, number],
         }]
       : [];
 
     return {
-      pageSize: { width: 226.77, height: 'auto' },
-      pageMargins: [9, 10, 9, 10],
+      pageSize: letter ? 'LETTER' : { width: small ? 164.41 : 226.77, height: 'auto' },
+      pageMargins: letter ? [36, 36, 36, 36] : small ? [6, 8, 6, 8] : [9, 10, 9, 10],
       content: [
         ...logoBlock,
         { text: this.branding.companyTitle, style: 'companyTitle', alignment: 'center' },
@@ -541,48 +585,63 @@ export class PdfFacturaService {
               [{ text: 'Total tarjeta', style: 'payLabel' }, { text: this.formatDOP(totales.totalTarjeta), style: 'payValue', alignment: 'right' }],
               [{ text: 'Total transferencia', style: 'payLabel' }, { text: this.formatDOP(totales.totalTransferencia), style: 'payValue', alignment: 'right' }],
               [{ text: 'Total credito', style: 'payLabel' }, { text: this.formatDOP(totales.totalCredito), style: 'payValue', alignment: 'right' }],
-              [{ text: 'Monto inicial', style: 'payLabel' }, { text: this.formatDOP(montoInicial), style: 'payValue', alignment: 'right' }],
+              [{ text: incluyeFondo ? 'Fondo inicial incluido' : 'Fondo inicial aparte', style: 'payLabel' }, { text: this.formatDOP(montoInicial), style: 'payValue', alignment: 'right' }],
               [{ text: 'Efectivo esperado', style: 'payLabel' }, { text: this.formatDOP(efectivoEsperado), style: 'payValue', alignment: 'right' }],
               [{ text: 'Efectivo contado', style: 'payLabel' }, { text: this.formatDOP(contado), style: 'payValue', alignment: 'right' }],
-              [{ text: 'Diferencia', style: 'payLabel' }, { text: this.formatDOP(diferencia), style: 'payValue', alignment: 'right' }],
+              [{ text: 'Diferencia efectivo', style: 'payLabel' }, { text: this.formatDOP(diferencia), style: 'payValue', alignment: 'right' }],
             ],
           } as any,
           layout: 'lightHorizontalLines',
           margin: [0, 2, 0, 4],
         },
+        ...(turno.desgloseEfectivo?.length ? [{
+          text: 'DESGLOSE DE EFECTIVO', bold: true, margin: [0, 8, 0, 4],
+        }, {
+          table: {
+            headerRows: 1,
+            widths: ['*', 'auto', '*'],
+            body: [
+              [{ text: 'Valor RD$', bold: true }, { text: 'Cant.', bold: true }, { text: 'Subtotal', bold: true, alignment: 'right' }],
+              ...turno.desgloseEfectivo.map((item) => [
+                { text: String(item.denominacion) }, { text: String(item.cantidad), alignment: 'right' },
+                { text: this.formatDOP(item.denominacion * item.cantidad), alignment: 'right' },
+              ]),
+            ],
+          },
+          layout: 'lightHorizontalLines', margin: [0, 0, 0, 8],
+        }] as any[] : []),
         { text: [{ text: 'Observación: ', bold: true }, observacionCierre || '—'], style: 'metaCenter', alignment: 'left' },
       ],
-      defaultStyle: { fontSize: 8 },
+      defaultStyle: { fontSize: letter ? 11 : small ? 6.5 : 8, color: '#000000' },
       styles: {
-        companyTitle: { fontSize: 11, bold: true, color: '#0f172a' },
-        ticketSubtitle: { fontSize: 8, bold: true, color: '#334155' },
-        metaCenter: { fontSize: 6.8, color: '#64748b' },
-        infoLine: { fontSize: 7.2, color: '#111827' },
-        payLabel: { fontSize: 6.8, bold: true, color: '#334155' },
-        payValue: { fontSize: 7.2, bold: true, color: '#111827' },
+        companyTitle: { fontSize: letter ? 18 : 11, bold: true },
+        ticketSubtitle: { fontSize: letter ? 13 : 8, bold: true },
+        metaCenter: { fontSize: letter ? 10 : small ? 6 : 6.8 },
+        infoLine: { fontSize: letter ? 11 : small ? 6.5 : 7.2 },
+        payLabel: { fontSize: letter ? 11 : small ? 6 : 6.8, bold: true },
+        payValue: { fontSize: letter ? 11 : small ? 6 : 7.2, bold: true },
       },
     };
   }
 
-  imprimirCierreTurno(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = ''): void {
+  async imprimirCierreTurno(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = '', format: InvoicePrintFormat = 'ticket80'): Promise<void> {
+    this.configurarPdfMake();
+    await this.ensureLogoLoaded();
+    await pdfMake.createPdf(this.buildCierreTurnoPdfDefinition(turno, totales, efectivoContado, observacionCierre, format)).print();
+  }
+
+  abrirCierreTurno(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = '', format: InvoicePrintFormat = 'ticket80'): void {
     this.configurarPdfMake();
     void this.ensureLogoLoaded().finally(() => {
-      pdfMake.createPdf(this.buildCierreTurnoPdfDefinition(turno, totales, efectivoContado, observacionCierre)).print();
+      pdfMake.createPdf(this.buildCierreTurnoPdfDefinition(turno, totales, efectivoContado, observacionCierre, format)).open();
     });
   }
 
-  abrirCierreTurno(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = ''): void {
-    this.configurarPdfMake();
-    void this.ensureLogoLoaded().finally(() => {
-      pdfMake.createPdf(this.buildCierreTurnoPdfDefinition(turno, totales, efectivoContado, observacionCierre)).open();
-    });
-  }
-
-  descargarCierreTurno(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = ''): void {
+  descargarCierreTurno(turno: TurnoCaja, totales: TurnoTotales, efectivoContado: number, observacionCierre = '', format: InvoicePrintFormat = 'ticket80'): void {
     this.configurarPdfMake();
     void this.ensureLogoLoaded().finally(() => {
       const fileName = `cierre-${turno.numeroTurno || turno.id || 'turno'}.pdf`;
-      pdfMake.createPdf(this.buildCierreTurnoPdfDefinition(turno, totales, efectivoContado, observacionCierre)).download(fileName);
+      pdfMake.createPdf(this.buildCierreTurnoPdfDefinition(turno, totales, efectivoContado, observacionCierre, format)).download(fileName);
     });
   }
 

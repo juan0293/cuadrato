@@ -17,7 +17,7 @@
     <ion-icon name="chevron-down-outline"></ion-icon>
   </button>
 
-  <ion-modal [isOpen]="isOpen" (didDismiss)="close()" [cssClass]="modalCssClass">
+  <ion-modal [isOpen]="isOpen" (didPresent)="onModalDidPresent($event)" (didDismiss)="close()" [cssClass]="modalCssClass">
     <ng-template>
       <ion-content class="premium-modal-content ion-padding">
         <div class="modal-shell">

@@ -19,6 +19,10 @@
 
   <ng-template #facturacionReady>
     <main class="shell">
+      <section class="card open-accounts-toolbar">
+        <div><span class="eyebrow">Consumos durante la visita</span><h2>Cuentas abiertas</h2><p>Guarda consumos y cobra al finalizar. El inventario se descuenta al emitir la factura.</p></div>
+        <ion-button (click)="abrirCuentas()" [disabled]="isEmitting || cuentaActionBusy"><ion-icon slot="start" name="restaurant-outline"></ion-icon>Gestionar cuentas {{ cuentasAbiertas.length ? '(' + cuentasAbiertas.length + ')' : '' }}</ion-button>
+      </section>
       <section class="card turno-card" *ngIf="!turnoLoading && facturacionBloqueadaPorTurno" aria-labelledby="turno-title">
         <div class="section-head">
           <div>
@@ -91,7 +95,9 @@
             <ion-item class="search-field">
               <ion-icon name="search-outline" slot="start" aria-hidden="true"></ion-icon>
               <ion-label position="stacked">Buscar</ion-label>
-              <ion-input formControlName="busqueda" placeholder="Buscar por nombre, código o categoría" clearInput="true"></ion-input>
+              <ion-input #catalogSearch data-pos-catalog-search formControlName="busqueda" placeholder="Buscar o escanear código de barras" clearInput="true"
+                (keydown)="onCatalogSearchKeydown($event)" enterkeyhint="search" autocomplete="off" [spellcheck]="false"
+                aria-label="Buscar por nombre, código o categoría; escanear código y presionar Enter para agregar"></ion-input>
             </ion-item>
             <ion-item><ion-label position="stacked">Tipo</ion-label><ion-select formControlName="tipo" interface="popover"><ion-select-option value="todos">Todos</ion-select-option><ion-select-option value="producto">Producto</ion-select-option><ion-select-option value="servicio">Servicio</ion-select-option></ion-select></ion-item>
             <ion-item><ion-label position="stacked">Categoría</ion-label><ion-select formControlName="categoria" interface="popover"><ion-select-option value="todas">Todas</ion-select-option><ion-select-option *ngFor="let categoria of categoriasDisponibles" [value]="categoria">{{ categoria }}</ion-select-option></ion-select></ion-item>
@@ -131,14 +137,26 @@
 
         <aside class="card cart" [class.hide-mobile]="tabMobile !== 'carrito'" aria-labelledby="invoice-title">
           <div class="section-head cart-heading">
-            <div><span class="eyebrow">Venta en curso</span><h2 id="invoice-title">Factura actual</h2></div>
+            <div><span class="eyebrow">{{ cuentaActiva ? 'Consumos sin facturar' : 'Venta en curso' }}</span><h2 id="invoice-title">{{ cuentaActiva ? 'Cuenta: ' + cuentaActiva.clienteNombre : 'Factura actual' }}</h2></div>
             <ion-button class="new-client-btn" fill="clear" size="small" (click)="openQuickClienteModal()"><ion-icon slot="start" name="person-add-outline"></ion-icon>Nuevo cliente</ion-button>
           </div>
 
-          <form [formGroup]="facturaForm" class="cart-meta">
+          <section class="open-account-status" *ngIf="cuentaActiva as cuenta" aria-live="polite">
+            <small>Cuenta {{ cuenta.id }} · Apertura {{ cuenta.creadaEn | date:'dd/MM/yyyy HH:mm' }}</small>
+            <strong>{{ cuentaEstado === 'guardada' ? 'Guardada' : cuentaEstado === 'guardando' ? 'Guardando cambios…' : cuentaEstado === 'conflicto' ? 'Revisión necesaria' : 'Cambios pendientes de guardar' }}</strong>
+            <p *ngIf="cuentaError" role="alert">{{ cuentaError }}</p>
+            <div class="open-account-actions">
+              <ion-button size="small" fill="outline" (click)="renombrarCuenta()" [disabled]="cuentaEdicionBloqueada">Cambiar nombre</ion-button>
+              <ion-button size="small" fill="outline" (click)="imprimirPrecuenta()" [disabled]="cuentaEdicionBloqueada || !cartItems.length">Precuenta</ion-button>
+              <ion-button size="small" fill="outline" *ngIf="cuentaEstado === 'error'" (click)="guardarCuentaActual()" [disabled]="cuentaActionBusy">Reintentar guardado</ion-button>
+              <ion-button size="small" color="warning" *ngIf="cuentaEstado === 'conflicto'" (click)="recargarCuenta()" [disabled]="cuentaActionBusy">Revisar estado guardado</ion-button>
+            </div>
+          </section>
+
+          <form [formGroup]="facturaForm" class="cart-meta" [attr.inert]="cuentaEdicionBloqueada ? '' : null">
             <button type="button" class="cliente-picker cliente-picker--wide" (click)="openClienteSelectorModal()">
               <span class="cliente-picker__icon"><ion-icon name="person-outline"></ion-icon></span>
-              <span><small>Cliente seleccionado</small><strong>{{ selectedCliente?.nombreCompleto || 'Consumidor final' }}</strong><em>Buscar o cambiar cliente</em></span>
+              <span><small>Cliente seleccionado</small><strong>{{ selectedCliente?.nombreCompleto || cuentaActiva?.clienteNombre || 'Consumidor final' }}</strong><em>Buscar o cambiar cliente</em></span>
               <ion-icon name="chevron-forward-outline" aria-hidden="true"></ion-icon>
             </button>
             <!-- <button type="button" class="cliente-picker cliente-picker--wide" (click)="openCitaSelectorModal()">
@@ -155,14 +173,14 @@
             <div><span>Estimado</span><strong>{{ formatCurrency(citaPrecioEstimadoActual) }}</strong></div><div><span>Pagado</span><strong class="is-paid">{{ formatCurrency(citaPagadoAnteriorActual) }}</strong></div><div><span>Restante</span><strong class="is-pending">{{ formatCurrency(getCitaBalancePendiente(selectedCita)) }}</strong></div><div><span>Modo</span><strong>{{ selectedCitaModo === 'abono' ? 'Abono' : selectedCitaModo === 'pendiente' ? 'Restante' : 'Total' }}</strong></div>
           </div>
 
-          <section class="cart-products" aria-labelledby="cart-products-title">
+          <section class="cart-products" aria-labelledby="cart-products-title" [attr.inert]="cuentaEdicionBloqueada ? '' : null">
             <div class="cart-products__head"><h3 id="cart-products-title">Productos agregados</h3><span>{{ cartItems.length }} {{ cartItems.length === 1 ? 'artículo' : 'artículos' }}</span></div>
-            <div class="cart-items" *ngIf="cartItems.length > 0; else emptyCart">
-              <article class="cart-item" *ngFor="let item of cartItems">
+            <div #cartItemsContainer class="cart-items" *ngIf="cartItems.length > 0; else emptyCart">
+              <article class="cart-item" *ngFor="let item of cartItems; trackBy: trackByCartItem" [attr.data-cart-key]="item.key">
                 <div class="cart-item-head"><div><strong>{{ item.descripcion }}</strong><p>{{ item.codigo || '—' }} · {{ item.tipo === 'servicio' ? 'Servicio' : 'Producto' }}</p></div><ion-button size="small" fill="clear" color="danger" (click)="removeCartItem(item)" [attr.aria-label]="'Quitar ' + item.descripcion"><ion-icon slot="icon-only" name="trash-outline"></ion-icon></ion-button></div>
                 <div class="item-edit">
-                  <label class="item-field"><span>Cant.</span><span class="qty-stepper"><button type="button" aria-label="Disminuir cantidad" [disabled]="item.cantidad <= 1" (click)="updateQuantity(item, item.cantidad - 1)"><ion-icon name="remove-outline"></ion-icon></button><ion-input class="qty-stepper__input" inputmode="numeric" type="number" [value]="item.cantidad" (ionInput)="updateQuantity(item, +($any($event.target).value || 1))"></ion-input><button type="button" aria-label="Aumentar cantidad" [disabled]="item.manejaInventario && item.cantidad >= (item.stockActual || 0)" (click)="updateQuantity(item, item.cantidad + 1)"><ion-icon name="add-outline"></ion-icon></button></span></label>
-                  <label class="item-field"><span>Precio</span><ion-item><ion-input inputmode="decimal" type="text" [value]="formatCartPriceInput(item.precioUnitario)" (ionFocus)="onCartPriceFocus($event, item)" (ionInput)="onCartPriceInput(item, $event)" (ionBlur)="onCartPriceBlur($event, item)"></ion-input></ion-item></label>
+                  <label class="item-field"><span>Cant.</span><span class="qty-stepper"><button type="button" aria-label="Disminuir cantidad" [disabled]="item.cantidad <= 1" (click)="updateQuantity(item, item.cantidad - 1)"><ion-icon name="remove-outline"></ion-icon></button><input class="qty-stepper__input cart-quantity-input" inputmode="decimal" type="number" min="1" step="any" [value]="item.cantidad" [attr.aria-label]="'Cantidad de ' + item.descripcion" (input)="onCartQuantityInput(item, $event)" (blur)="onCartQuantityBlur(item, $event)"><button type="button" aria-label="Aumentar cantidad" [disabled]="item.manejaInventario && item.cantidad >= (item.stockActual || 0)" (click)="updateQuantity(item, item.cantidad + 1)"><ion-icon name="add-outline"></ion-icon></button></span></label>
+                  <div class="item-field"><span>Precio</span><output class="cart-price-locked" [attr.aria-label]="'Precio fijo de ' + item.descripcion"><ion-icon name="lock-closed-outline" aria-hidden="true"></ion-icon>{{ formatCurrency(item.precioUnitario) }}</output></div>
                   <label class="item-field"><span>Desc.</span><ion-item><ion-input inputmode="decimal" type="number" [value]="item.descuento || 0" (ionInput)="updateDiscount(item, +($any($event.target).value || 0))"></ion-input></ion-item></label>
                 </div>
                 <div class="item-totals"><span>ITBIS {{ formatCurrency(item.itbis || 0) }}</span><strong>{{ formatCurrency(item.total) }}</strong></div>
@@ -172,9 +190,10 @@
           </section>
 
           <footer class="cart-footer">
+            <p class="pos-keyboard-hint"><kbd>Espacio</kbd> Abrir cobro · <kbd>Enter</kbd> Emitir en el modal de cobro</p>
             <div class="totals"><p><span>Subtotal</span><strong>{{ formatCurrency(subtotal) }}</strong></p><p><span>Descuento</span><strong>- {{ formatCurrency(descuentoGlobal) }}</strong></p><p><span>ITBIS</span><strong>{{ formatCurrency(itbisTotal) }}</strong></p><p class="grand-total"><span>Total</span><strong>{{ formatCurrency(total) }}</strong></p></div>
-            <ion-button expand="block" class="charge-button" (click)="openCobroModal()" [disabled]="isEmitting || facturacionBloqueadaPorTurno || turnoActionLoading || cartItems.length === 0"><ion-icon name="card-outline" slot="start"></ion-icon>Cobrar {{ formatCurrency(total) }}</ion-button>
-            <ion-button expand="block" fill="clear" class="clear-button" color="danger" (click)="limpiarFacturaActual()" [disabled]="cartItems.length === 0 || isEmitting || turnoActionLoading">Limpiar factura</ion-button>
+            <ion-button expand="block" class="charge-button" (click)="openCobroModal()" [disabled]="cuentaEdicionBloqueada || (cuentaActiva && cuentaEstado === 'error') || facturacionBloqueadaPorTurno || turnoActionLoading || cartItems.length === 0"><ion-icon name="card-outline" slot="start"></ion-icon>Cobrar {{ formatCurrency(total) }}</ion-button>
+            <ion-button expand="block" fill="clear" class="clear-button" color="danger" (click)="limpiarFacturaActual()" [disabled]="(!cuentaActiva && cartItems.length === 0) || cuentaEdicionBloqueada || turnoActionLoading">{{ cuentaActiva ? 'Guardar y salir de la cuenta' : 'Limpiar factura' }}</ion-button>
           </footer>
         </aside>
       </section>
@@ -592,7 +611,7 @@
       </ng-template>
     </ion-modal>
 
-    <ion-modal [isOpen]="cobroModalOpen" (didDismiss)="closeCobroModal()" cssClass="cobro-modal">
+    <ion-modal [isOpen]="cobroModalOpen" (didPresent)="cobroKeyboardReady = true" (didDismiss)="closeCobroModal()" (keydown)="onCobroKeydown($event)" [backdropDismiss]="!isEmitting && !cobroSubmitting" cssClass="cobro-modal">
       <ng-template>
         <ion-content class="quick-client-content ion-padding">
           <div class="quick-client-shell">
@@ -601,8 +620,9 @@
                 <div>
                   <h2>Confirmar cobro</h2>
                   <p>Valida el monto recibido antes de emitir la factura.</p>
+                  <p class="pos-keyboard-hint"><kbd>Enter</kbd> Emitir factura</p>
                 </div>
-                <ion-button fill="outline" color="danger" (click)="closeCobroModal()">Cerrar</ion-button>
+                <ion-button fill="outline" color="danger" (click)="closeCobroModal()" [disabled]="isEmitting || cobroSubmitting">Cerrar</ion-button>
               </header>
 
               <div class="cobro-highlight">
@@ -682,12 +702,12 @@
                   <!-- <ion-button type="button" fill="outline" (click)="closeCobroModal()"
                     [disabled]="isEmitting">Cancelar</ion-button> -->
                   <ion-button type="submit" class="btn-primary"
-                    [disabled]="isEmitting">
+                    [disabled]="isEmitting || cobroSubmitting">
                     {{ pagoDistribucion.credito > 0 ? 'Emitir factura y crear cuenta por cobrar' : 'Emitir factura' }}
                     <ion-icon name="receipt-outline" slot="start"></ion-icon>
                   </ion-button>
                   <ion-button type="button" class="btn-outline" (click)="confirmarCobroYEmitir(true)"
-                    [disabled]="isEmitting">Emitir e imprimir
+                    [disabled]="isEmitting || cobroSubmitting">Emitir e imprimir
                     <ion-icon name="print-outline" slot="start"></ion-icon>
                   </ion-button>
                 </div>
@@ -743,7 +763,7 @@
 
               <div class="cierre-turno-kpis cierre-turno-kpis--conciliacion">
                 <article class="kpi-card">
-                  <span>Efectivo inicial</span>
+                  <span>Fondo inicial ({{ cierreTurnoForm.controls.incluirFondoInicial.value ? 'incluido' : 'aparte' }})</span>
                   <strong>{{ formatCurrency(turnoActivo?.montoInicial || 0) }}</strong>
                 </article>
                 <article class="kpi-card">
@@ -751,13 +771,37 @@
                   <strong>{{ formatCurrency(efectivoEsperadoCierre) }}</strong>
                 </article>
                 <article class="kpi-card kpi-card--accent">
-                  <span>Diferencia actual</span>
+                  <span>Diferencia de efectivo</span>
                   <strong>{{ formatCurrency(diferenciaCierre) }}</strong>
                 </article>
               </div>
 
               <form [formGroup]="cierreTurnoForm" (ngSubmit)="cerrarTurno()">
-                <div class="cobro-highlight cobro-input-highlight">
+                <p>Cuenta únicamente el efectivo de las ventas. El fondo inicial se maneja aparte por defecto. Tarjetas, transferencias y ventas a crédito no se exigen en este conteo.</p>
+                <ion-item>
+                  <ion-label>Incluir fondo inicial en este conteo</ion-label>
+                  <ion-toggle formControlName="incluirFondoInicial" aria-label="Incluir fondo inicial en el conteo de efectivo"></ion-toggle>
+                </ion-item>
+                <ion-item>
+                  <ion-label>Contar por denominación</ion-label>
+                  <ion-toggle formControlName="usarDesglose" aria-label="Contar efectivo por denominación"></ion-toggle>
+                </ion-item>
+                <section *ngIf="cierreTurnoForm.controls.usarDesglose.value" class="cash-breakdown">
+                  <h3>Desglose de efectivo (RD$)</h3>
+                  <p>Indica la cantidad de monedas o billetes. {{ cierreTurnoForm.controls.incluirFondoInicial.value ? 'Incluye el fondo inicial en las cantidades.' : 'No incluyas el fondo inicial: se cuenta aparte.' }}</p>
+                  <div class="cash-breakdown-row cash-breakdown-heading"><span>Valor</span><span>Cantidad</span><span>Subtotal</span></div>
+                  <div formArrayName="cantidades">
+                    <div *ngFor="let denominacion of denominacionesCierre; let i = index" class="cash-breakdown-row">
+                      <label [attr.for]="'denominacion-' + denominacion">RD${{ denominacion }}</label>
+                      <ion-input [id]="'denominacion-' + denominacion" type="number" inputmode="numeric" min="0" step="1"
+                        [formControlName]="i" [attr.aria-label]="'Cantidad de ' + denominacion + ' pesos'"></ion-input>
+                      <strong>{{ formatCurrency(denominacion * (cierreTurnoForm.controls.cantidades.at(i).value || 0)) }}</strong>
+                    </div>
+                  </div>
+                  <p *ngIf="cierreTurnoForm.controls.cantidades.invalid" role="alert">Las cantidades deben ser números enteros mayores o iguales a cero.</p>
+                  <div class="cobro-resumen"><span>Total contado</span><strong>{{ formatCurrency(totalContadoCierre) }}</strong></div>
+                </section>
+                <div *ngIf="!cierreTurnoForm.controls.usarDesglose.value" class="cobro-highlight cobro-input-highlight">
                   <span>Efectivo contado</span>
                   <div class="cobro-money-input-row">
                     <strong>RD$</strong>
@@ -771,13 +815,13 @@
                     placeholder="Agrega una observación breve del cierre"></ion-textarea>
                 </ion-item>
                 <div class="cobro-resumen cierre-diferencia-final">
-                  <span>Diferencia</span>
+                  <span>Diferencia de efectivo</span>
                   <strong>{{ formatCurrency(diferenciaCierre) }}</strong>
                 </div>
                 <div class="actions quick-create-footer">
                   <ion-button type="button" fill="outline" (click)="cerrarModalCierreTurno()"
                     [disabled]="turnoActionLoading">Cancelar</ion-button>
-                  <ion-button type="submit" class="close-shift-button" [disabled]="turnoActionLoading">
+                  <ion-button type="submit" class="close-shift-button" [disabled]="turnoActionLoading || cierreTurnoForm.invalid">
                     <ion-icon name="lock-closed-outline" slot="start"></ion-icon>Cerrar turno
                   </ion-button>
                 </div>
@@ -788,6 +832,45 @@
       </ng-template>
     </ion-modal>
   </ng-template>
+
+  <ion-modal [isOpen]="cuentasModalOpen" (didDismiss)="cuentasModalOpen = false" cssClass="selector-modal open-accounts-modal">
+    <ng-template>
+      <ion-header><ion-toolbar><ion-title>Cuentas abiertas</ion-title><ion-buttons slot="end"><ion-button (click)="cuentasModalOpen = false">Cerrar</ion-button></ion-buttons></ion-toolbar></ion-header>
+      <ion-content class="ion-padding">
+        <div class="open-accounts-content">
+          <section class="open-account-create">
+            <h2>Abrir cuenta</h2>
+            <p>Selecciona un cliente o escribe un nombre. No se creará un cliente nuevo.</p>
+            <ion-item><ion-label position="stacked">Cliente existente (opcional)</ion-label>
+              <ion-select [(ngModel)]="nuevaCuentaClienteId" interface="popover" placeholder="Solo un nombre" [disabled]="cuentaActionBusy">
+                <ion-select-option value="">Solo un nombre</ion-select-option>
+                <ion-select-option *ngFor="let cliente of clientes" [value]="cliente.id">{{ cliente.nombreCompleto }}</ion-select-option>
+              </ion-select>
+            </ion-item>
+            <ion-item *ngIf="!nuevaCuentaClienteId"><ion-label position="stacked">Nombre de la cuenta</ion-label><ion-input [(ngModel)]="nuevaCuentaNombre" maxlength="120" placeholder="Ej. Juan · Terraza" [disabled]="cuentaActionBusy"></ion-input></ion-item>
+            <ion-button expand="block" (click)="crearCuenta()" [disabled]="cuentaActionBusy || (!nuevaCuentaClienteId && !nuevaCuentaNombre.trim())"><ion-icon slot="start" name="add-outline"></ion-icon>Abrir cuenta</ion-button>
+          </section>
+          <section class="open-account-status" *ngIf="cuentaRecuperacion && !cuentaActiva">
+            <p>Hay cambios pendientes de una cuenta en este dispositivo.</p><ion-button fill="outline" (click)="recuperarConsumos()" [disabled]="cuentaActionBusy">Recuperar consumos</ion-button>
+          </section>
+          <ion-searchbar [(ngModel)]="cuentaSearch" placeholder="Buscar nombre o identificador" aria-label="Buscar cuentas abiertas"></ion-searchbar>
+          <p *ngIf="cuentasLoading" role="status"><ion-spinner name="crescent"></ion-spinner> Cargando cuentas…</p>
+          <div *ngIf="cuentasError" role="alert"><p>{{ cuentasError }}</p><ion-button fill="outline" (click)="cargarCuentasAbiertas()">Reintentar</ion-button></div>
+          <p *ngIf="!cuentasLoading && !cuentasError && !cuentasFiltradas.length">No hay cuentas abiertas que coincidan.</p>
+          <article class="open-account-row" *ngFor="let cuenta of cuentasFiltradas">
+            <header><h3>{{ cuenta.clienteNombre }}</h3><strong>{{ formatCurrency(cuenta.total) }}</strong></header>
+            <p>Cuenta {{ cuenta.id }}</p><small>{{ cuenta.creadaEn | date:'dd/MM/yyyy HH:mm' }} · Responsable: {{ cuenta.creadaPorNombre || 'Usuario de caja' }}</small>
+            <div class="open-account-actions">
+              <ion-button size="small" (click)="abrirCuenta(cuenta)" [disabled]="cuentaEdicionBloqueada">{{ cuentaActiva?.id === cuenta.id ? 'Volver al carrito' : 'Abrir / Agregar consumos' }}</ion-button>
+              <ion-button size="small" fill="outline" (click)="abrirCuenta(cuenta)" [disabled]="cuentaEdicionBloqueada || !cuenta.items.length">Enviar al carrito / Cobrar</ion-button>
+              <ion-button size="small" fill="outline" (click)="imprimirPrecuenta(cuenta)" [disabled]="cuentaEdicionBloqueada || !cuenta.items.length">Precuenta</ion-button>
+              <ion-button size="small" fill="clear" color="danger" (click)="cancelarCuenta(cuenta)" [disabled]="cuentaEdicionBloqueada">Cancelar</ion-button>
+            </div>
+          </article>
+        </div>
+      </ion-content>
+    </ng-template>
+  </ion-modal>
 
   <ion-modal [isOpen]="printerSettingsModalOpen" (didDismiss)="closePrinterSettings()" cssClass="printer-settings-modal">
     <ng-template>

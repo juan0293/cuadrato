@@ -1,4 +1,11 @@
 .section-block { display: grid; gap: 12px; }
+ion-modal.turno-modal { --width: min(1120px, 96vw); --height: 90dvh; --border-radius: 12px; }
+.invoice-full-detail { display: grid; gap: 14px; padding: 16px; background: var(--fin-surface, #fff); color: var(--fin-text, #14213d); }
+.invoice-data { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(230px, 100%), 1fr)); gap: 8px 16px; }
+.invoice-data p, .invoice-full-detail > p { margin: 0; font-size: 13px; overflow-wrap: anywhere; }
+.invoice-summary { padding-block: 12px; border-block: 1px solid var(--fin-border, #e4e7ec); }
+.invoice-lines td:nth-child(2) { min-width: 180px; white-space: normal; }
+caption { padding: 10px; color: var(--fin-text, #14213d); text-align: left; font-size: 13px; font-weight: 700; }
 .section-title { display: grid; gap: 2px; }
 .section-title h2 { margin: 0; color: var(--fin-text); font-size: 18px; }
 .section-title p { margin: 3px 0 0; color: var(--fin-muted); font-size: 13px; }

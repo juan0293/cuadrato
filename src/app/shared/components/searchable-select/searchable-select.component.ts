@@ -49,6 +49,12 @@ export class SearchableSelectComponent implements OnChanges {
     this.applyFilter();
   }
 
+  async onModalDidPresent(event: Event): Promise<void> {
+    const modal = event.target as HTMLIonModalElement;
+    const searchbar = modal.querySelector('ion-searchbar');
+    await searchbar?.setFocus();
+  }
+
   close(): void {
     this.isOpen = false;
   }

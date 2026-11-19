@@ -10,6 +10,7 @@ import {
 import { CompanyProfileService } from '../../../core/services/company-profile.service';
 import { Factura } from '../models/factura.model';
 import { PrinterConfiguration } from '../models/printer-configuration.model';
+import { TurnoCaja } from '../models/turno-caja.model';
 
 @Injectable({ providedIn: 'root' })
 export class ThermalPrinterService {
@@ -73,8 +74,11 @@ export class ThermalPrinterService {
 
   async buildInvoiceBytes(factura: Factura, configuration: PrinterConfiguration): Promise<Uint8Array> {
     let branding = this.companyProfileService.normalizeProfile();
+    let logoDataUrl: string | undefined;
     try {
-      branding = (await this.companyProfileService.getBrandingSnapshot()).profile;
+      const snapshot = await this.companyProfileService.getBrandingSnapshot();
+      branding = snapshot.profile;
+      logoDataUrl = snapshot.logoDataUrl;
     } catch (error) {
       console.warn('[ThermalPrinter] Se usará el branding local predeterminado:', error);
     }
@@ -82,13 +86,18 @@ export class ThermalPrinterService {
     const lines: string[] = [];
 
     lines.push(this.center(branding.companyTitle, width));
-    if (branding.ticketSubtitle) lines.push(this.center(branding.ticketSubtitle, width));
+    if (branding.ticketSubtitle && factura.tipoDocumento !== 'precuenta') lines.push(this.center(branding.ticketSubtitle, width));
     if (branding.rnc) lines.push(this.center(`RNC: ${branding.rnc}`, width));
     if (branding.telefono) lines.push(this.center(`Tel: ${branding.telefono}`, width));
     if (branding.direccion) lines.push(...this.wrap(branding.direccion, width).map((line) => this.center(line, width)));
     lines.push(this.rule(width));
-    lines.push(`Factura: ${factura.numero || factura.numeroFactura || '—'}`);
-    lines.push(`NCF: ${factura.ncf || '—'}`);
+    if (factura.tipoDocumento === 'precuenta') {
+      lines.push(...this.wrap('PRECUENTA — NO VÁLIDA COMO FACTURA', width));
+      lines.push(...this.wrap(`Cuenta: ${factura.cuentaAbiertaId || factura.numero}`, width));
+    } else {
+      lines.push(`Factura: ${factura.numero || factura.numeroFactura || '—'}`);
+      lines.push(`NCF: ${factura.ncf || '—'}`);
+    }
     lines.push(`Fecha: ${this.formatDate(factura.fecha)}`);
     lines.push(...this.wrap(`Cliente: ${factura.clienteNombre || 'Consumidor final'}`, width));
     if (factura.clienteRncCedula) lines.push(`RNC/Cedula: ${factura.clienteRncCedula}`);
@@ -106,14 +115,84 @@ export class ThermalPrinterService {
     lines.push(this.columns('ITBIS', this.money(factura.itbisTotal ?? factura.impuesto), width));
     lines.push(this.columns('TOTAL', this.money(factura.total), width));
     lines.push(this.rule(width));
-    lines.push(this.columns('Pagado', this.money(factura.montoPagado ?? factura.totalPagado ?? factura.total), width));
-    lines.push(this.columns('Devuelta', this.money(factura.devuelta ?? factura.cambio ?? 0), width));
-    lines.push(...this.wrap(`Forma de pago: ${(factura.formaPago || 'efectivo').toUpperCase()}`, width));
+    if (factura.tipoDocumento !== 'precuenta') {
+      lines.push(this.columns('Pagado', this.money(factura.montoPagado ?? factura.totalPagado ?? factura.total), width));
+      lines.push(this.columns('Devuelta', this.money(factura.devuelta ?? factura.cambio ?? 0), width));
+      lines.push(...this.wrap(`Forma de pago: ${(factura.formaPago || 'efectivo').toUpperCase()}`, width));
+    } else lines.push(...this.wrap('Cuenta abierta. Pendiente de facturación.', width));
     lines.push('');
     lines.push(this.center('Gracias por su compra', width));
     lines.push('', '', '');
 
-    return this.encodeDocument(lines, configuration.cutPaper);
+    let logoBytes: number[] = [];
+    if (logoDataUrl) {
+      try {
+        logoBytes = await this.buildEscPosLogo(logoDataUrl, configuration.format === 'ticket80' ? 576 : 384);
+      } catch (error) {
+        // Una imagen inválida no debe impedir que la factura sea impresa.
+        console.warn('[ThermalPrinter] No fue posible rasterizar el logo:', error);
+      }
+    }
+
+    return this.encodeDocument(lines, configuration.cutPaper, logoBytes);
+  }
+
+  async printBytes(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
+    this.validateThermalConfiguration(configuration);
+    for (let copy = 0; copy < configuration.copies; copy += 1) await this.send(configuration, bytes);
+  }
+
+  async buildShiftCloseBytes(turno: TurnoCaja, configuration: PrinterConfiguration): Promise<Uint8Array> {
+    const width = configuration.format === 'ticket80' ? 48 : 32;
+    let branding = this.companyProfileService.normalizeProfile();
+    let logoBytes: number[] = [];
+    try {
+      const snapshot = await this.companyProfileService.getBrandingSnapshot();
+      branding = snapshot.profile;
+      if (snapshot.logoDataUrl) logoBytes = await this.buildEscPosLogo(snapshot.logoDataUrl, width === 48 ? 576 : 384);
+    } catch (error) {
+      console.warn('[ThermalPrinter] No se pudo cargar el logo del cuadre:', error);
+    }
+    const date = (value: any): string => {
+      const resolved = typeof value?.toDate === 'function' ? value.toDate() : value;
+      return resolved ? this.formatDate(new Date(resolved).toISOString()) : '—';
+    };
+    const lines = [
+      ...this.wrap(branding.companyTitle, width).map((line) => this.center(line, width)),
+      this.center('CIERRE DE TURNO', width),
+      ...(branding.rnc ? this.wrap(`RNC: ${branding.rnc}`, width) : []),
+      ...(branding.telefono ? this.wrap(`Tel: ${branding.telefono}`, width) : []),
+      ...(branding.direccion ? this.wrap(branding.direccion, width) : []),
+      this.rule(width),
+      ...this.wrap(`Turno: ${turno.numeroTurno}`, width),
+      ...this.wrap(`Caja: ${turno.cajaNombre}`, width),
+      ...this.wrap(`Usuario: ${turno.usuarioNombre}`, width),
+      ...this.wrap(`Apertura: ${date(turno.fechaApertura)}`, width),
+      ...this.wrap(`Cierre: ${date(turno.fechaCierre)}`, width),
+      this.rule(width),
+    ];
+    const rows: Array<[string, number]> = [
+      ['Ventas del turno', turno.totalVentas], ['Total efectivo', turno.totalEfectivo],
+      ['Total tarjeta', turno.totalTarjeta], ['Transferencia', turno.totalTransferencia],
+      ['Total credito', turno.totalCredito], [turno.fondoInicialIncluidoEnConteo === false ? 'Fondo inicial aparte' : 'Fondo inicial incluido', turno.montoInicial],
+      ['Efectivo esperado', turno.efectivoEsperado], ['Efectivo contado', turno.efectivoContado ?? 0],
+      ['Diferencia efectivo', turno.diferencia ?? 0],
+    ];
+    lines.push(this.columns('Facturas', String(turno.cantidadFacturas), width));
+    for (const [label, amount] of rows) {
+      const money = this.money(amount);
+      if (label.length + money.length + 1 > width) lines.push(label, this.columns('', money, width));
+      else lines.push(this.columns(label, money, width));
+    }
+    if (turno.desgloseEfectivo?.length) {
+      lines.push(this.rule(width), this.center('DESGLOSE DE EFECTIVO', width));
+      for (const item of turno.desgloseEfectivo) {
+        lines.push(...this.wrap(`RD$${item.denominacion} x ${item.cantidad}`, width));
+        lines.push(this.columns('Subtotal', this.money(item.denominacion * item.cantidad), width));
+      }
+    }
+    lines.push(this.rule(width), ...this.wrap(`Observacion: ${turno.observacionCierre || '—'}`, width), '', '', '');
+    return this.encodeDocument(lines, configuration.cutPaper, logoBytes);
   }
 
   validateThermalConfiguration(configuration: PrinterConfiguration): void {
@@ -179,13 +258,88 @@ export class ThermalPrinterService {
     throw new Error('THERMAL_FORMAT_REQUIRED');
   }
 
-  private encodeDocument(lines: string[], cutPaper: boolean): Uint8Array {
+  private encodeDocument(lines: string[], cutPaper: boolean, headerBytes: number[] = []): Uint8Array {
     const bytes: number[] = [0x1b, 0x40, 0x1b, 0x74, 0x02]; // Inicializar + CP850.
+    bytes.push(...headerBytes);
     for (const line of lines) {
       bytes.push(...this.encodeCp850(line), 0x0a);
     }
-    if (cutPaper) bytes.push(0x1d, 0x56, 0x01);
+    // GS V B: avanza hasta la posición de corte antes de accionar la cuchilla.
+    if (cutPaper) bytes.push(0x1d, 0x56, 0x42, 0x00);
     return new Uint8Array(bytes);
+  }
+
+  /**
+   * Convierte el logo a raster ESC/POS GS v 0 para papel de 58 u 80 mm.
+   * Usa un lienzo de 384 o 576 puntos para mantenerlo centrado sin
+   * depender de comandos de margen que varían entre impresoras económicas.
+   */
+  private async buildEscPosLogo(dataUrl: string, printerWidth: number): Promise<number[]> {
+    const image = await this.loadImage(dataUrl);
+    const maxLogoWidth = printerWidth === 576 ? 420 : 280;
+    const maxLogoHeight = printerWidth === 576 ? 240 : 160;
+    const scale = Math.min(maxLogoWidth / image.naturalWidth, maxLogoHeight / image.naturalHeight);
+    const logoWidth = Math.max(1, Math.round(image.naturalWidth * scale));
+    const logoHeight = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = printerWidth;
+    canvas.height = logoHeight;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('LOGO_CANVAS_NOT_AVAILABLE');
+
+    context.fillStyle = '#fff';
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.drawImage(image, Math.floor((printerWidth - logoWidth) / 2), 0, logoWidth, logoHeight);
+
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const grayscale = new Float32Array(printerWidth * logoHeight);
+    for (let index = 0; index < grayscale.length; index += 1) {
+      const pixel = index * 4;
+      const alpha = pixels[pixel + 3] / 255;
+      const luminance = (pixels[pixel] * 0.299) + (pixels[pixel + 1] * 0.587) + (pixels[pixel + 2] * 0.114);
+      grayscale[index] = (luminance * alpha) + (255 * (1 - alpha));
+    }
+
+    const widthBytes = printerWidth / 8;
+    const raster = new Array<number>(widthBytes * logoHeight).fill(0);
+    for (let y = 0; y < logoHeight; y += 1) {
+      for (let x = 0; x < printerWidth; x += 1) {
+        const index = (y * printerWidth) + x;
+        const oldPixel = grayscale[index];
+        const newPixel = oldPixel < 170 ? 0 : 255;
+        const error = oldPixel - newPixel;
+        if (newPixel === 0) raster[(y * widthBytes) + Math.floor(x / 8)] |= 0x80 >> (x % 8);
+
+        // Tramado Floyd–Steinberg para conservar bordes y tonos en logos de color.
+        if (x + 1 < printerWidth) grayscale[index + 1] += error * 7 / 16;
+        if (y + 1 < logoHeight) {
+          if (x > 0) grayscale[index + printerWidth - 1] += error * 3 / 16;
+          grayscale[index + printerWidth] += error * 5 / 16;
+          if (x + 1 < printerWidth) grayscale[index + printerWidth + 1] += error / 16;
+        }
+      }
+    }
+
+    return [
+      0x1d, 0x76, 0x30, 0x00,
+      widthBytes & 0xff, (widthBytes >> 8) & 0xff,
+      logoHeight & 0xff, (logoHeight >> 8) & 0xff,
+      ...raster,
+      0x0a,
+    ];
+  }
+
+  private loadImage(dataUrl: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => {
+        if (image.naturalWidth > 0 && image.naturalHeight > 0) resolve(image);
+        else reject(new Error('LOGO_HAS_INVALID_DIMENSIONS'));
+      };
+      image.onerror = () => reject(new Error('LOGO_LOAD_ERROR'));
+      image.src = dataUrl;
+    });
   }
 
   private encodeCp850(value: string): number[] {

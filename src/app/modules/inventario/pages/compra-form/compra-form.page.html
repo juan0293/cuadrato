@@ -1,5 +1,5 @@
 <ion-content class="compra-form-page inventario-module-page">
-  <div class="shell ion-padding" [formGroup]="form">
+  <div class="shell ion-padding" [formGroup]="form" [attr.inert]="processingCompra ? '' : null" [attr.aria-busy]="isSubmitting">
     <section class="header">
       <div class="page-title">
         <span class="title-icon"><ion-icon name="cart-outline" aria-hidden="true"></ion-icon></span>
@@ -69,6 +69,7 @@
       </header>
       <div class="grid selects">
         <app-searchable-select
+          #productoSelector
           label="Producto/Servicio"
           placeholder="Selecciona producto o servicio"
           helperText="Busca por codigo, nombre, categoria o proveedor"
@@ -174,8 +175,13 @@
           <ion-item><ion-label position="stacked">Cantidad</ion-label><ion-input type="number" formControlName="cantidad"></ion-input></ion-item>
           <ion-item><ion-label position="stacked">Precio compra</ion-label><ion-input type="number" formControlName="precioCompra"></ion-input></ion-item>
           <ion-item class="readonly-field"><ion-label position="stacked">Utilidad %</ion-label><ion-input type="number" formControlName="utilidadPorcentaje" readonly></ion-input></ion-item>
-          <ion-item class="readonly-field"><ion-label position="stacked">Precio venta sugerido</ion-label><ion-input [value]="formatMoney(precioVentaSugeridoLinea)" readonly></ion-input></ion-item>
+          <ion-item><ion-label position="stacked">Precio de venta</ion-label><ion-input type="number" min="0" step="0.01" formControlName="precioVenta"></ion-input></ion-item>
           <ion-item><ion-label position="stacked">Descuento</ion-label><ion-input type="number" formControlName="descuento"></ion-input></ion-item>
+        </div>
+
+        <div class="preview">
+          <span>Precio sugerido: {{ formatMoney(precioVentaSugeridoLinea) }}</span>
+          <ion-button type="button" fill="outline" size="small" (click)="aplicarPrecioSugerido()" [disabled]="!selectedProducto">Aplicar precio sugerido</ion-button>
         </div>
 
         <div class="locked-field-note" role="note">
@@ -188,7 +194,7 @@
             <strong>{{ selectedProducto ? selectedProducto.nombre : 'Producto pendiente de selección' }}</strong>
             <small>{{ selectedProducto ? 'La línea se agregará al detalle de la compra.' : 'Selecciona una referencia para habilitar esta acción.' }}</small>
           </div>
-          <ion-button type="button" class="add-product-button" (click)="addItem()" [disabled]="!selectedProducto">
+          <ion-button type="button" class="add-product-button" (click)="addItem()" [disabled]="!selectedProducto || isSubmitting">
             <ion-icon slot="start" name="add-circle-outline" aria-hidden="true"></ion-icon>
             Agregar producto
           </ion-button>
@@ -207,7 +213,7 @@
               <th>Desc.</th>
               <th>ITBIS %</th>
               <th>Utilidad</th>
-              <th>PV sugerido</th>
+              <th>Precio de venta</th>
               <th>Subtotal</th>
               <th>ITBIS</th>
               <th>Total</th>
@@ -236,7 +242,7 @@
               <td>
                 <div class="util-cell">{{ item.utilidadPorcentaje || 0 }}%</div>
               </td>
-              <td class="num">{{ formatMoney(item.precioVentaSugerido || 0) }}</td>
+              <td class="num">{{ formatMoney(item.precioVenta ?? item.precioVentaSugerido ?? 0) }}</td>
               <td class="num">{{ formatMoney(item.subtotal || 0) }}</td>
               <td class="num">{{ formatMoney(item.montoItbis || 0) }}</td>
               <td class="num">{{ formatMoney(item.total || 0) }}</td>
@@ -266,6 +272,7 @@
               <ion-select-option [value]="0">0%</ion-select-option>
             </ion-select>
           </ion-item>
+          <ion-item><ion-label position="stacked">Precio de venta</ion-label><ion-input type="number" min="0" step="0.01" [value]="editingItem.precioVenta" (ionInput)="editingItem.precioVenta = $any($event.detail).value === '' || $any($event.detail).value == null ? undefined : +$any($event.detail).value"></ion-input></ion-item>
           <ion-item><ion-label position="stacked">Utilidad %</ion-label><ion-input type="number" [value]="editingItem.utilidadPorcentaje || 0" readonly></ion-input></ion-item>
         </div>
 
@@ -293,7 +300,8 @@
         </div>
 
         <div class="preview">
-          <span>PV sugerido: {{ formatMoney(editingItem.precioVentaSugerido || 0) }}</span>
+          <span>Precio sugerido: {{ formatMoney(editingItem.precioVentaSugerido || 0) }}</span>
+          <ion-button type="button" fill="outline" size="small" (click)="aplicarPrecioSugeridoEdicion()">Aplicar precio sugerido</ion-button>
           <span>Subtotal: {{ formatMoney(editingItem.subtotal || 0) }}</span>
           <span>ITBIS: {{ formatMoney(editingItem.montoItbis || 0) }}</span>
           <strong>Total: {{ formatMoney(editingItem.total || 0) }}</strong>
@@ -330,9 +338,11 @@
     </section>
 
     <div class="actions form-actions">
-      <ion-button fill="outline" color="medium" routerLink="/admin/inventario/compras">Cancelar</ion-button>
+      <ion-button fill="outline" color="medium" routerLink="/admin/inventario/compras" [disabled]="isSubmitting">Cancelar</ion-button>
       <!-- <ion-button class="btn-outline" (click)="saveCompra()">Guardar borrador</ion-button> -->
-      <ion-button class="btn-primary" (click)="confirmarCompra()"><ion-icon slot="start" name="checkmark-circle-outline"></ion-icon>Confirmar compra</ion-button>
+      <ion-button class="btn-primary" (click)="confirmarCompra()" [disabled]="isSubmitting"><ion-spinner *ngIf="isSubmitting" slot="start" name="crescent"></ion-spinner><ion-icon *ngIf="!isSubmitting" slot="start" name="checkmark-circle-outline"></ion-icon>{{ isSubmitting ? 'Procesando compra…' : hasRegisteredCompra ? 'Ver compra registrada' : 'Confirmar compra' }}</ion-button>
     </div>
   </div>
 </ion-content>
+<app-operation-progress [open]="processingCompra" title="Registrando tu compra"
+  [stage]="processingStage" [message]="processingMessage"></app-operation-progress>

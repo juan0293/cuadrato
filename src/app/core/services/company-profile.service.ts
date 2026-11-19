@@ -110,7 +110,7 @@ export class CompanyProfileService {
     return {
       id: profile?.id,
       companyId: this.cleanOptionalText(profile?.companyId) || 'default',
-      companyTitle: this.cleanOptionalText(profile?.companyTitle) || 'Vargas Tattoo',
+      companyTitle: this.cleanOptionalText(profile?.companyTitle) || 'CUADRATO',
       ticketSubtitle: this.cleanOptionalText(profile?.ticketSubtitle) || 'TICKET DE FACTURA',
       rnc: this.cleanOptionalText(profile?.rnc),
       telefono: this.cleanOptionalText(profile?.telefono),

@@ -91,7 +91,8 @@
 .insight-item p { margin: 4px 0 0; color: #aeb6c8; font-size: .88rem; }
 
 .desktop-table { overflow-x: auto; border: 1px solid rgba(255,255,255,.1); border-radius: 14px; }
-table { width: 100%; border-collapse: collapse; min-width: 0; table-layout: fixed; }
+table { width: 100%; border-collapse: collapse; min-width: 1800px; table-layout: auto; }
+.sale-price-note { color: var(--inv-muted); font-size: .82rem; line-height: 1.5; margin: 0 0 14px; }
 th, td {
   text-align: left;
   padding: 10px;

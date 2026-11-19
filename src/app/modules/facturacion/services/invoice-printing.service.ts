@@ -8,9 +8,15 @@ import { QzSerialPrinterService } from './qz-serial-printer.service';
 import { ThermalPrinterService } from './thermal-printer.service';
 import { WebSerialPrinterService } from './web-serial-printer.service';
 import { WebUsbPrinterService } from './web-usb-printer.service';
+import { TurnoCaja } from '../models/turno-caja.model';
+import { CuentaAbierta } from '../models/cuenta-abierta.model';
+import { precuentaDocumento } from '../helpers/cuenta-abierta.helper';
 
 @Injectable({ providedIn: 'root' })
 export class InvoicePrintingService {
+  async printPrebill(cuenta: CuentaAbierta): Promise<void> {
+    await this.print(precuentaDocumento(cuenta));
+  }
   constructor(
     private readonly configurationService: PrinterConfigurationService,
     private readonly thermalPrinterService: ThermalPrinterService,
@@ -23,6 +29,11 @@ export class InvoicePrintingService {
   async print(factura: Factura, override?: PrinterConfiguration): Promise<void> {
     const configuration = override || await this.configurationService.load();
     if (!configuration.enabled) throw new Error('PRINTING_DISABLED');
+
+    if (factura.tipoDocumento === 'precuenta' && (configuration.format === 'letter' || configuration.transport === 'browser')) {
+      await this.pdfFacturaService.imprimirPrecuenta(factura, configuration.format);
+      return;
+    }
 
     if (configuration.format === 'letter') {
       this.pdfFacturaService.imprimirFacturaCorporativa(factura);
@@ -56,6 +67,22 @@ export class InvoicePrintingService {
     }
 
     throw new Error('WEB_PRINTER_NOT_CONFIGURED');
+  }
+
+  async printShiftClose(turno: TurnoCaja): Promise<void> {
+    const configuration = await this.configurationService.load();
+    if (!configuration.enabled) throw new Error('PRINTING_DISABLED');
+    if (configuration.format === 'letter' || configuration.transport === 'browser') {
+      await this.pdfFacturaService.imprimirCierreTurno(turno, turno, turno.efectivoContado ?? 0,
+        turno.observacionCierre || '', configuration.format);
+      return;
+    }
+    const bytes = await this.thermalPrinterService.buildShiftCloseBytes(turno, configuration);
+    if (Capacitor.isNativePlatform()) await this.thermalPrinterService.printBytes(bytes, configuration);
+    else if (configuration.transport === 'webserial') await this.webSerialPrinterService.printBytes(bytes, configuration);
+    else if (configuration.transport === 'webusb') await this.webUsbPrinterService.printBytes(bytes, configuration);
+    else if (configuration.transport === 'qz' || configuration.transport === 'qz-printer') await this.qzSerialPrinterService.printBytes(bytes, configuration);
+    else throw new Error('WEB_PRINTER_NOT_CONFIGURED');
   }
 
   getFriendlyError(error: unknown): string {

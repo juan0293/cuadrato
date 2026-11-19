@@ -102,6 +102,10 @@ export class WebSerialPrinterService {
     return 'No fue posible imprimir desde el navegador mediante el puerto serial.';
   }
 
+  async printBytes(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
+    for (let copy = 0; copy < configuration.copies; copy += 1) await this.write(bytes, configuration);
+  }
+
   private async write(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
     this.assertAvailable();
     const port = await this.resolvePort(configuration);

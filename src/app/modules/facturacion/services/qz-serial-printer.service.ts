@@ -50,6 +50,10 @@ export class QzSerialPrinterService {
     return 'No fue posible imprimir mediante el puente local QZ Tray.';
   }
 
+  async printBytes(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
+    for (let copy = 0; copy < configuration.copies; copy += 1) await this.write(bytes, configuration);
+  }
+
   private async write(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
     if (configuration.transport === 'qz-printer') {
       await this.writePrinterQueue(bytes, configuration);

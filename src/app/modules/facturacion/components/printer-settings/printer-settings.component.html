@@ -44,32 +44,32 @@
               <ion-select-option value="tcp">Red local</ion-select-option>
             </ng-container>
             <ng-template #webTransports>
-              <ion-select-option value="qz-printer">QZ Tray · impresora USB/sistema</ion-select-option>
-              <ion-select-option value="webusb">USB directo · sin QZ Tray</ion-select-option>
+              <ion-select-option value="qz-printer">QZ Tray · impresión directa Windows</ion-select-option>
+              <ion-select-option value="webusb">USB directo </ion-select-option>
               <ion-select-option value="qz">QZ Tray · puerto serial avanzado</ion-select-option>
-              <ion-select-option value="webserial">Bluetooth/USB serial web</ion-select-option>
-              <ion-select-option value="browser">Controlador del sistema</ion-select-option>
+              <ion-select-option value="webserial">Bluetooth/USB directo · sin diálogo de impresión</ion-select-option>
+              <ion-select-option value="browser">Controlador del sistema · con diálogo</ion-select-option>
             </ng-template>
           </ion-select>
         </ion-item>
 
         <p class="hint" *ngIf="form.controls.transport.value === 'bluetooth'">
-          Empareja primero la 2C-P58-C desde los ajustes Bluetooth de Android.
+          Empareja primero la impresora desde los ajustes Bluetooth de Android.
         </p>
         <p class="hint" *ngIf="form.controls.transport.value === 'webserial'">
-          Disponible en Chrome/Edge de escritorio. Empareja primero la 2C-P58-C con la computadora y luego autoriza su puerto aquí.
+          Disponible en Chrome/Edge de escritorio. Empareja primero la impresora con la computadora y luego autoriza su puerto aquí.
         </p>
         <p class="hint" *ngIf="form.controls.transport.value === 'qz'">
           Modo avanzado. Envía datos directamente a /dev/cu.2C-P58-C o al puerto COM; algunos adaptadores Bluetooth aceptan los datos pero no los imprimen.
         </p>
         <p class="hint" *ngIf="form.controls.transport.value === 'qz-printer'">
-          Conecta la impresora con un cable USB de datos, instálala como impresora del sistema y mantenla encendida. QZ Tray enviará ESC/POS directamente a esa cola.
+          Conecta la impresora con un cable USB de datos, instálala como impresora del sistema y mantenla encendida. QZ Tray enviará texto, logo y corte directamente a esa cola, sin abrir el diálogo de impresión de Windows. QZ Tray puede solicitar autorización; para eliminar sus avisos se necesita configurar la firma de mensajes.
         </p>
         <p class="hint" *ngIf="form.controls.transport.value === 'webusb'">
           Chrome solicitará autorización una sola vez y después imprimirá directamente en la Caysn Thermal Printer USB (VID 4B43 / PID 3538), sin avisos de QZ Tray.
         </p>
         <p class="hint" *ngIf="form.controls.transport.value === 'browser'">
-          Requiere instalar el driver de la 2C-P58-C. El navegador mostrará el diálogo de impresión en cada factura.
+          Instala el driver correspondiente a tu impresora y selecciona el ancho de papel configurado. El navegador mostrará el diálogo de impresión en cada factura. En Windows, el corte automático y el avance al finalizar se configuran en las preferencias del driver.
         </p>
         <p class="hint hint--warning" *ngIf="!isNative && form.controls.transport.value === 'webserial' && !webSerialPrinterService.supported">
           Web Serial no está disponible en este navegador. Abre la PWA en Chrome o Edge actualizado desde una computadora.
@@ -142,10 +142,13 @@
           <ion-label position="stacked">Copias</ion-label>
           <ion-input formControlName="copies" type="number" min="1" max="5"></ion-input>
         </ion-item>
-        <div class="setting-toggle">
-          <div><strong>Cortar papel</strong><small>Déjalo apagado para corte manual.</small></div>
+        <div class="setting-toggle" *ngIf="isNative || form.controls.transport.value !== 'browser'">
+          <div><strong>Cortar papel</strong><small>Actívalo para la 2C-POS80-01-V10. Avanza el papel antes de cortar; apágalo para impresoras sin cortador.</small></div>
           <ion-toggle formControlName="cutPaper"></ion-toggle>
         </div>
+        <p class="hint" *ngIf="!isNative && form.controls.transport.value === 'browser'">
+          Para la 2C-POS80-01-V10, usa el driver de 2connet y activa el corte al finalizar el documento. Ajusta también el avance final de papel en el driver. Las copias se seleccionan en el diálogo de impresión.
+        </p>
       </section>
 
       <div class="feedback" *ngIf="feedback" [class.feedback--success]="feedbackType === 'success'"

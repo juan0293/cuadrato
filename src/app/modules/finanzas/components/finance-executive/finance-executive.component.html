@@ -1,0 +1,43 @@
+<section class="executive" aria-labelledby="executive-title">
+  <header><span class="section-kicker">Decisiones gerenciales</span><h2 id="executive-title">Ventas y rentabilidad</h2>
+    <p>Comparación con el período anterior: {{ data.previousLabel }}</p></header>
+  <div class="metric-grid">
+    <article class="metric" *ngFor="let metric of metrics">
+      <span>{{ metric.label }}</span>
+      <strong [class.negative]="metric.value !== null && metric.value < 0">{{ metric.value === null ? 'No disponible' : metric.percent ? (metric.value | number:'1.0-2') + '%' : money(metric.value) }}</strong>
+      <small>{{ metric.description }}</small>
+      <p class="variation" *ngIf="metric.change as change">
+        <ng-container *ngIf="change.absolute !== null; else noComparison">
+          Δ {{ metric.percent ? (change.absolute | number:'1.0-2') + ' pp' : money(change.absolute) }} · {{ change.percent === null ? 'Sin base porcentual' : (change.percent | number:'1.0-2') + '%' }}
+        </ng-container>
+        <ng-template #noComparison>Comparación no disponible</ng-template>
+      </p>
+    </article>
+  </div>
+  <details class="context">
+    <summary>Definiciones, conciliación y calidad de los datos</summary>
+    <p><strong>Conciliación:</strong> total facturado {{ money(data.current.invoiced) }} · ITBIS {{ data.current.taxes === null ? 'No disponible' : money(data.current.taxes) }} · descuentos {{ data.current.discounts === null ? 'No disponibles' : money(data.current.discounts) }}.</p>
+    <p><strong>Costos históricos:</strong> {{ data.current.knownCostLines }} de {{ data.current.totalLines }} líneas con costo positivo registrado. {{ data.current.missingDetailInvoices }} factura(s) sin detalle.</p>
+    <p *ngIf="data.current.costOfSales === null">Falta costear productos o servicios. Los costos cero del POS no permiten verificar si son reales; la ganancia no se calcula con datos incompletos.</p>
+    <p *ngIf="data.current.netSales === null || data.current.grossSales === null">Hay facturas sin impuestos, detalle o importes conciliables. Los indicadores afectados se muestran como no disponibles.</p>
+    <p>Se incluyen facturas emitidas y pagadas por fecha de emisión; se excluyen borradores y anuladas. No existe un registro estructurado de devoluciones o notas de crédito: estas ventas no están ajustadas por devoluciones. La devuelta de efectivo no es una devolución de ventas.</p>
+    <p>Los gastos y otros ingresos son movimientos registrados del rango. No equivalen a cobros de facturas ni aseguran un estado de resultados completo.</p>
+    <p *ngIf="data.invalidDates">{{ data.invalidDates }} registro(s) sin fecha válida quedaron excluidos del análisis temporal.</p>
+  </details>
+  <div class="context" *ngIf="!data.hasData" role="status">No hay ventas ni movimientos registrados en el período seleccionado.</div>
+  <div class="chart-grid">
+    <article class="metric chart-card">
+      <h3>Evolución de ventas y ganancia bruta</h3><small>Agrupación diaria hasta 62 días; mensual para rangos mayores. Los huecos de ganancia indican datos incompletos.</small>
+      <div class="chart" *ngIf="data.current.invoices > 0; else noSales"><app-finance-chart type="line" [labels]="data.timeline.labels" [series]="series" ariaLabel="Evolución de ventas netas y ganancia bruta del rango"></app-finance-chart></div>
+    </article>
+    <article class="metric chart-card">
+      <h3>Ventas, costos y gastos registrados</h3><small>Magnitudes independientes. No se suman para inferir ganancias netas; los valores no disponibles se omiten.</small>
+      <div class="chart" *ngIf="data.hasData; else noSales"><app-finance-chart type="bar" [labels]="comparisonLabels" [data]="data.comparison" palette="category-vivid" datasetLabel="RD$ del período" ariaLabel="Comparativo de ventas netas, costos históricos, gastos y otros ingresos"></app-finance-chart></div>
+    </article>
+    <article class="metric chart-card">
+      <h3>Ventas netas por categoría</h3><small>Categoría guardada en la factura. Distribuye descuentos globales proporcionalmente; sin ITBIS.</small>
+      <div class="chart" *ngIf="hasCategorySales; else noSales"><app-finance-chart type="pie" [labels]="data.current.categories.labels" [data]="data.current.categories.values" palette="category-vivid" datasetLabel="Ventas netas" ariaLabel="Distribución de ventas netas por categoría"></app-finance-chart></div>
+    </article>
+  </div>
+  <ng-template #noSales><p class="empty" role="status">No hay datos suficientes para este gráfico.</p></ng-template>
+</section>

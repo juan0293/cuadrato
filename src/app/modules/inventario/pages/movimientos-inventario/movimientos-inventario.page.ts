@@ -9,6 +9,7 @@ import { MovimientosInventarioService } from '../../services/movimientos-inventa
 import { InventarioThemeService } from '../../services/inventario-theme.service';
 import { UsuariosService } from '../../../usuarios/services/usuarios.service';
 import { UsuarioModel } from '../../../usuarios/models/usuario.model';
+import { ProductosServiciosService } from '../../services/productos-servicios.service';
 
 interface QuickAction {
   title: string;
@@ -38,6 +39,7 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
   movimientos: MovimientoInventario[] = [];
   movimientosFiltrados: MovimientoInventario[] = [];
   usuarios: UsuarioModel[] = [];
+  private preciosVenta = new Map<string, number>();
   loading = true;
   loadError = false;
 
@@ -60,8 +62,8 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
   ];
 
   private sub?: Subscription;
-  private tipoChart?: Chart;
-  private tendenciaChart?: Chart;
+  private tipoChart?: Chart<'doughnut', number[], string>;
+  private tendenciaChart?: Chart<'bar', number[], string>;
   private viewReady = false;
 
   constructor(
@@ -71,13 +73,17 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     private readonly actionSheetCtrl: ActionSheetController,
     private readonly alertCtrl: AlertController,
     private readonly themeService: InventarioThemeService,
+    private readonly productosService: ProductosServiciosService,
   ) {}
 
   ngOnInit(): void {
     this.setDefaultMonthDateRange();
 
-    this.sub = combineLatest([this.movimientosService.list(), this.usuariosService.list()]).subscribe({
-      next: ([items, usuarios]) => {
+    this.sub = combineLatest([this.movimientosService.list(), this.usuariosService.list(), this.productosService.list()]).subscribe({
+      next: ([items, usuarios, productos]) => {
+        this.preciosVenta = new Map(productos
+          .filter(p => p.id && typeof p.precioVenta === 'number' && Number.isFinite(p.precioVenta) && p.precioVenta >= 0)
+          .map(p => [p.id!, p.precioVenta]));
         this.usuarios = usuarios || [];
         this.movimientos = [...items].sort((a, b) => {
           const da = this.parseDate(a.fecha).getTime();
@@ -126,7 +132,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
       Codigo: m.productoId || m.insumoId || '—',
       Cantidad: this.toNumber(m.cantidad),
       CostoUnitario: this.toNumber(m.costoUnitario),
+      PrecioVentaActual: this.getPrecioVenta(m) ?? 'No disponible',
       ValorTotal: this.getValorTotal(m),
+      ValorTotalVentaActual: this.getValorTotalVenta(m) ?? 'No disponible',
       Referencia: m.referenciaId || m.referenciaTipo || '—',
       Responsable: this.getResponsableNombre(m),
       Estado: 'Registrado',
@@ -175,7 +183,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
         `Fecha: ${this.formatDate(movimiento.fecha, true)}`,
         `Cantidad: ${this.toNumber(movimiento.cantidad)}`,
         `Costo unitario: ${this.formatMoney(movimiento.costoUnitario)}`,
+        `Precio de venta actual: ${this.formatVenta(this.getPrecioVenta(movimiento))}`,
         `Valor total: ${this.formatMoney(this.getValorTotal(movimiento))}`,
+        `Valor total de venta: ${this.formatVenta(this.getValorTotalVenta(movimiento))}`,
         `Responsable: ${this.getResponsableNombre(movimiento)}`,
         `Referencia: ${movimiento.referenciaId || movimiento.referenciaTipo || '—'}`,
       ].join('<br>'),
@@ -222,7 +232,9 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
       const motivo = String(m.motivo || '').toLowerCase();
       const creadoPor = String(this.getResponsableNombre(m) || '').toLowerCase();
       const matchText = !q || [product, referencia, motivo, label.toLowerCase()].some((v) => v.includes(q));
-      const matchTipo = this.filtroTipo === 'todos' || this.getTipoGrupo(m) === this.filtroTipo;
+      const matchTipo = this.filtroTipo === 'todos' || (this.filtroTipo === 'anulacion_compra'
+        ? this.getTipoValue(m) === 'anulacion_compra'
+        : this.getTipoGrupo(m) === this.filtroTipo);
       const matchResp = !resp || creadoPor.includes(resp);
       const date = this.parseDate(m.fecha);
       const validDate = !Number.isNaN(date.getTime());
@@ -384,6 +396,19 @@ export class MovimientosInventarioPage implements OnInit, AfterViewInit, OnDestr
     const costoTotal = this.toNumber(m.costoTotal);
     if (costoTotal > 0) return costoTotal;
     return this.toNumber(m.cantidad) * this.toNumber(m.costoUnitario);
+  }
+
+  getPrecioVenta(m: MovimientoInventario): number | null {
+    return m.productoId ? this.preciosVenta.get(m.productoId) ?? null : null;
+  }
+
+  getValorTotalVenta(m: MovimientoInventario): number | null {
+    const precio = this.getPrecioVenta(m);
+    return precio === null ? null : Number((this.toNumber(m.cantidad) * precio).toFixed(2));
+  }
+
+  formatVenta(value: number | null): string {
+    return value === null ? 'No disponible' : this.formatMoney(value);
   }
 
   getResponsableNombre(m: MovimientoInventario): string {

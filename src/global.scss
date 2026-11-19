@@ -987,6 +987,52 @@ body.facturacion-dark-theme ion-modal.cobro-modal .quick-client-card {
   color: #f8fafc;
 }
 
+/* Etiquetas del cobro con la misma jerarquía y contraste que sus importes. */
+ion-modal.cobro-modal {
+  --cobro-label-color: #14213d;
+}
+body.facturacion-dark-theme ion-modal.cobro-modal {
+  --cobro-label-color: #f8fafc;
+}
+body.facturacion-dark-theme ion-modal.cobro-modal .modal-card-cobro .cobro-highlight {
+  background: #172236;
+  border-color: #334155;
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-highlight strong {
+  color: var(--cobro-label-color);
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-highlight ion-input {
+  --color: var(--cobro-label-color);
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-highlight > span {
+  color: var(--cobro-label-color);
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.4;
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-resumen {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  column-gap: 16px;
+  row-gap: 14px;
+  padding-block: 16px;
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-resumen > span,
+ion-modal.cobro-modal .modal-card-cobro .cobro-resumen > strong {
+  color: var(--cobro-label-color);
+  font-size: clamp(16px, 1.8vw, 18px);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-resumen > span {
+  font-weight: 650;
+}
+ion-modal.cobro-modal .modal-card-cobro .cobro-resumen > strong {
+  text-align: right;
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+}
+
 .facturacion-page .product-price-hero {
   display: inline-flex;
   min-height: 34px;

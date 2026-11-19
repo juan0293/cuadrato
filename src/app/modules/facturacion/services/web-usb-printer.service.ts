@@ -105,6 +105,10 @@ export class WebUsbPrinterService {
     return 'No fue posible imprimir directamente por WebUSB.';
   }
 
+  async printBytes(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
+    for (let copy = 0; copy < configuration.copies; copy += 1) await this.write(bytes, configuration);
+  }
+
   private async write(bytes: Uint8Array, configuration: PrinterConfiguration): Promise<void> {
     const vendorId = configuration.webUsbVendorId;
     const productId = configuration.webUsbProductId;

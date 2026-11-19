@@ -53,7 +53,7 @@ export class ComprasService {
     return this.updateCompra(id, payload);
   }
 
-  async confirmarCompra(id: string): Promise<void> {
+  async confirmarCompra(id: string): Promise<Compra> {
     const compra = await firstValueFrom(this.getById(id));
 
     if (!compra?.id) throw new Error('COMPRA_NOT_FOUND');
@@ -88,7 +88,7 @@ export class ComprasService {
         }
 
         if (item.actualizarPrecioVentaProducto) {
-          updatePayload["precioVenta"] = item.precioVentaSugerido ?? item.costoUnitario;
+          updatePayload["precioVenta"] = item.precioVenta ?? item.precioVentaSugerido ?? item.costoUnitario;
         }
 
         await this.productosServiciosService.update(item.productoId, updatePayload as any);
@@ -100,13 +100,15 @@ export class ComprasService {
       cuentaPorPagarId = await this.cuentasPorPagarService.createFromCompra(compra);
     }
 
-    await this.update(id, {
+    const confirmation: Partial<Compra> = {
       estado: 'confirmada',
       inventarioAfectado: true,
       cuentaPorPagarId,
       confirmadoPor: compra.creadoPor || 'sistema',
       fechaConfirmacion: new Date().toISOString(),
-    });
+    };
+    await this.update(id, confirmation);
+    return { ...compra, ...confirmation };
   }
 
   async anularCompra(id: string): Promise<void> {
@@ -122,37 +124,40 @@ export class ComprasService {
       if (compra.estado !== 'confirmada') throw new Error('ONLY_CONFIRMED_COMPRA_CAN_BE_VOIDED');
 
       const items = Array.isArray(compra.items) ? compra.items : [];
-      const inventariables = items.filter((item) => item?.manejaInventario && item?.tipoItem === 'bien');
+      const inventariables = compra.afectaInventario
+        ? items.filter((item) => item?.manejaInventario && item?.tipoItem === 'bien')
+        : [];
       const nowIso = new Date().toISOString();
       const movimientosCollection = db.collection('movimientosInventario');
 
-      // Valida stock suficiente antes de aplicar cualquier cambio para evitar inconsistencias.
+      // Firestore exige completar todas las lecturas antes de la primera escritura.
+      const productos = new Map<string, { stockActual: number; nombre?: string }>();
       for (const item of inventariables) {
         if (!item.productoId) throw new Error('COMPRA_ITEM_PRODUCT_REQUIRED');
+        if (productos.has(item.productoId)) continue;
 
         const productoRef = db.doc(`productosServicios/${item.productoId}`);
         const productoSnap = await tx.get(productoRef);
         if (!productoSnap.exists) throw new Error(`PRODUCT_NOT_FOUND:${item.productoId}`);
 
         const productoData = productoSnap.data() as { stockActual?: number; nombre?: string };
-        const stockActual = Number(productoData?.stockActual || 0);
-        const cantidad = Number(item.cantidad || 0);
-
-        if (cantidad <= 0) continue;
-        if (stockActual < cantidad) throw new Error(`INSUFFICIENT_STOCK_TO_REVERSE:${item.nombre || item.productoId}`);
+        productos.set(item.productoId, {
+          stockActual: Number(productoData?.stockActual || 0),
+          nombre: productoData?.nombre,
+        });
       }
 
       for (const item of inventariables) {
-        if (!item.productoId) continue;
-
         const productoRef = db.doc(`productosServicios/${item.productoId}`);
-        const productoSnap = await tx.get(productoRef);
-        const productoData = productoSnap.data() as { stockActual?: number; nombre?: string };
-        const stockAnterior = Number(productoData?.stockActual || 0);
+        const productoData = productos.get(item.productoId)!;
+        const stockAnterior = productoData.stockActual;
         const cantidad = Number(item.cantidad || 0);
         if (cantidad <= 0) continue;
+        if (stockAnterior < cantidad) throw new Error(`INSUFFICIENT_STOCK_TO_REVERSE:${item.nombre || item.productoId}`);
 
         const stockNuevo = Number((stockAnterior - cantidad).toFixed(2));
+        // Acumula la reversa cuando un producto aparece en varias líneas.
+        productoData.stockActual = stockNuevo;
         tx.update(productoRef, {
           stockActual: stockNuevo,
           fechaActualizacion: nowIso,
